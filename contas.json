@@ -1,0 +1,28 @@
+{
+  "mestre": {
+    "pass": "123",
+    "x": 400,
+    "y": 450,
+    "gold": 1000,
+    "bank": 500,
+    "health": 100,
+    "hasChar": false,
+    "characters": [
+      {
+        "name": "Mestre",
+        "bodyColor": 16777215,
+        "x": 400,
+        "y": 450,
+        "gold": 100,
+        "bank": 500,
+        "health": 100
+      }
+    ]
+  },
+  "Guardian": {
+    "pass": "98546478",
+    "characters": [],
+    "adminLevel": 0,
+    "adminRole": "Player"
+  }
+}

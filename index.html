@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AVARIS MMORPG</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        canvas {
+            display: block;
+            margin: auto;
+        }
+    </style>
+    <!-- Importando o framework Phaser via CDN para garantir carregamento na nuvem -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.80.0/phaser.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        #mobile-chat-input {
+            position: fixed;
+            bottom: -100px;
+            left: 0;
+            width: 100%;
+            height: 50px;
+            z-index: 10001;
+            background: #151522;
+            border-top: 2px solid #f3e5ab;
+            color: white;
+            padding: 10px;
+            font-size: 16px; /* Evita zoom automático no iOS */
+            font-family: monospace;
+            pointer-events: auto;
+            transition: bottom 0.3s ease;
+            -webkit-overflow-scrolling: touch;
+        }
+        #mobile-chat-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: rgba(27, 27, 47, 0.9);
+            border: 2px solid #f3e5ab;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            pointer-events: auto;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        @media (max-width: 768px) {
+            #mobile-chat-btn { display: flex; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loginOverlay" style="position: fixed; top: 0; left: 0; z-index: 9999; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; pointer-events: all;">
+        <h1>AVARIS MMORPG</h1>
+        <div class="auth-container">
+            <input type="text" id="username" placeholder="NOME DE USUÁRIO">
+            <input type="password" id="password" placeholder="SENHA SECRETA">
+            <div style="display: flex; gap: 10px;">
+                <button id="btnLogin" disabled>ENTRAR</button>
+                <button id="btnRegister" disabled>REGISTRAR</button>
+            </div>
+            <p id="auth-error"></p>
+            <div class="pix-footer">Apoie o projeto via PIX: 70986804436</div>
+        </div>
+    </div>
+    <div id="mobile-chat-btn">💬</div>
+    <input type="text" id="mobile-chat-input" autocomplete="off" placeholder="Digite sua mensagem...">
+
+    <!-- Carrega o seu script principal do jogo -->
+    <script src="main.js"></script>
+</body>
+</html>
