@@ -1289,28 +1289,27 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
             
             sprite.setData('skinBase64', skinBase64);
             sprite.customSpriteData = skinBase64;
+            
+            // Força a atualização visual direta no objeto sprite
             sprite.setTexture(sheetKey);
             sprite.setFrame(0);
             sprite.clearTint();
             
-            // Ocultação permanente do sprite base original
+            // Destruição imperativa do sprite base original
             if (sprite.baseSprite) {
-                sprite.baseSprite.setVisible(false);
-                sprite.baseSprite.destroy(); // Remove o objeto para garantir que nunca apareça
+                sprite.baseSprite.destroy();
                 sprite.baseSprite = null;
             }
             
             if (sprite === player) player.setAlpha(1); 
             
-            // Força o reinício da animação com a nova textura
-            const currentAnim = sprite.anims.currentAnim ? sprite.anims.currentAnim.key : 'idle_down';
-            const targetAnim = currentAnim.endsWith('_custom') ? currentAnim : currentAnim + '_custom';
-            
+            // Reinicia animação padrão usando a nova spritesheet imediatamente
+            const targetAnim = 'idle_down_custom';
             if (sprite.anims.exists(targetAnim)) {
                 sprite.play(targetAnim);
             }
 
-            console.log(`[SKIN] ✅ Skin aplicada com sucesso (Sem flicker): ${username}`);
+            console.log(`[SKIN] ✅ Spritesheet substituída instantaneamente para: ${username}`);
         }
     });
 }
