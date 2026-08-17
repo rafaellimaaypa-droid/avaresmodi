@@ -3876,8 +3876,6 @@ function abrirPainelPersonalizacao(scene) {
     carregarGaleriaSprites();
 
     // Botão de Novo PNG (Tarefa 2a)
-    const btnInputPhaser = scene.add.text(400, 300, '', { font: '1px Arial' }).setInteractive(); // Dummy para manter lógica de clique se necessário
-    
     // Injetar botão de upload no modal DOM para isolamento (Tarefa 2)
     const uploadBtn = document.createElement('button');
     uploadBtn.innerText = '📁 ENVIAR NOVO PNG';
@@ -3918,7 +3916,7 @@ function abrirPainelPersonalizacao(scene) {
                         previewCont.style.backgroundImage = 'none';
                         previewCont.style.display = 'block';
                         previewCont.style.overflowY = 'auto'; // Permite ver o sheet todo se for grande
-                        btnConfirm.setVisible(true);
+                        confirmBtnDom.style.display = 'block';
                     }
                 };
                 img.src = readerEvent.target.result;
