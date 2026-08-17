@@ -153,7 +153,7 @@ function conectarMultiplayerOnline() {
     });
 
     socket.on('connect', () => {
-        console.log("🌐 Conexão multiplayer (Socket.IO) estabelecida!");
+        console.log(`[SOCKET] 🌐 Conexão estabelecida! ID: ${socket.id}`);
         if (isLoggedIn && charName) {
             socket.emit('joinGame', {
                 x: player.x,
@@ -1277,30 +1277,28 @@ function finalizarLoginComDados(userData) {
     playerClanRole = userData.clanRole || 'Membro';
 
     if (userData.customSpriteData) {
-        console.log("[DEBUG] Tentando carregar skin do banco...");
-        console.log("[DEBUG] Dados da skin recebidos: ", userData.customSpriteData.substring(0, 50) + "...");
-        
+        console.log("[SKIN] 📥 Iniciando carregamento de skin customizada do banco...");
         player.customSpriteData = userData.customSpriteData;
         const texKey = 'customPlayerSkin';
-        console.log("[DEBUG] Chave da textura no Phaser sendo definida como: ", texKey);
         
         const img = new Image();
         img.onload = () => {
             if (!activeScene || !activeScene.textures) return;
+            console.log("[SKIN] ✅ Imagem carregada. Gerando Spritesheet...");
             if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
             activeScene.textures.addSpriteSheet(texKey, img, { frameWidth: 64, frameHeight: 64 });
             
             player.setTexture(texKey);
             player.clearTint();
-            console.log("[DEBUG] Textura aplicada com sucesso via onload.");
+            console.log("[SKIN] 🎭 Textura aplicada. Sprite original ocultado/substituído.");
 
-            // Forçar aplicação após 3 segundos para garantir
             setTimeout(() => {
                 if (player && activeScene.textures.exists(texKey)) {
-                    console.log("[DEBUG] Forçando aplicação de skin (Fallback 3s)...");
+                    console.log("[SKIN] 🔄 Re-verificação de segurança: Aplicando Skin Novamente.");
                     player.setTexture(texKey);
+                    player.clearTint();
                 }
-            }, 3000);
+            }, 2000);
             
             if (socket && socket.connected) {
                 socket.emit('playerMovement', {
@@ -1311,8 +1309,10 @@ function finalizarLoginComDados(userData) {
                 });
             }
         };
-        img.onerror = () => console.error("Erro ao carregar skin customizada: Base64 inválido.");
+        img.onerror = () => console.error("[SKIN] ❌ Erro crítico: Base64 da skin inválido.");
         img.src = userData.customSpriteData;
+    } else {
+        console.log("[SKIN] 👤 Usando boneco padrão (Sem skin customizada detectada).");
     }
     charName = userData.name;
     charId = userData.charId; 
@@ -2632,7 +2632,7 @@ function conectarChatOnline() {
     });
 
     socket.on('skinUpdated', (data) => {
-        console.log("[DEBUG] Recebendo skin de outro jogador:", data.playerId);
+        console.log(`[REDE-SKIN] 🎭 Recebendo nova skin para jogador remoto: ${data.playerId}`);
         const remoteSprite = otherPlayersSprites[data.playerId];
         if (!remoteSprite || !data.skinData) return;
 
@@ -2640,6 +2640,7 @@ function conectarChatOnline() {
         const img = new Image();
         img.onload = () => {
             if (!activeScene || !activeScene.textures) return;
+            console.log(`[REDE-SKIN] ✅ Skin aplicada ao jogador ${data.playerId}`);
             if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
             activeScene.textures.addSpriteSheet(texKey, img, { frameWidth: 64, frameHeight: 64 });
                 
@@ -2713,6 +2714,7 @@ function conectarChatOnline() {
             if (playerInfo.customSpriteData) {
                 const texKey = 'skin_' + playerInfo.id;
                 if (!activeScene.textures.exists(texKey)) {
+                    console.log(`[REDE] 📥 Carregando skin de movimento para: ${playerInfo.name}`);
                     const img = new Image();
                     img.onload = () => {
                         if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
@@ -4091,9 +4093,13 @@ function update() {
     }
     player.anims.play(animToPlay, true);
 
-    // Bloqueio de segurança: Mantém a skin customizada se ela existir no cache
-    if (activeScene.textures.exists('customPlayerSkin') && player.texture.key !== 'customPlayerSkin') {
-        player.setTexture('customPlayerSkin');
+    // Bloqueio de segurança e Estabilização de Textura (Evita camada dupla/overwrites)
+    if (activeScene.textures.exists('customPlayerSkin')) {
+        if (player.texture.key !== 'customPlayerSkin') {
+            console.log("[SYSTEM] ⚠️ Correção em tempo real: Restaurando skin customizada.");
+            player.setTexture('customPlayerSkin');
+            player.clearTint(); // Garante que o tint do boneco padrão não afete a skin
+        }
     }
 
     player.setDepth(player.y);
