@@ -144,45 +144,32 @@ let playerId = null;
 let otherPlayers = {};
 
 function conectarMultiplayerOnline() {
-    if (chatSocket && (chatSocket.readyState === WebSocket.OPEN || chatSocket.readyState === WebSocket.CONNECTING)) return;
-    chatSocket = new WebSocket(wsUrl);
+    if (typeof CHAT_NETWORK === 'undefined' || !CHAT_NETWORK.enabled) return;
+    if (socket && socket.connected) return;
 
-    chatSocket.onopen = () => console.log('🌐 Conexão multiplayer estabelecida!');
+    socket = io(CHAT_NETWORK.url, {
+        transports: ['websocket', 'polling'],
+        reconnectionAttempts: 5,
+        reconnectionDelay: 2000
+    });
 
-    chatSocket.onmessage = (event) => {
-        try {
-            const data = JSON.parse(event.data);
-            if (data.type === 'init') {
-                playerId = data.payload.id;
-                Object.keys(data.payload.players).forEach(id => {
-                    if (id !== playerId) adicionarOutroJogador(activeScene, data.payload.players[id]);
-                });
-            } else if (data.type === 'newPlayer') {
-                if (data.payload.id !== playerId) adicionarOutroJogador(activeScene, data.payload);
-            } else if (data.type === 'update') {
-                let remoteSprite = otherPlayersSprites[data.payload.id];
-                if (remoteSprite) {
-                    remoteSprite.setPosition(data.payload.x, data.payload.y);
-                    if (data.payload.anim) remoteSprite.anims.play(data.payload.anim, true);
-                }
-            } else if (data.type === 'removePlayer') {
-                if (otherPlayersSprites[data.payload.id]) {
-                    if (otherPlayersSprites[data.payload.id].playerNameText) otherPlayersSprites[data.payload.id].playerNameText.destroy();
-                    otherPlayersSprites[data.payload.id].destroy();
-                    delete otherPlayersSprites[data.payload.id];
-                }
-            } else if (data.type === 'chat') {
-                adicionarMensagemChat(data.payload.autor, data.payload.texto, data.payload.canal);
-            }
-        } catch (erro) {
-            console.error('Erro na rede multiplayer:', erro);
+    socket.on('connect', () => {
+        console.log("🌐 Conexão multiplayer (Socket.IO) estabelecida!");
+        if (isLoggedIn && charName) {
+            socket.emit('joinGame', {
+                x: player.x,
+                y: player.y,
+                name: charName,
+                accountUser: currentUser,
+                bodyColor: charBodyColor,
+                facing: playerFacing,
+                anim: player.anims.currentAnim ? player.anims.currentAnim.key : 'idle_down',
+                adminRole: adminRole,
+                adminLevel: adminLevel,
+                clanTag: playerClanTag
+            });
         }
-    };
-
-    chatSocket.onclose = () => {
-        chatSocket = null;
-        setTimeout(conectarMultiplayerOnline, 3000); // Tenta reconectar
-    };
+    });
 }
 
 let mobileInputEl = null;
