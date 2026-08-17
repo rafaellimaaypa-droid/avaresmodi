@@ -403,7 +403,7 @@ io.on('connection', (socket) => {
         }
 
         // Reconstrói o playerData baseado no Banco de Dados
-        players[socket.id] = { 
+        const fullPlayerData = { 
             ...playerData,
             name: dbChar.name,
             gold: dbChar.gold,
@@ -418,6 +418,8 @@ io.on('connection', (socket) => {
             clanRole: savedClanRole,
             mongoId: account._id.toString()
         };
+
+        players[socket.id] = fullPlayerData;
 
         if (savedClanTag && cachedClans[savedClanTag]) {
             const membersList = cachedClans[savedClanTag].members.map(m => ({
@@ -436,12 +438,16 @@ io.on('connection', (socket) => {
             });
         }
 
+        // Envia a lista de todos os jogadores para o novo jogador conectado
         socket.emit('currentPlayers', players);
+        
+        // Notifica todos os outros jogadores sobre o novo jogador
+        socket.broadcast.emit('newPlayer', fullPlayerData);
+
         // Sincroniza os objetos do mapa existentes para o novo jogador
         socket.emit('syncMapObjects', worldObjects);
         // Sincroniza territórios
         socket.emit('syncTerritories', territories);
-        socket.broadcast.emit('newPlayer', players[socket.id]);
     });
 
     // Sistema de PvP: Ataque entre jogadores
