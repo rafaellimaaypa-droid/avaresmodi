@@ -3894,12 +3894,26 @@ function abrirPainelPersonalizacao(scene) {
                     // Atualização segura da textura no Phaser
                     if (scene && scene.textures) {
                         try {
-                            if (scene.textures.exists('custom_sheet_' + charName)) {
-                                scene.textures.remove('custom_sheet_' + charName);
+                            const texKey = 'custom_sheet_' + charName;
+                            if (scene.textures.exists(texKey)) {
+                                scene.textures.remove(texKey);
                             }
-                            scene.textures.addBase64('custom_sheet_' + charName, tempBase64);
-                            player.setTexture('custom_sheet_' + charName);
+                            scene.textures.addBase64(texKey, tempBase64);
+                            
+                            // Aplica imediatamente ao sprite do player
+                            player.setTexture(texKey);
                             player.customSpriteData = tempBase64;
+                            
+                            // Notifica o servidor para atualizar para os outros jogadores
+                            if (socket && socket.connected) {
+                                socket.emit('playerMovement', {
+                                    id: socket.id,
+                                    x: player.x,
+                                    y: player.y,
+                                    customSpriteData: tempBase64,
+                                    name: charName
+                                });
+                            }
                         } catch (texErr) {
                             console.error("Erro ao aplicar textura:", texErr);
                         }
@@ -3907,12 +3921,21 @@ function abrirPainelPersonalizacao(scene) {
                     
                     adicionarMensagemChat('Sistema', '✅ Sprite personalizado aplicado e salvo!');
                     
-                    // Fechamento automático e limpeza
+                    // Fechamento automático e limpeza absoluta dos elementos visuais
                     const previewCont = document.getElementById('spritePreviewContainer');
                     if (previewCont) previewCont.style.display = 'none';
                     
-                    bgOverlay.destroy(); panel.destroy(); title.destroy(); closeBtn.destroy();
-                    menuElements.forEach(e => e.destroy());
+                    bgOverlay.destroy(); 
+                    panel.destroy(); 
+                    title.destroy(); 
+                    closeBtn.destroy();
+                    btnConfirm.destroy();
+                    btnInput.destroy();
+                    info.destroy();
+
+                    menuElements.forEach(e => { if(e && e.destroy) e.destroy(); });
+                    menuElements = [];
+                    
                     if (!isMenuOpen) setMinimapVisible(true);
                     
                     tempBase64 = null;
