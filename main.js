@@ -1332,33 +1332,15 @@ function finalizarLoginComDados(userData) {
     playerClanRole = userData.clanRole || 'Membro';
 
     if (userData.customSpriteData) {
-        console.log("[SKIN] 📥 Iniciando carregamento de skin customizada...");
-        player.customSpriteData = userData.customSpriteData;
-        const texKey = 'customPlayerSkin';
-        
-        activeScene.textures.addBase64(texKey, userData.customSpriteData);
-        activeScene.textures.once('addtexture', (key) => {
-            if (key === texKey) {
-                const img = activeScene.textures.get(texKey).getSourceImage();
-                activeScene.textures.addSpriteSheet(texKey + '_sheet', img, { frameWidth: 64, frameHeight: 64 });
-                criarAnimacoesCustomizadas(activeScene, texKey + '_sheet');
-                
-                player.setTexture(texKey + '_sheet');
-                player.setFrame(0);
-                player.clearTint();
-                if (player.baseSprite) player.baseSprite.setVisible(false);
-                if (player.anims.exists('idle_down_custom')) player.play('idle_down_custom');
-                
-                console.log("[SKIN] ✅ Skin aplicada localmente. Base ocultada.");
-            }
-        });
+        console.log("[SKIN] 📥 Aplicando skin inicial do login...");
+        aplicarSkinCustomizada(player, userData.customSpriteData, userData.name.toLowerCase());
             
         if (socket && socket.connected) {
             socket.emit('playerMovement', {
                 id: socket.id,
                 x: player.x,
                 y: player.y,
-                customSpriteData: player.customSpriteData
+                customSpriteData: userData.customSpriteData
             });
         }
     } else {
