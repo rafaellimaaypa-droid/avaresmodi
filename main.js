@@ -1258,6 +1258,38 @@ async function handleAuth(type) {
     }
 }
 
+function aplicarSkinCustomizada(sprite, skinBase64, username) {
+    if (!activeScene || !skinBase64) return;
+
+    const texKey = 'skin_' + username;
+    const sheetKey = texKey + '_sheet';
+
+    if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
+    if (activeScene.textures.exists(sheetKey)) activeScene.textures.remove(sheetKey);
+
+    activeScene.textures.addBase64(texKey, skinBase64);
+    activeScene.textures.once('addtexture', (key) => {
+        if (key === texKey) {
+            const img = activeScene.textures.get(texKey).getSourceImage();
+            activeScene.textures.addSpriteSheet(sheetKey, img, { frameWidth: 64, frameHeight: 64 });
+            criarAnimacoesCustomizadas(activeScene, sheetKey);
+            
+            sprite.setTexture(sheetKey);
+            sprite.setFrame(0);
+            sprite.clearTint();
+            
+            // Ocultação permanente do sprite base para evitar flicker
+            if (sprite.baseSprite) sprite.baseSprite.setVisible(false);
+            if (sprite === player) player.setAlpha(1); // Garante visibilidade se estava em noclip
+            
+            if (sprite.anims.exists('idle_down_custom')) {
+                sprite.play('idle_down_custom');
+            }
+            console.log(`[SKIN] ✅ Skin aplicada e base ocultada para: ${username}`);
+        }
+    });
+}
+
 function criarAnimacoesCustomizadas(scene, key) {
     const directions = ['down', 'left', 'right', 'up'];
     directions.forEach((dir, index) => {
@@ -2638,42 +2670,21 @@ function conectarChatOnline() {
     });
 
     socket.on('skinUpdated', (data) => {
-        // Localiza o sprite pelo ID do socket ou pelo nome da conta vinculado ao sprite
-        let targetSprite = otherPlayersSprites[data.playerId];
-        
-        // Fallback: se não achar por socket ID (ex: veio via HTTP), procura pelo nome
-        if (!targetSprite && data.username) {
-            targetSprite = Object.values(otherPlayersSprites).find(s => 
-                s.getData('playerData') && s.getData('playerData').accountUser === data.username
-            );
-        }
-        
-        // Se for o próprio jogador local
-        if (data.username === currentUser.toLowerCase()) {
+        let targetSprite = null;
+        const targetUsername = data.username ? data.username.toLowerCase() : "";
+
+        if (targetUsername === currentUser.toLowerCase()) {
             targetSprite = player;
+        } else {
+            targetSprite = Object.values(otherPlayersSprites).find(s => {
+                const pData = s.getData('playerData');
+                return pData && pData.accountUser && pData.accountUser.toLowerCase() === targetUsername;
+            });
         }
 
-        if (!targetSprite || !data.skinData) return;
-
-        const texKey = 'skin_' + (data.playerId || data.username);
-        activeScene.textures.addBase64(texKey, data.skinData);
-        activeScene.textures.once('addtexture', (key) => {
-            if (key === texKey) {
-                const img = activeScene.textures.get(texKey).getSourceImage();
-                const sheetKey = texKey + '_sheet';
-                if (activeScene.textures.exists(sheetKey)) activeScene.textures.remove(sheetKey);
-                activeScene.textures.addSpriteSheet(sheetKey, img, { frameWidth: 64, frameHeight: 64 });
-                criarAnimacoesCustomizadas(activeScene, sheetKey);
-                
-                targetSprite.setTexture(sheetKey);
-                targetSprite.setFrame(0);
-                targetSprite.clearTint();
-                if (targetSprite.baseSprite) targetSprite.baseSprite.setVisible(false);
-                if (targetSprite.anims.exists('idle_down_custom')) targetSprite.play('idle_down_custom');
-                
-                console.log(`[REDE-SKIN] ✅ Skin aplicada e base removida para: ${data.username || data.playerId}`);
-            }
-        });
+        if (targetSprite && data.skinData) {
+            aplicarSkinCustomizada(targetSprite, data.skinData, targetUsername);
+        }
     });
 
     socket.on('receberConviteClan', (data) => {
@@ -2736,28 +2747,11 @@ function conectarChatOnline() {
     socket.on('playerMoved', (playerInfo) => {
         let remoteSprite = otherPlayersSprites[playerInfo.id];
         if (remoteSprite) {
-            const texKey = 'skin_' + playerInfo.id;
+            const targetUsername = playerInfo.accountUser ? playerInfo.accountUser.toLowerCase() : "";
+            const texKey = 'skin_' + targetUsername + '_sheet';
             
-            // Sincronização de skin ao mover: Apenas aplica se a textura mudou ou não existe
-            if (playerInfo.customSpriteData) {
-                if (!activeScene.textures.exists(texKey)) {
-                    console.log(`[REDE] 📥 Carregando nova skin para: ${playerInfo.name}`);
-                    const img = new Image();
-                    img.onload = () => {
-                        if (!activeScene.textures.exists(texKey)) {
-                            activeScene.textures.addSpriteSheet(texKey, img, { frameWidth: 64, frameHeight: 64 });
-                            criarAnimacoesCustomizadas(activeScene, texKey);
-                        }
-                        if (remoteSprite.texture.key !== texKey) {
-                            remoteSprite.setTexture(texKey);
-                            remoteSprite.clearTint();
-                        }
-                    };
-                    img.src = playerInfo.customSpriteData;
-                } else if (remoteSprite.texture.key !== texKey) {
-                    remoteSprite.setTexture(texKey);
-                    remoteSprite.clearTint();
-                }
+            if (playerInfo.customSpriteData && remoteSprite.texture.key !== texKey) {
+                aplicarSkinCustomizada(remoteSprite, playerInfo.customSpriteData, targetUsername);
             }
 
             remoteSprite.setData('playerData', playerInfo);
@@ -3932,29 +3926,12 @@ function abrirPainelPersonalizacao(scene) {
     };
 
     const aplicarEFechar = (base64) => {
-        const texKey = 'customPlayerSkin';
-        activeScene.textures.addBase64(texKey, base64);
-        activeScene.textures.once('addtexture', (key) => {
-            if (key === texKey) {
-                const img = activeScene.textures.get(texKey).getSourceImage();
-                const sheetKey = texKey + '_sheet';
-                if (activeScene.textures.exists(sheetKey)) activeScene.textures.remove(sheetKey);
-                activeScene.textures.addSpriteSheet(sheetKey, img, { frameWidth: 64, frameHeight: 64 });
-                criarAnimacoesCustomizadas(activeScene, sheetKey);
-                
-                player.setTexture(sheetKey);
-                player.setFrame(0);
-                player.clearTint();
-                player.customSpriteData = base64;
-                if (player.baseSprite) player.baseSprite.setVisible(false);
+        player.customSpriteData = base64;
+        aplicarSkinCustomizada(player, base64, currentUser.toLowerCase());
 
-                console.log("[SKIN] ✅ Skin da galeria aplicada e base ocultada.");
-
-                if (socket && socket.connected) {
-                    socket.emit('skinChanged', base64);
-                }
-            }
-        });
+        if (socket && socket.connected) {
+            socket.emit('skinChanged', base64);
+        }
         
         fetch(`${BASE_URL}/api/upload-sprite`, {
             method: 'POST',
