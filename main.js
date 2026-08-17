@@ -1260,58 +1260,59 @@ async function handleAuth(type) {
 function aplicarSkinCustomizada(sprite, skinBase64, username) {
     if (!activeScene || !skinBase64 || skinBase64.length < 100) return;
 
-    const texKey = 'skin_' + username;
-    const sheetKey = texKey + '_sheet';
+    const textureKey = 'skin_' + username + '_sheet';
 
     // Bloqueio de redundância: Se a skin já está aplicada, não faz nada
-    if (sprite.getData('skinBase64') === skinBase64 && activeScene.textures.exists(sheetKey)) {
-        if (sprite.texture.key !== sheetKey) {
-            sprite.setTexture(sheetKey);
+    if (sprite.getData('skinBase64') === skinBase64 && activeScene.textures.exists(textureKey)) {
+        if (sprite.texture.key !== textureKey) {
+            sprite.setTexture(textureKey);
             sprite.clearTint();
         }
-        if (sprite.baseSprite) sprite.baseSprite.setVisible(false);
         return;
     }
 
-    // Limpeza de texturas antigas para este usuário específico
-    if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
-    if (activeScene.textures.exists(sheetKey)) activeScene.textures.remove(sheetKey);
+    const img = new Image();
+    img.src = skinBase64;
+    img.onload = () => {
+        if (!activeScene) return;
 
-    // Verificação de segurança adicional para evitar duplicidade no addBase64
-    if (!activeScene.textures.exists(texKey)) {
-        activeScene.textures.addBase64(texKey, skinBase64);
-    }
-    activeScene.textures.once('addtexture', (key) => {
-        if (key === texKey) {
-            const img = activeScene.textures.get(texKey).getSourceImage();
-            activeScene.textures.addSpriteSheet(sheetKey, img, { frameWidth: 64, frameHeight: 64 });
-            criarAnimacoesCustomizadas(activeScene, sheetKey);
-            
-            sprite.setData('skinBase64', skinBase64);
-            sprite.customSpriteData = skinBase64;
-            
-            // Força a atualização visual direta no objeto sprite
-            sprite.setTexture(sheetKey);
-            sprite.setFrame(0);
+        // Remove textura anterior se existir para evitar conflito de cache
+        if (activeScene.textures.exists(textureKey)) {
+            activeScene.textures.remove(textureKey);
+        }
+
+        // Registra o spritesheet com os quadros cortados corretamente
+        activeScene.textures.addSpriteSheet(textureKey, img, {
+            frameWidth: 64,
+            frameHeight: 64
+        });
+
+        criarAnimacoesCustomizadas(activeScene, textureKey);
+
+        sprite.setData('skinBase64', skinBase64);
+        sprite.customSpriteData = skinBase64;
+
+        // Aplica a nova textura imediatamente no sprite ativo
+        if (sprite && sprite.active) {
+            sprite.setTexture(textureKey);
             sprite.clearTint();
-            
-            // Destruição imperativa do sprite base original
+
             if (sprite.baseSprite) {
                 sprite.baseSprite.destroy();
                 sprite.baseSprite = null;
             }
-            
-            if (sprite === player) player.setAlpha(1); 
-            
-            // Reinicia animação padrão usando a nova spritesheet imediatamente
+
+            sprite.setVisible(true);
+            if (sprite === player) player.setAlpha(1);
+
             const targetAnim = 'idle_down_custom';
             if (sprite.anims.exists(targetAnim)) {
                 sprite.play(targetAnim);
             }
-
-            console.log(`[SKIN] ✅ Spritesheet substituída instantaneamente para: ${username}`);
+            
+            console.log(`[SKIN] ✅ Spritesheet HTML carregada e aplicada para: ${username}`);
         }
-    });
+    };
 }
 
 function criarAnimacoesCustomizadas(scene, key) {
