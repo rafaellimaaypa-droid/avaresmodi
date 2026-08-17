@@ -1098,8 +1098,8 @@ app.post('/api/admin/action', async (req, res) => {
             if (onlineSocket && players[onlineSocket.id]) {
                 const p = players[onlineSocket.id];
                 if (action === 'teleport') {
-                    p.x = value.x;
-                    p.y = value.y;
+                    p.x = parseInt(value.x);
+                    p.y = parseInt(value.y);
                     onlineSocket.emit('teleportPlayer', { x: p.x, y: p.y });
                     onlineSocket.emit('chatMessage', { playerName: 'Sistema', message: `🚀 Você foi teleportado por um administrador!`, channel: 'SISTEMA' });
                 } else if (action === 'setGold') {
