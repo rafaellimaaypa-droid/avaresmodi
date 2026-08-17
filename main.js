@@ -130,13 +130,54 @@ const CHAT_CONFIG = {
 const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const BASE_URL = (IS_LOCAL ? 'http://localhost:3000' : 'https://avaresmodi.onrender.com').replace(/\/+$/, '');
 
-// Sistema de Rede Socket.io
-const CHAT_NETWORK = {
-    enabled: true,
-    url: BASE_URL
-};
-let socket = null;
-let chatSocket = null; 
+// Sistema de Rede WebSocket
+const wsUrl = window.location.origin.replace(/^http/, 'ws') || 'ws://localhost:3000';
+let chatSocket = null;
+let playerId = null;
+let otherPlayers = {};
+
+function conectarMultiplayerOnline() {
+    if (chatSocket) return;
+    chatSocket = new WebSocket(wsUrl);
+
+    chatSocket.onopen = () => console.log('🌐 Conexão multiplayer estabelecida!');
+
+    chatSocket.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'init') {
+                playerId = data.payload.id;
+                Object.keys(data.payload.players).forEach(id => {
+                    if (id !== playerId) adicionarOutroJogador(activeScene, data.payload.players[id]);
+                });
+            } else if (data.type === 'newPlayer') {
+                if (data.payload.id !== playerId) adicionarOutroJogador(activeScene, data.payload);
+            } else if (data.type === 'update') {
+                let remoteSprite = otherPlayersSprites[data.payload.id];
+                if (remoteSprite) {
+                    remoteSprite.setPosition(data.payload.x, data.payload.y);
+                    if (data.payload.anim) remoteSprite.anims.play(data.payload.anim, true);
+                }
+            } else if (data.type === 'removePlayer') {
+                if (otherPlayersSprites[data.payload.id]) {
+                    if (otherPlayersSprites[data.payload.id].playerNameText) otherPlayersSprites[data.payload.id].playerNameText.destroy();
+                    otherPlayersSprites[data.payload.id].destroy();
+                    delete otherPlayersSprites[data.payload.id];
+                }
+            } else if (data.type === 'chat') {
+                adicionarMensagemChat(data.payload.autor, data.payload.texto, data.payload.canal);
+            }
+        } catch (erro) {
+            console.error('Erro na rede multiplayer:', erro);
+        }
+    };
+
+    chatSocket.onclose = () => {
+        chatSocket = null;
+        setTimeout(conectarMultiplayerOnline, 3000); // Tenta reconectar
+    };
+}
+
 let mobileInputEl = null;
 let otherPlayersGroup = null;
 let otherPlayersSprites = {};
@@ -1141,6 +1182,7 @@ function startGame() {
     }
 
     game = new Phaser.Game(config);
+    conectarMultiplayerOnline();
 }
 
 // Inicializa botões de login fora do ciclo do Phaser
@@ -3908,6 +3950,19 @@ function update() {
         equippedClothesSprite.setFlipX(player.flipX);
     }
 
+    if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+        chatSocket.send(JSON.stringify({
+            type: 'update',
+            payload: {
+                id: socket ? socket.id : charId,
+                x: player.x,
+                y: player.y,
+                facing: typeof playerFacing !== 'undefined' ? playerFacing : null,
+                anim: player.anims && player.anims.currentAnim ? player.anims.currentAnim.key : null,
+                name: charName
+            }
+        }));
+    }
 }
 
 function adicionarObjeto(scene, x, y, key, angle = 0, scaleX = 1, scaleY = 1, emitRede = true, id = null, bodyEnable = null) {
