@@ -3854,7 +3854,10 @@ function update() {
             facing: playerFacing,
             anim: player.anims.currentAnim ? player.anims.currentAnim.key : 'idle_down',
             adminRole: adminRole,
-            adminLevel: adminLevel
+            adminLevel: adminLevel,
+            name: charName,
+            bodyColor: charBodyColor,
+            clanTag: playerClanTag
         });
     }
 
@@ -3953,19 +3956,6 @@ function update() {
         equippedClothesSprite.setFlipX(player.flipX);
     }
 
-    if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
-        chatSocket.send(JSON.stringify({
-            type: 'update',
-            payload: {
-                id: socket ? socket.id : charId,
-                x: player.x,
-                y: player.y,
-                facing: typeof playerFacing !== 'undefined' ? playerFacing : null,
-                anim: player.anims && player.anims.currentAnim ? player.anims.currentAnim.key : null,
-                name: charName
-            }
-        }));
-    }
 }
 
 function adicionarObjeto(scene, x, y, key, angle = 0, scaleX = 1, scaleY = 1, emitRede = true, id = null, bodyEnable = null) {
