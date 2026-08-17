@@ -319,22 +319,23 @@ let players = {};
 let onlineAccounts = new Set();
 let cachedClans = {}; // { tag: { leader: name, members: [] } }
 
-// Sistema de Portais (Teleporte)
-const portals = [
-    { x: 200, y: 300, destX: 1600, destY: 1200, id: "portal_spawn_centro", radius: 50 },
-    { x: 1600, y: 1200, destX: 200, destY: 300, id: "portal_centro_spawn", radius: 50 }
-];
-
 function checkPortals(socket, p) {
-    if (!p) return;
-    for (const portal of portals) {
-        const dist = Math.sqrt(Math.pow(p.x - portal.x, 2) + Math.pow(p.y - portal.y, 2));
-        if (dist < (portal.radius || 40)) {
-            p.x = portal.destX;
-            p.y = portal.destY;
-            console.log(`[PORTAL] Jogador ${p.name} teleportado via ${portal.id}`);
-            socket.emit('teleportPlayer', { x: p.x, y: p.y });
-            return true;
+    if (!p || !worldObjects) return;
+    
+    // Agora utilizamos apenas os objetos dinâmicos do mapa (PORTAL_INVISIVEL)
+    // Isso evita triggers fantasmas em coordenadas fixas como a do Banco (200, 300)
+    for (const obj of worldObjects) {
+        if (obj.key && obj.key.toUpperCase() === 'PORTAL_INVISIVEL' && obj.destX !== undefined) {
+            const dist = Math.sqrt(Math.pow(p.x - obj.x, 2) + Math.pow(p.y - obj.y, 2));
+            const radius = obj.radius || 40;
+
+            if (dist < radius) {
+                p.x = obj.destX;
+                p.y = obj.destY;
+                console.log(`[TELEPORTE] Jogador ${p.name} atravessou portal para: ${p.x}, ${p.y}`);
+                socket.emit('teleportPlayer', { x: p.x, y: p.y });
+                return true;
+            }
         }
     }
     return false;
