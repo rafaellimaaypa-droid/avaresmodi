@@ -1277,7 +1277,10 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
     if (activeScene.textures.exists(sheetKey)) activeScene.textures.remove(sheetKey);
 
-    activeScene.textures.addBase64(texKey, skinBase64);
+    // Verificação de segurança adicional para evitar duplicidade no addBase64
+    if (!activeScene.textures.exists(texKey)) {
+        activeScene.textures.addBase64(texKey, skinBase64);
+    }
     activeScene.textures.once('addtexture', (key) => {
         if (key === texKey) {
             const img = activeScene.textures.get(texKey).getSourceImage();
