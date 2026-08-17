@@ -2562,7 +2562,9 @@ function conectarChatOnline() {
                 if (!activeScene.textures.exists(texKey)) {
                     activeScene.textures.addBase64(texKey, player.customSpriteData);
                 }
+                // Garante que a textura seja usada apenas como skin, não como objeto de mapa
                 player.setTexture(texKey);
+                player.setFrame(0);
                 player.clearTint();
             }
 
@@ -3827,7 +3829,10 @@ function abrirPainelPersonalizacao(scene) {
         bgOverlay.destroy(); panel.destroy(); title.destroy(); closeBtn.destroy();
         menuElements.forEach(e => e.destroy());
         const previewCont = document.getElementById('spritePreviewContainer');
-        if (previewCont) previewCont.style.display = 'none';
+        if (previewCont) {
+            previewCont.style.display = 'none';
+            previewCont.innerHTML = '';
+        }
         if (!isMenuOpen) setMinimapVisible(true);
     });
 
@@ -3873,8 +3878,11 @@ function abrirPainelPersonalizacao(scene) {
                         tempBase64 = spriteData;
                         const previewCont = document.getElementById('spritePreviewContainer');
                         if (previewCont) {
-                            previewCont.style.backgroundImage = `url(${spriteData})`;
+                            // Limpa e exibe como uma tag img única (Tarefa 1)
+                            previewCont.innerHTML = `<img src="${spriteData}" style="width: 100%; height: auto; display: block; image-rendering: pixelated;">`;
+                            previewCont.style.backgroundImage = 'none';
                             previewCont.style.display = 'block';
+                            previewCont.style.overflowY = 'auto';
                             btnConfirm.setVisible(true);
                         }
                     });
@@ -3914,8 +3922,11 @@ function abrirPainelPersonalizacao(scene) {
                     
                     const previewCont = document.getElementById('spritePreviewContainer');
                     if (previewCont) {
-                        previewCont.style.backgroundImage = `url(${compressedBase64})`;
+                        // Limpa e exibe como uma tag img única (Tarefa 1)
+                        previewCont.innerHTML = `<img src="${compressedBase64}" style="width: 100%; height: auto; display: block; image-rendering: pixelated;">`;
+                        previewCont.style.backgroundImage = 'none';
                         previewCont.style.display = 'block';
+                        previewCont.style.overflowY = 'auto'; // Permite ver o sheet todo se for grande
                         btnConfirm.setVisible(true);
                     }
                 };
@@ -3943,7 +3954,10 @@ function abrirPainelPersonalizacao(scene) {
 
                 if (result.success) {
                     const previewCont = document.getElementById('spritePreviewContainer');
-                    if (previewCont) previewCont.style.display = 'none';
+                    if (previewCont) {
+                        previewCont.style.display = 'none';
+                        previewCont.innerHTML = ''; // Limpa o DOM
+                    }
 
                     if (scene && scene.textures) {
                         try {
