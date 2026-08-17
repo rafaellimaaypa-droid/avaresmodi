@@ -2480,7 +2480,7 @@ function processarMensagemChat(texto) {
 }
 
 function conectarChatOnline() {
-    if (!CHAT_NETWORK.enabled) return;
+    if (typeof CHAT_NETWORK === 'undefined' || !CHAT_NETWORK.enabled) return;
     
     socket = io(CHAT_NETWORK.url, {
         transports: ['websocket', 'polling'],
