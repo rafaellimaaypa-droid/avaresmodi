@@ -166,7 +166,8 @@ function conectarMultiplayerOnline() {
                 anim: player.anims.currentAnim ? player.anims.currentAnim.key : 'idle_down',
                 adminRole: adminRole,
                 adminLevel: adminLevel,
-                clanTag: playerClanTag
+                clanTag: playerClanTag,
+                customSpriteData: player.customSpriteData
             });
         }
     });
@@ -1274,6 +1275,14 @@ function finalizarLoginComDados(userData) {
     playerEquippedClothes = userData.equippedClothes || null;
     playerClanTag = (userData.clanTag && userData.clanTag !== "") ? userData.clanTag : null;
     playerClanRole = userData.clanRole || 'Membro';
+
+    if (userData.customSpriteData) {
+        player.customSpriteData = userData.customSpriteData;
+        if (!activeScene.textures.exists('custom_sheet_' + charName)) {
+            activeScene.textures.addBase64('custom_sheet_' + charName, userData.customSpriteData);
+        }
+        player.setTexture('custom_sheet_' + charName);
+    }
     charName = userData.name;
     charId = userData.charId; 
     charBodyColor = userData.bodyColor;
@@ -2629,6 +2638,13 @@ function conectarChatOnline() {
     socket.on('playerMoved', (playerInfo) => {
         let remoteSprite = otherPlayersSprites[playerInfo.id];
         if (remoteSprite) {
+            if (playerInfo.customSpriteData && !activeScene.textures.exists('custom_sheet_' + playerInfo.id)) {
+                activeScene.textures.addBase64('custom_sheet_' + playerInfo.id, playerInfo.customSpriteData);
+                remoteSprite.setTexture('custom_sheet_' + playerInfo.id);
+            } else if (playerInfo.customSpriteData) {
+                remoteSprite.setTexture('custom_sheet_' + playerInfo.id);
+            }
+
             remoteSprite.setData('playerData', playerInfo);
             remoteSprite.setPosition(playerInfo.x, playerInfo.y);
             remoteSprite.setDepth(playerInfo.y);
@@ -3855,7 +3871,8 @@ function update() {
             adminLevel: adminLevel,
             name: charName,
             bodyColor: charBodyColor,
-            clanTag: playerClanTag
+            clanTag: playerClanTag,
+            customSpriteData: player.customSpriteData
         });
     }
 

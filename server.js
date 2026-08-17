@@ -312,7 +312,8 @@ async function startServer() {
                                 "characters.0.inventory": p.inventory || [],
                                 "characters.0.equippedWeapon": p.equippedWeapon || null,
                                 "characters.0.equippedClothes": p.equippedClothes || null,
-                                "characters.0.bank": p.bank || 0
+                                "characters.0.bank": p.bank || 0,
+                                "characters.0.customSpriteData": p.customSpriteData || null
                             }}
                         );
                     } catch (err) {
@@ -456,6 +457,7 @@ io.on('connection', (socket) => {
             inventory: dbChar.inventory || [],
             equippedWeapon: dbChar.equippedWeapon || null,
             equippedClothes: dbChar.equippedClothes || null,
+            customSpriteData: dbChar.customSpriteData || null,
             id: socket.id,
             accountUser: accountUser,
             clanTag: savedClanTag,
@@ -949,6 +951,7 @@ io.on('connection', (socket) => {
                 char.equippedWeapon = data.equippedWeapon || char.equippedWeapon || null;
                 char.equippedClothes = data.equippedClothes || char.equippedClothes || null;
                 char.bank = typeof data.bank === 'number' ? data.bank : (char.bank || 0);
+                char.customSpriteData = data.customSpriteData || char.customSpriteData || null;
         
                 // Validação de clã antes de salvar
                 if (data.clanTag) {
@@ -1026,6 +1029,9 @@ io.on('connection', (socket) => {
             }
             if (movementData.equippedWeapon !== undefined) {
                 players[socket.id].equippedWeapon = movementData.equippedWeapon;
+            }
+            if (movementData.customSpriteData) {
+                players[socket.id].customSpriteData = movementData.customSpriteData;
             }
 
             // Notifica todos os outros sobre a movimentação deste jogador
