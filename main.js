@@ -3854,20 +3854,21 @@ function abrirPainelPersonalizacao(scene) {
         fileInput.click();
     });
 
-    btnConfirm.on('pointerdown', () => {
+    btnConfirm.on('pointerdown', async () => {
         if (tempBase64 && socket && socket.connected) {
             btnConfirm.setText(' [ ⏳ SALVANDO... ] ');
             btnConfirm.disableInteractive();
 
-            const payload = {
-                customSpriteData: tempBase64,
-                name: charName,
-                x: player.x,
-                y: player.y
-            };
+            try {
+                const response = await fetch(`${BASE_URL}/api/upload-sprite`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user: currentUser, customSpriteData: tempBase64 })
+                });
 
-            socket.emit('saveProgress', payload, (response) => {
-                if (response && response.success) {
+                const result = await response.json();
+
+                if (result.success) {
                     player.customSpriteData = tempBase64;
                     if (scene.textures.exists('custom_sheet_' + charName)) {
                         scene.textures.remove('custom_sheet_' + charName);
@@ -3875,7 +3876,16 @@ function abrirPainelPersonalizacao(scene) {
                     scene.textures.addBase64('custom_sheet_' + charName, tempBase64);
                     player.setTexture('custom_sheet_' + charName);
                     
-                    adicionarMensagemChat('Sistema', '✅ Sprite personalizado aplicado e salvo no servidor!');
+                    // Notifica outros jogadores apenas que o sprite mudou
+                    socket.emit('playerMovement', {
+                        id: socket.id,
+                        x: player.x,
+                        y: player.y,
+                        customSpriteData: tempBase64,
+                        name: charName
+                    });
+
+                    adicionarMensagemChat('Sistema', '✅ Sprite personalizado aplicado e salvo!');
                     
                     const previewCont = document.getElementById('spritePreviewContainer');
                     if (previewCont) previewCont.style.display = 'none';
@@ -3884,11 +3894,13 @@ function abrirPainelPersonalizacao(scene) {
                     btnConfirm.setInteractive();
                     tempBase64 = null;
                 } else {
-                    alert("Erro ao salvar sprite: " + (response ? response.error : "Sem resposta"));
-                    btnConfirm.setText(' [ ✅ CONFIRMAR E SALVAR ] ');
-                    btnConfirm.setInteractive();
+                    throw new Error(result.message);
                 }
-            });
+            } catch (err) {
+                alert("Erro ao fazer upload: " + err.message);
+                btnConfirm.setText(' [ ✅ CONFIRMAR E SALVAR ] ');
+                btnConfirm.setInteractive();
+            }
         }
     });
 

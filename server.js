@@ -230,6 +230,22 @@ app.post('/api/characters', async (req, res) => {
     }
 });
 
+app.post('/api/upload-sprite', async (req, res) => {
+    try {
+        const { user, customSpriteData } = req.body;
+        if (!user || !customSpriteData) return res.status(400).json({ message: 'Dados incompletos' });
+        
+        await db.collection('contas').updateOne(
+            { user: user.toLowerCase() },
+            { $set: { "characters.0.customSpriteData": customSpriteData } }
+        );
+        
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
 const mongoUri = "mongodb+srv://rafaellimaaypa_db_user:Avares2026@cluster0.2z21fd6.mongodb.net/?appName=Cluster0";
 let db = null;
 let worldObjects = [];
@@ -1030,9 +1046,6 @@ io.on('connection', (socket) => {
             }
             if (movementData.equippedWeapon !== undefined) {
                 players[socket.id].equippedWeapon = movementData.equippedWeapon;
-            }
-            if (movementData.customSpriteData) {
-                players[socket.id].customSpriteData = movementData.customSpriteData;
             }
 
             // Notifica todos os outros sobre a movimentação deste jogador
