@@ -1276,8 +1276,12 @@ function finalizarLoginComDados(userData) {
     playerClanRole = userData.clanRole || 'Membro';
 
     if (userData.customSpriteData) {
+        console.log("[DEBUG] Tentando carregar skin do banco...");
+        console.log("[DEBUG] Dados da skin recebidos: ", userData.customSpriteData.substring(0, 50) + "...");
+        
         player.customSpriteData = userData.customSpriteData;
         const texKey = 'customPlayerSkin';
+        console.log("[DEBUG] Chave da textura no Phaser sendo definida como: ", texKey);
         
         const img = new Image();
         img.onload = () => {
@@ -1287,6 +1291,15 @@ function finalizarLoginComDados(userData) {
             
             player.setTexture(texKey);
             player.clearTint();
+            console.log("[DEBUG] Textura aplicada com sucesso via onload.");
+
+            // Forçar aplicação após 3 segundos para garantir
+            setTimeout(() => {
+                if (player && activeScene.textures.exists(texKey)) {
+                    console.log("[DEBUG] Forçando aplicação de skin (Fallback 3s)...");
+                    player.setTexture(texKey);
+                }
+            }, 3000);
             
             if (socket && socket.connected) {
                 socket.emit('playerMovement', {
@@ -3851,6 +3864,7 @@ function abrirPainelPersonalizacao(scene) {
     };
 
     const aplicarEFechar = (base64) => {
+        console.log("[DEBUG] Tentando aplicar skin da galeria...");
         const texKey = 'customPlayerSkin';
         const img = new Image();
         img.onload = () => {
@@ -3859,6 +3873,14 @@ function abrirPainelPersonalizacao(scene) {
             player.setTexture(texKey);
             player.clearTint();
             player.customSpriteData = base64;
+            console.log("[DEBUG] Skin da galeria aplicada: ", texKey);
+
+            setTimeout(() => {
+                if (player && scene.textures.exists(texKey)) {
+                    console.log("[DEBUG] Forçando skin da galeria (Fallback 3s)...");
+                    player.setTexture(texKey);
+                }
+            }, 3000);
         };
         img.onerror = () => console.error("Erro ao aplicar skin: Base64 corrompido.");
         img.src = base64;
