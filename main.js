@@ -1279,10 +1279,15 @@ function finalizarLoginComDados(userData) {
         player.customSpriteData = userData.customSpriteData;
         const texKey = 'customPlayerSkin';
         
-        const applyCustomTexture = () => {
+        const img = new Image();
+        img.onload = () => {
+            if (!activeScene || !activeScene.textures) return;
+            if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
+            activeScene.textures.addSpriteSheet(texKey, img, { frameWidth: 32, frameHeight: 32 });
+            
             player.setTexture(texKey);
             player.clearTint();
-            // Notifica outros jogadores sobre a skin completa
+            
             if (socket && socket.connected) {
                 socket.emit('playerMovement', {
                     id: socket.id,
@@ -1292,12 +1297,8 @@ function finalizarLoginComDados(userData) {
                 });
             }
         };
-
-        if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
-        activeScene.textures.addSpriteSheet(texKey, userData.customSpriteData, { frameWidth: 32, frameHeight: 32 });
-        activeScene.textures.once('addtexture', (key) => {
-            if (key === texKey) applyCustomTexture();
-        });
+        img.onerror = () => console.error("Erro ao carregar skin customizada: Base64 inválido.");
+        img.src = userData.customSpriteData;
     }
     charName = userData.name;
     charId = userData.charId; 
@@ -3851,11 +3852,16 @@ function abrirPainelPersonalizacao(scene) {
 
     const aplicarEFechar = (base64) => {
         const texKey = 'customPlayerSkin';
-        if (scene.textures.exists(texKey)) scene.textures.remove(texKey);
-        scene.textures.addSpriteSheet(texKey, base64, { frameWidth: 32, frameHeight: 32 });
-        player.setTexture(texKey);
-        player.clearTint();
-        player.customSpriteData = base64;
+        const img = new Image();
+        img.onload = () => {
+            if (scene.textures.exists(texKey)) scene.textures.remove(texKey);
+            scene.textures.addSpriteSheet(texKey, img, { frameWidth: 32, frameHeight: 32 });
+            player.setTexture(texKey);
+            player.clearTint();
+            player.customSpriteData = base64;
+        };
+        img.onerror = () => console.error("Erro ao aplicar skin: Base64 corrompido.");
+        img.src = base64;
         
         fetch(`${BASE_URL}/api/upload-sprite`, {
             method: 'POST',
