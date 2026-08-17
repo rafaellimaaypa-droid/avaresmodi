@@ -2996,6 +2996,7 @@ function toggleGameMenu(scene) {
 
         const sistemas = [
             { name: 'Inventário', icon: '🎒' },
+            { name: 'Personalizar', icon: '🎨' },
             { name: 'Shop', icon: '💰' },
             { name: 'Banco', icon: '🏦' },
             { name: 'Casa', icon: '🏠' },
@@ -3040,6 +3041,8 @@ function toggleGameMenu(scene) {
             itemBg.on('pointerdown', () => {
                 if (sys.name === 'Inventário') {
                     abrirInventario(scene);
+                } else if (sys.name === 'Personalizar') {
+                    abrirPainelPersonalizacao(scene);
                 } else if (sys.name === 'Shop') {
                     abrirLojaArmas(scene);
                 } else if (sys.name === 'Banco') {
@@ -3794,6 +3797,45 @@ function abrirPerfilConta(scene) {
     const timePlayed = scene.add.text(infoX, infoY + 260, `⏳ TEMPO DE JORNADA: --h --m`, { font: 'bold 10px monospace', fill: '#00ffcc' }).setScrollFactor(0).setDepth(2002);
 
     menuElements.push(bgOverlay, panel, title, backBtn, avatarBox, avatarImg, charNameTxt, divider, timePlayed);
+}
+
+function abrirPainelPersonalizacao(scene) {
+    if (isPlayerDead) return;
+    menuElements.forEach(el => el.destroy());
+    menuElements = [];
+
+    const bgOverlay = scene.add.rectangle(400, 300, 800, 600, 0x000000, 0.85).setScrollFactor(0).setDepth(10000).setInteractive();
+    const panel = scene.add.image(400, 300, 'menu_panel_bg').setScrollFactor(0).setDepth(10001);
+    const title = scene.add.text(400, 85, '🎨 PERSONALIZAÇÃO DE PERSONAGEM', { font: 'bold 18px monospace', fill: '#f3e5ab' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002);
+    
+    const closeBtn = scene.add.text(660, 85, ' [X] ', { font: 'bold 12px monospace', fill: '#fff', backgroundColor: '#811' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
+    closeBtn.on('pointerdown', () => {
+        bgOverlay.destroy(); panel.destroy(); title.destroy(); closeBtn.destroy();
+        menuElements.forEach(e => e.destroy());
+        if (!isMenuOpen) setMinimapVisible(true);
+    });
+
+    const info = scene.add.text(400, 200, "Insira o código Base64 do seu Spritesheet:", { font: 'bold 12px monospace', fill: '#ffffff' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002);
+    
+    const btnInput = scene.add.text(400, 300, ' [ COLAR CÓDIGO DO SPRITE ] ', { font: 'bold 14px monospace', fill: '#ffffff', backgroundColor: '#1b1b3d', padding: { x: 20, y: 10 } })
+        .setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
+
+    btnInput.on('pointerdown', () => {
+        const base64 = prompt("Cole aqui a string Base64 da sua imagem (Spritesheet 32x32):");
+        if (base64 && base64.startsWith('data:image')) {
+            player.customSpriteData = base64;
+            if (!scene.textures.exists('custom_sheet_' + charName)) {
+                scene.textures.addBase64('custom_sheet_' + charName, base64);
+            }
+            player.setTexture('custom_sheet_' + charName);
+            salvarEstadoRemoto();
+            adicionarMensagemChat('Sistema', '✅ Sprite personalizado aplicado!');
+        } else if (base64) {
+            alert("Código inválido! Deve ser um DataURL Base64 de imagem.");
+        }
+    });
+
+    menuElements.push(bgOverlay, panel, title, closeBtn, info, btnInput);
 }
 
 function abrirConfiguracoesHUD(scene) {
