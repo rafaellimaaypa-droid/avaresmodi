@@ -1277,21 +1277,19 @@ function finalizarLoginComDados(userData) {
 
     if (userData.customSpriteData) {
         player.customSpriteData = userData.customSpriteData;
-        const texKey = 'custom_sheet_' + charName;
+        const texKey = 'customPlayerSkin';
         
         const applyCustomTexture = () => {
             player.setTexture(texKey);
             player.setFrame(0);
+            player.clearTint();
         };
 
-        if (!activeScene.textures.exists(texKey)) {
-            activeScene.textures.addBase64(texKey, userData.customSpriteData);
-            activeScene.textures.once('addtexture', (key) => {
-                if (key === texKey) applyCustomTexture();
-            });
-        } else {
-            applyCustomTexture();
-        }
+        if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
+        activeScene.textures.addBase64(texKey, userData.customSpriteData);
+        activeScene.textures.once('addtexture', (key) => {
+            if (key === texKey) applyCustomTexture();
+        });
     }
     charName = userData.name;
     charId = userData.charId; 
@@ -3844,10 +3842,12 @@ function abrirPainelPersonalizacao(scene) {
     };
 
     const aplicarEFechar = (base64) => {
-        const texKey = 'custom_sheet_' + charName;
+        const texKey = 'customPlayerSkin';
         if (scene.textures.exists(texKey)) scene.textures.remove(texKey);
         scene.textures.addBase64(texKey, base64);
         player.setTexture(texKey);
+        player.setFrame(0);
+        player.clearTint();
         player.customSpriteData = base64;
         
         fetch(`${BASE_URL}/api/upload-sprite`, {
@@ -3875,7 +3875,9 @@ function abrirPainelPersonalizacao(scene) {
                     const img = document.createElement('img');
                     img.src = base64;
                     img.style.cssText = 'width: 100%; height: 40px; border: 1px solid #222; cursor: pointer; object-fit: none; object-position: 0 0; image-rendering: pixelated;';
-                    img.onclick = () => aplicarEFechar(base64);
+                    img.addEventListener('click', () => {
+                        aplicarEFechar(base64);
+                    });
                     gallery.appendChild(img);
                 });
             } else {
