@@ -88,6 +88,13 @@ app.post('/api/upload-sprite', async (req, res) => {
                 }
             );
             console.log(`[HTTP] Sprite atualizado para: ${user}`);
+            
+            // Sincroniza em tempo real com todos os jogadores via Socket.io
+            io.emit('skinUpdated', { 
+                username: user.toLowerCase(), 
+                skinData: customSpriteData 
+            });
+
             res.json({ success: true });
         } else {
             res.status(503).json({ success: false, message: 'Banco offline' });
