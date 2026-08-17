@@ -316,6 +316,7 @@ startServer();
 
 // Gerenciamento de Jogadores Online e Cache de Clãs
 let players = {};
+let nameToSocketId = {}; // Mapeamento Nome -> SocketId para convites
 let onlineAccounts = new Set();
 let cachedClans = {}; // { tag: { leader: name, members: [] } }
 
@@ -364,7 +365,9 @@ io.on('connection', (socket) => {
 
         socket.accountUser = accountUser;
         socket.charId = playerData.charId;
+        socket.charName = playerData.name;
         onlineAccounts.add(accountUser);
+        nameToSocketId[playerData.name] = socket.id;
         
         console.log(`[AUTH-LINK] Jogador ${playerData.name} (${accountUser}) conectado no socket ${socket.id}`);
 
@@ -853,9 +856,9 @@ io.on('connection', (socket) => {
                 // Validação de clã antes de salvar
                 if (data.clanTag) {
                     const clanExistente = cachedClans[data.clanTag] || await db.collection('clans').findOne({ tag: data.clanTag });
-                    if (clanExistente && clanExistente.members && clanExistente.members.includes(char.name)) {
+                    if (clanExistente && (clanExistente.members.includes(char.name) || clanExistente.leader === char.name)) {
                         char.clanTag = data.clanTag;
-                        char.clanRole = data.clanRole || 'Membro';
+                        char.clanRole = data.clanRole || (clanExistente.leader === char.name ? 'Líder' : 'Membro');
                     } else {
                         char.clanTag = null;
                         char.clanRole = 'Membro';
@@ -942,6 +945,7 @@ io.on('connection', (socket) => {
             try {
                 // Se o player estava ativo no jogo, força o save final
                 if (p) {
+                    if (nameToSocketId[p.name]) delete nameToSocketId[p.name];
                     console.log(`[DISCONNECT] Forçando save final para: ${user}`);
                     await db.collection('contas').updateOne(
                         { user: new RegExp('^' + user + '$', 'i') }, 
@@ -952,6 +956,7 @@ io.on('connection', (socket) => {
                             "characters.0.health": p.health,
                             "characters.0.inventory": p.inventory || [],
                             "characters.0.clanTag": p.clanTag,
+                            "characters.0.clanRole": p.clanRole,
                             "characters.0.equippedWeapon": p.equippedWeapon || null,
                             "characters.0.equippedClothes": p.equippedClothes || null,
                             "characters.0.bank": p.bank || 0

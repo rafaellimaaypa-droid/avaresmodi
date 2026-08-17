@@ -1719,7 +1719,8 @@ function salvarEstadoRemoto() {
             inventory: playerInventory,
             equippedWeapon: playerEquippedWeapon,
             equippedClothes: playerEquippedClothes,
-            clanTag: playerClanTag
+            clanTag: playerClanTag,
+            clanRole: playerClanRole
         };
 
         console.log(`[AUDITORIA SAVE] Enviando dados para o servidor... (Ouro: ${playerGold}, Itens: ${playerInventory.length})`);
