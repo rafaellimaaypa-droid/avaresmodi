@@ -2544,6 +2544,7 @@ function conectarChatOnline() {
     });
 
     socket.on('newPlayer', (playerInfo) => {
+        console.log("📢 Novo jogador detectado:", playerInfo.name);
         if (playerInfo.id !== socket.id && !otherPlayersSprites[playerInfo.id]) {
             adicionarOutroJogador(activeScene, playerInfo);
         }

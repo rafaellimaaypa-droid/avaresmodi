@@ -860,7 +860,9 @@ io.on('connection', (socket) => {
         };
 
         worldObjects.push(fullObjData);
-        if (db) await db.collection('mapa').insertOne(fullObjData);
+        if (db) {
+            await db.collection('mapa').replaceOne({ id: fullObjData.id }, fullObjData, { upsert: true });
+        }
         io.emit('addMapObject', fullObjData);
     });
 
