@@ -144,14 +144,10 @@ let otherPlayers = {};
 function conectarMultiplayerOnline() {
     if (typeof CHAT_NETWORK === 'undefined' || !CHAT_NETWORK.enabled) return;
     
-    // Deixa o Socket.IO gerenciar a conexão. Se já existir uma instância, não cria outra.
     if (socket) return;
 
     socket = io(CHAT_NETWORK.url, {
         transports: ['websocket', 'polling'],
-        reconnection: true,
-        reconnectionAttempts: Infinity,
-        reconnectionDelay: 2000,
         autoConnect: true
     });
 
@@ -3902,7 +3898,9 @@ function abrirPainelPersonalizacao(scene) {
                 const result = await response.json();
 
                 if (result.success) {
-                    // Atualização segura da textura no Phaser
+                    const previewCont = document.getElementById('spritePreviewContainer');
+                    if (previewCont) previewCont.style.display = 'none';
+
                     if (scene && scene.textures) {
                         try {
                             const texKey = 'custom_sheet_' + charName;
@@ -3910,13 +3908,10 @@ function abrirPainelPersonalizacao(scene) {
                                 scene.textures.remove(texKey);
                             }
                             scene.textures.addBase64(texKey, tempBase64);
-                            
-                            // Aplica imediatamente ao sprite do player e limpa tintas
                             player.setTexture(texKey);
                             player.clearTint(); 
                             player.customSpriteData = tempBase64;
                             
-                            // Notifica o servidor para atualizar para os outros jogadores
                             if (socket && socket.connected) {
                                 socket.emit('playerMovement', {
                                     id: socket.id,
@@ -3932,10 +3927,6 @@ function abrirPainelPersonalizacao(scene) {
                     }
                     
                     adicionarMensagemChat('Sistema', '✅ Sprite personalizado aplicado e salvo!');
-                    
-                    // Fechamento automático e limpeza absoluta dos elementos visuais
-                    const previewCont = document.getElementById('spritePreviewContainer');
-                    if (previewCont) previewCont.style.display = 'none';
                     
                     bgOverlay.destroy(); 
                     panel.destroy(); 
