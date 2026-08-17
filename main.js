@@ -2679,6 +2679,22 @@ function conectarChatOnline() {
         }
     });
 
+    socket.on('spriteSheetUpdated', (data) => {
+        let targetSprite = otherPlayersSprites[data.id];
+        const targetUsername = data.username ? data.username.toLowerCase() : "";
+
+        if (!targetSprite && targetUsername) {
+            targetSprite = Object.values(otherPlayersSprites).find(s => {
+                const pData = s.getData('playerData');
+                return pData && pData.accountUser && pData.accountUser.toLowerCase() === targetUsername;
+            });
+        }
+
+        if (targetSprite && data.spriteData) {
+            aplicarSkinCustomizada(targetSprite, data.spriteData, targetUsername || data.id);
+        }
+    });
+
     socket.on('skinUpdated', (data) => {
         let targetSprite = null;
         const targetUsername = data.username ? data.username.toLowerCase() : "";
@@ -3954,6 +3970,7 @@ function abrirPainelPersonalizacao(scene) {
         aplicarSkinCustomizada(player, base64, currentUser.toLowerCase());
 
         if (socket && socket.connected) {
+            socket.emit('updateSpriteSheet', base64);
             socket.emit('skinChanged', base64);
         }
         

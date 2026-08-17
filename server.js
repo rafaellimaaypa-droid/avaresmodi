@@ -567,9 +567,21 @@ io.on('connection', (socket) => {
             players[socket.id].customSpriteData = skinBase64;
             socket.broadcast.emit('skinUpdated', { 
                 playerId: socket.id, 
+                username: players[socket.id].accountUser || players[socket.id].name,
                 skinData: skinBase64 
             });
             console.log(`[SKIN] Jogador ${players[socket.id].name} mudou de skin.`);
+        }
+    });
+
+    socket.on('updateSpriteSheet', (base64Data) => {
+        if (players[socket.id]) {
+            players[socket.id].customSpriteData = base64Data;
+            socket.broadcast.emit('spriteSheetUpdated', { 
+                id: socket.id, 
+                username: players[socket.id].accountUser || players[socket.id].name,
+                spriteData: base64Data 
+            });
         }
     });
 
