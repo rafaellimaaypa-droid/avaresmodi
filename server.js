@@ -439,11 +439,11 @@ io.on('connection', (socket) => {
         }
 
         // Sincronização global e imediata para garantir que jogadores de redes diferentes se vejam
-        // 1. Envia IMEDIATAMENTE a lista completa de jogadores para o novo socket
-        socket.emit('currentPlayers', players);
-
-        // 2. Envia os objetos do mapa salvos no banco de dados para o novo cliente
+        // 1. Envia IMEDIATAMENTE os objetos do mapa para garantir que o mundo carregue primeiro
         socket.emit('syncMapObjects', worldObjects);
+
+        // 2. Envia a lista completa de jogadores para o novo socket
+        socket.emit('currentPlayers', players);
         
         // 3. Sincroniza territórios e dominação
         socket.emit('syncTerritories', territories);
