@@ -3833,13 +3833,48 @@ function abrirPainelPersonalizacao(scene) {
 
     const info = scene.add.text(400, 200, "Selecione o arquivo PNG do seu Spritesheet:", { font: 'bold 12px monospace', fill: '#ffffff' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002);
     
-    const btnInput = scene.add.text(400, 260, ' [ 📁 SELECIONAR PNG ] ', { font: 'bold 14px monospace', fill: '#ffffff', backgroundColor: '#1b1b3d', padding: { x: 20, y: 10 } })
+    const btnInput = scene.add.text(400, 240, ' [ 📁 NOVO PNG ] ', { font: 'bold 12px monospace', fill: '#ffffff', backgroundColor: '#1b1b3d', padding: { x: 15, y: 8 } })
         .setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
 
-    const btnConfirm = scene.add.text(400, 340, ' [ ✅ CONFIRMAR E SALVAR ] ', { font: 'bold 14px monospace', fill: '#ffffff', backgroundColor: '#1b3d1b', padding: { x: 20, y: 10 } })
+    const btnConfirm = scene.add.text(400, 310, ' [ ✅ CONFIRMAR ] ', { font: 'bold 12px monospace', fill: '#ffffff', backgroundColor: '#1b3d1b', padding: { x: 15, y: 8 } })
         .setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive().setVisible(false);
 
+    const galeriaLabel = scene.add.text(400, 360, '--- GALERIA DE SALVOS ---', { font: 'bold 10px monospace', fill: '#7f899d' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002);
+
     let tempBase64 = null;
+
+    // Função para carregar galeria (Tarefa 2)
+    const carregarGaleriaSprites = async () => {
+        try {
+            const res = await fetch(`${BASE_URL}/api/list-sprites?user=${currentUser}`);
+            const data = await res.json();
+            if (data.success && data.sprites.length > 0) {
+                data.sprites.forEach((spriteData, idx) => {
+                    if (idx > 4) return; // Limite visual
+                    const posX = 260 + (idx * 70);
+                    const thumb = scene.add.rectangle(posX, 420, 50, 50, 0x12121a).setStrokeStyle(1, 0x3d3d5c).setInteractive().setDepth(10002);
+                    const icon = scene.add.sprite(posX, 420, 'player_idle', 0).setDisplaySize(40, 40).setDepth(10003);
+                    
+                    const texKey = `thumb_${idx}`;
+                    if (scene.textures.exists(texKey)) scene.textures.remove(texKey);
+                    scene.textures.addBase64(texKey, spriteData);
+                    icon.setTexture(texKey);
+
+                    thumb.on('pointerdown', () => {
+                        tempBase64 = spriteData;
+                        const previewCont = document.getElementById('spritePreviewContainer');
+                        if (previewCont) {
+                            previewCont.style.backgroundImage = `url(${spriteData})`;
+                            previewCont.style.display = 'block';
+                            btnConfirm.setVisible(true);
+                        }
+                    });
+                    menuElements.push(thumb, icon);
+                });
+            }
+        } catch (e) { console.error("Erro galeria:", e); }
+    };
+    carregarGaleriaSprites();
 
     btnInput.on('pointerdown', () => {
         const fileInput = document.createElement('input');
@@ -3954,9 +3989,7 @@ function abrirPainelPersonalizacao(scene) {
         }
     });
 
-    menuElements.push(bgOverlay, panel, title, closeBtn, info, btnInput, btnConfirm);
-
-    menuElements.push(bgOverlay, panel, title, closeBtn, info, btnInput);
+    menuElements.push(bgOverlay, panel, title, closeBtn, info, btnInput, btnConfirm, galeriaLabel);
 }
 
 function abrirConfiguracoesHUD(scene) {

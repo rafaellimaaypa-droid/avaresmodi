@@ -61,10 +61,13 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// Middleware para decodificar URLs com espaços e caracteres especiais nos assets
-console.log("Tentando servir arquivo de: " + path.join(__dirname, 'assets'));
+// Middleware para decodificar URLs com espaços e caracteres especiais nos assets (Tarefa 1)
 app.use('/assets', (req, res, next) => {
-    req.url = decodeURIComponent(req.url);
+    try {
+        req.url = decodeURIComponent(req.url);
+    } catch (e) {
+        console.error("Erro ao decodificar URL do asset:", e);
+    }
     next();
 }, express.static(path.join(__dirname, 'assets')));
 
@@ -76,15 +79,39 @@ app.post('/api/upload-sprite', async (req, res) => {
         if (!user || !customSpriteData) return res.status(400).json({ message: 'Dados incompletos' });
         
         if (db) {
+            // Adiciona ao histórico de sprites (Tarefa 2)
             await db.collection('contas').updateOne(
                 { user: user.toLowerCase() },
-                { $set: { "characters.0.customSpriteData": customSpriteData } }
+                { 
+                    $set: { "characters.0.customSpriteData": customSpriteData },
+                    $addToSet: { "spriteHistory": customSpriteData }
+                }
             );
             console.log(`[HTTP] Sprite atualizado para: ${user}`);
             res.json({ success: true });
         } else {
             res.status(503).json({ success: false, message: 'Banco offline' });
         }
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+// Rota para listar sprites salvas (Tarefa 2)
+app.get('/api/list-sprites', async (req, res) => {
+    try {
+        const { user } = req.query;
+        if (!user) return res.status(400).json({ message: 'Usuário não informado' });
+        const account = await db.collection('contas').findOne({ user: user.toLowerCase() });
+        if (!account) return res.status(404).json({ message: 'Conta não encontrada' });
+        
+        // Retorna a sprite atual + histórico
+        const history = account.spriteHistory || [];
+        if (account.characters?.[0]?.customSpriteData && !history.includes(account.characters[0].customSpriteData)) {
+            history.unshift(account.characters[0].customSpriteData);
+        }
+        
+        res.json({ success: true, sprites: history });
     } catch (e) {
         res.status(500).json({ message: e.message });
     }
