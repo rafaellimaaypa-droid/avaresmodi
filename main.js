@@ -130,6 +130,12 @@ const CHAT_CONFIG = {
 const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const BASE_URL = (IS_LOCAL ? 'http://localhost:3000' : 'https://avaresmodi.onrender.com').replace(/\/+$/, '');
 
+// Configuração de rede (Socket.io)
+const CHAT_NETWORK = {
+    enabled: true,
+    url: BASE_URL
+};
+
 let socket;
 
 // Sistema de Rede WebSocket
