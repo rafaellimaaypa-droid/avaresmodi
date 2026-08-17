@@ -2559,6 +2559,17 @@ function conectarChatOnline() {
         if (!objects || !Array.isArray(objects)) return;
         if (activeScene && monsterObstacles) {
             console.log(`[REDE] Recebidos ${objects.length} objetos do mapa. Recriando...`);
+
+            // Garante aplicação da skin customizada no player local se houver
+            if (player && player.customSpriteData) {
+                const texKey = 'custom_sheet_' + charName;
+                if (!activeScene.textures.exists(texKey)) {
+                    activeScene.textures.addBase64(texKey, player.customSpriteData);
+                }
+                player.setTexture(texKey);
+                player.clearTint();
+            }
+
             monsterObstacles.clear(true, true);
             objects.forEach(d => {
                 if (d && d.id) {
@@ -3900,8 +3911,9 @@ function abrirPainelPersonalizacao(scene) {
                             }
                             scene.textures.addBase64(texKey, tempBase64);
                             
-                            // Aplica imediatamente ao sprite do player
+                            // Aplica imediatamente ao sprite do player e limpa tintas
                             player.setTexture(texKey);
+                            player.clearTint(); 
                             player.customSpriteData = tempBase64;
                             
                             // Notifica o servidor para atualizar para os outros jogadores
