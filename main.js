@@ -137,20 +137,22 @@ const CHAT_NETWORK = {
 
 let socket;
 
-// Sistema de Rede WebSocket
-const wsUrl = window.location.origin.replace(/^http/, 'ws') || 'ws://localhost:3000';
-let chatSocket = null;
+// Sistema de Rede Multiplayer
 let playerId = null;
 let otherPlayers = {};
 
 function conectarMultiplayerOnline() {
     if (typeof CHAT_NETWORK === 'undefined' || !CHAT_NETWORK.enabled) return;
-    if (socket && socket.connected) return;
+    
+    // Deixa o Socket.IO gerenciar a conexão. Se já existir uma instância, não cria outra.
+    if (socket) return;
 
     socket = io(CHAT_NETWORK.url, {
         transports: ['websocket', 'polling'],
-        reconnectionAttempts: 5,
-        reconnectionDelay: 2000
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 2000,
+        autoConnect: true
     });
 
     socket.on('connect', () => {
@@ -2145,7 +2147,12 @@ function toggleChat(scene) {
     if (isPlayerDead) return;
     isChatOpen = !isChatOpen;
     if (isChatOpen) {
-        if (isMenuOpen) toggleGameMenu(scene);
+        if (isMenuOpen) {
+            isMenuOpen = false;
+            menuElements.forEach(element => element.destroy());
+            menuElements = [];
+            setMinimapVisible(!isPlayerDead);
+        }
         chatElements.forEach(el => el.setVisible(true));
         if (isChatMinimized) {
             chatContentBg.setVisible(false);
