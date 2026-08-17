@@ -3842,9 +3842,8 @@ function abrirPainelPersonalizacao(scene) {
                 if (base64 && base64.startsWith('data:image')) {
                     tempBase64 = base64;
                     const previewCont = document.getElementById('spritePreviewContainer');
-                    const previewImg = document.getElementById('spritePreview');
-                    if (previewCont && previewImg) {
-                        previewImg.src = base64;
+                    if (previewCont) {
+                        previewCont.style.backgroundImage = `url(${base64})`;
                         previewCont.style.display = 'block';
                         btnConfirm.setVisible(true);
                     }
