@@ -52,7 +52,11 @@ wss.on('connection', (ws) => {
     });
 });
 
-app.use(cors());
+app.use(cors({
+    origin: "*",
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type"]
+}));
 app.use(express.json());
 app.use(express.static(__dirname));
 
@@ -99,9 +103,9 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ success: false, message: 'DADOS INVÁLIDOS' });
         }
 
-        // Apenas recusa se o socket ainda estiver ativo na lista de players
+        // Verifica se a conta já está online, mas permite login se o usuário for mestre (para testes)
         const isAlreadyOnline = Array.from(onlineAccounts).includes(user.toLowerCase());
-        if (isAlreadyOnline) {
+        if (isAlreadyOnline && user.toLowerCase() !== 'mestre') {
             return res.status(403).json({ success: false, message: 'CONTA JÁ CONECTADA EM OUTRO LOCAL' });
         }
 
