@@ -1315,7 +1315,14 @@ function finalizarLoginComDados(userData) {
             player.setTexture(texKey);
             player.setFrame(0);
             player.clearTint();
-            console.log("[SKIN] ✅ Spritesheet e animações customizadas aplicadas.");
+            
+            // Força a animação inicial da skin customizada e garante remoção da base
+            if (player.anims.exists('idle_down_custom')) {
+                player.play('idle_down_custom');
+            }
+            if (player.baseSprite) player.baseSprite.setVisible(false);
+
+            console.log("[SKIN] ✅ Spritesheet e animações customizadas aplicadas. Textura vinculada ao player.");
         };
         img.src = userData.customSpriteData;
             
@@ -2645,11 +2652,18 @@ function conectarChatOnline() {
             if (!activeScene || !activeScene.textures) return;
             if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
             activeScene.textures.addSpriteSheet(texKey, img, { frameWidth: 64, frameHeight: 64 });
+            criarAnimacoesCustomizadas(activeScene, texKey);
             
             remoteSprite.setTexture(texKey);
             remoteSprite.setFrame(0);
             remoteSprite.clearTint();
-            console.log(`[REDE-SKIN] ✅ Skin remota aplicada corretamente: ${data.playerId}`);
+            
+            if (remoteSprite.anims.exists('idle_down_custom')) {
+                remoteSprite.play('idle_down_custom');
+            }
+            if (remoteSprite.baseSprite) remoteSprite.baseSprite.setVisible(false);
+
+            console.log(`[REDE-SKIN] ✅ Skin remota e animações aplicadas corretamente: ${data.playerId}`);
         };
         img.src = data.skinData;
     });
