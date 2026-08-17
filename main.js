@@ -3837,22 +3837,30 @@ function abrirPainelPersonalizacao(scene) {
 
     // Função para aplicar sprite e fechar (Tarefa 2c)
     const aplicarSpriteDireto = async (base64) => {
-        const texKey = 'custom_sheet_' + charName;
+        const part = document.getElementById('spriteBodyPart').value;
+        const texKey = 'custom_' + part.toLowerCase() + '_' + charName;
+        
         if (scene.textures.exists(texKey)) scene.textures.remove(texKey);
         scene.textures.addBase64(texKey, base64);
-        player.setTexture(texKey);
-        player.setFrame(0);
-        player.customSpriteData = base64;
         
-        // Salva no banco
+        if (part === 'BODY') {
+            player.setTexture(texKey);
+            player.customSpriteData = base64;
+        }
+        
+        // Salva no banco considerando a parte (Tarefa 3)
         await fetch(`${BASE_URL}/api/upload-sprite`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user: currentUser, customSpriteData: base64 })
+            body: JSON.stringify({ 
+                user: currentUser, 
+                customSpriteData: base64,
+                part: part
+            })
         });
         
         fechar();
-        adicionarMensagemChat('Sistema', '✅ Sprite aplicado com sucesso!');
+        adicionarMensagemChat('Sistema', `✅ Skin (${part}) aplicada com sucesso!`);
     };
 
     const carregarGaleriaSprites = async () => {
@@ -3879,9 +3887,20 @@ function abrirPainelPersonalizacao(scene) {
     const uploadBtn = document.createElement('button');
     const confirmBtnDom = document.createElement('button');
 
-    uploadBtn.innerText = '📁 ENVIAR NOVO PNG';
-    uploadBtn.style.cssText = 'background:#1b1b3d; color:white; border:1px solid #f3e5ab; padding:8px; width:100%; cursor:pointer; font-family:monospace; margin-bottom:10px;';
-    gallery.parentNode.insertBefore(uploadBtn, gallery);
+    uploadBtn.innerText = '📁 OU ESCOLHA UM ARQUIVO';
+    uploadBtn.style.cssText = 'background:#3d2b1f; color:white; border:1px solid #f3e5ab; padding:8px; width:100%; cursor:pointer; font-family:monospace; margin-top:10px;';
+    const selectArea = document.querySelector('.custom-select-area');
+    selectArea.appendChild(uploadBtn);
+
+    let previewDirection = 0; // 0: down, 1: left, 2: right, 3: up
+    previewCont.onclick = () => {
+        const img = previewCont.querySelector('img');
+        if (!img) return;
+        previewDirection = (previewDirection + 1) % 4;
+        // Ajusta o posicionamento para focar no frame correto da direção (assumindo grid LPC 3x4 ou similar)
+        const frameSize = 64; 
+        img.style.marginTop = `-${previewDirection * frameSize}px`;
+    };
 
     uploadBtn.onclick = () => {
         const fileInput = document.createElement('input');

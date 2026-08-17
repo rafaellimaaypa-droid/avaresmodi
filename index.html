@@ -80,7 +80,27 @@
         <div class="modal-content">
             <span class="close-modal">&times;</span>
             <h2>🎨 PERSONALIZAÇÃO</h2>
-            <div id="spritePreviewContainer"></div>
+            
+            <div class="modal-flex-container">
+                <div id="spritePreviewContainer">
+                    <span class="drop-text">Solte os arquivos aqui!</span>
+                </div>
+                <div class="instruction-box">
+                    <p><b>Instruções:</b></p>
+                    <p>1. O arquivo deve ser um PNG transparente.</p>
+                    <p>2. Formato padrão LPC ou 32x32 frames.</p>
+                    <p>3. Clique na caixa à esquerda para alternar a direção do preview.</p>
+                </div>
+            </div>
+
+            <div class="custom-select-area">
+                <label>PARTE DO CORPO:</label>
+                <select id="spriteBodyPart">
+                    <option value="BODY">BODY (CORPO INTEIRO)</option>
+                    <option value="HEAD">CABEÇA / CABELO</option>
+                </select>
+            </div>
+
             <div id="spriteGallery" class="gallery-container"></div>
         </div>
     </div>
