@@ -1263,13 +1263,17 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     const texKey = 'skin_' + username;
     const sheetKey = texKey + '_sheet';
 
-    // Se já estiver usando a mesma skin, não recarrega para evitar flicker
-    if (sprite.customSpriteData === skinBase64 && activeScene.textures.exists(sheetKey)) {
-        sprite.setTexture(sheetKey);
+    // Bloqueio de redundância: Se a skin já está aplicada, não faz nada
+    if (sprite.getData('skinBase64') === skinBase64 && activeScene.textures.exists(sheetKey)) {
+        if (sprite.texture.key !== sheetKey) {
+            sprite.setTexture(sheetKey);
+            sprite.clearTint();
+        }
         if (sprite.baseSprite) sprite.baseSprite.setVisible(false);
         return;
     }
 
+    // Limpeza de texturas antigas para este usuário específico
     if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
     if (activeScene.textures.exists(sheetKey)) activeScene.textures.remove(sheetKey);
 
@@ -1280,22 +1284,30 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
             activeScene.textures.addSpriteSheet(sheetKey, img, { frameWidth: 64, frameHeight: 64 });
             criarAnimacoesCustomizadas(activeScene, sheetKey);
             
+            sprite.setData('skinBase64', skinBase64);
             sprite.customSpriteData = skinBase64;
             sprite.setTexture(sheetKey);
             sprite.setFrame(0);
             sprite.clearTint();
             
-            // Ocultação permanente e agressiva do sprite base
+            // Ocultação permanente do sprite base original
             if (sprite.baseSprite) {
                 sprite.baseSprite.setVisible(false);
-                sprite.baseSprite.setAlpha(0);
+                sprite.baseSprite.destroy(); // Remove o objeto para garantir que nunca apareça
+                sprite.baseSprite = null;
             }
+            
             if (sprite === player) player.setAlpha(1); 
             
-            if (sprite.anims.exists('idle_down_custom')) {
-                sprite.play('idle_down_custom');
+            // Força o reinício da animação com a nova textura
+            const currentAnim = sprite.anims.currentAnim ? sprite.anims.currentAnim.key : 'idle_down';
+            const targetAnim = currentAnim.endsWith('_custom') ? currentAnim : currentAnim + '_custom';
+            
+            if (sprite.anims.exists(targetAnim)) {
+                sprite.play(targetAnim);
             }
-            console.log(`[SKIN] ✅ Sincronização estável aplicada para: ${username}`);
+
+            console.log(`[SKIN] ✅ Skin aplicada com sucesso (Sem flicker): ${username}`);
         }
     });
 }
@@ -2743,9 +2755,9 @@ function conectarChatOnline() {
         let remoteSprite = otherPlayersSprites[playerInfo.id];
         if (remoteSprite) {
             const targetUsername = playerInfo.accountUser ? playerInfo.accountUser.toLowerCase() : "";
-            const texKey = 'skin_' + targetUsername + '_sheet';
             
-            if (playerInfo.customSpriteData && remoteSprite.customSpriteData !== playerInfo.customSpriteData) {
+            // Apenas reprocessa a skin se os dados de Base64 mudaram
+            if (playerInfo.customSpriteData && remoteSprite.getData('skinBase64') !== playerInfo.customSpriteData) {
                 aplicarSkinCustomizada(remoteSprite, playerInfo.customSpriteData, targetUsername);
             }
 
