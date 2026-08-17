@@ -1304,16 +1304,13 @@ function finalizarLoginComDados(userData) {
         }, 500);
             
         if (socket && socket.connected) {
-                socket.emit('playerMovement', {
-                    id: socket.id,
-                    x: player.x,
-                    y: player.y,
-                    customSpriteData: player.customSpriteData
-                });
-            }
-        };
-        img.onerror = () => console.error("[SKIN] ❌ Erro crítico: Base64 da skin inválido.");
-        img.src = userData.customSpriteData;
+            socket.emit('playerMovement', {
+                id: socket.id,
+                x: player.x,
+                y: player.y,
+                customSpriteData: player.customSpriteData
+            });
+        }
     } else {
         console.log("[SKIN] 👤 Usando boneco padrão (Sem skin customizada detectada).");
     }
