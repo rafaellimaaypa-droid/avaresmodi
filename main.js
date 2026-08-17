@@ -4051,6 +4051,11 @@ function update() {
     }
     player.anims.play(animToPlay, true);
 
+    // Bloqueio de segurança: Mantém a skin customizada se ela existir no cache
+    if (activeScene.textures.exists('customPlayerSkin') && player.texture.key !== 'customPlayerSkin') {
+        player.setTexture('customPlayerSkin');
+    }
+
     player.setDepth(player.y);
     if (equippedWeaponSprite) {
         equippedWeaponSprite.setDepth(player.y + 1);
