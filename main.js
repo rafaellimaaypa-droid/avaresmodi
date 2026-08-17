@@ -3815,24 +3815,37 @@ function abrirPainelPersonalizacao(scene) {
         if (!isMenuOpen) setMinimapVisible(true);
     });
 
-    const info = scene.add.text(400, 200, "Insira o código Base64 do seu Spritesheet:", { font: 'bold 12px monospace', fill: '#ffffff' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002);
+    const info = scene.add.text(400, 200, "Selecione o arquivo PNG do seu Spritesheet:", { font: 'bold 12px monospace', fill: '#ffffff' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002);
     
-    const btnInput = scene.add.text(400, 300, ' [ COLAR CÓDIGO DO SPRITE ] ', { font: 'bold 14px monospace', fill: '#ffffff', backgroundColor: '#1b1b3d', padding: { x: 20, y: 10 } })
+    const btnInput = scene.add.text(400, 300, ' [ SELECIONAR ARQUIVO PNG ] ', { font: 'bold 14px monospace', fill: '#ffffff', backgroundColor: '#1b1b3d', padding: { x: 20, y: 10 } })
         .setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
 
     btnInput.on('pointerdown', () => {
-        const base64 = prompt("Cole aqui a string Base64 da sua imagem (Spritesheet 32x32):");
-        if (base64 && base64.startsWith('data:image')) {
-            player.customSpriteData = base64;
-            if (!scene.textures.exists('custom_sheet_' + charName)) {
-                scene.textures.addBase64('custom_sheet_' + charName, base64);
-            }
-            player.setTexture('custom_sheet_' + charName);
-            salvarEstadoRemoto();
-            adicionarMensagemChat('Sistema', '✅ Sprite personalizado aplicado!');
-        } else if (base64) {
-            alert("Código inválido! Deve ser um DataURL Base64 de imagem.");
-        }
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/png';
+        
+        fileInput.onchange = e => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = readerEvent => {
+                const base64 = readerEvent.target.result;
+                if (base64 && base64.startsWith('data:image')) {
+                    player.customSpriteData = base64;
+                    if (scene.textures.exists('custom_sheet_' + charName)) {
+                        scene.textures.remove('custom_sheet_' + charName);
+                    }
+                    scene.textures.addBase64('custom_sheet_' + charName, base64);
+                    player.setTexture('custom_sheet_' + charName);
+                    salvarEstadoRemoto();
+                    adicionarMensagemChat('Sistema', '✅ Sprite personalizado carregado com sucesso!');
+                }
+            };
+            reader.readAsDataURL(file);
+        };
+        fileInput.click();
     });
 
     menuElements.push(bgOverlay, panel, title, closeBtn, info, btnInput);
