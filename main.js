@@ -1277,10 +1277,21 @@ function finalizarLoginComDados(userData) {
 
     if (userData.customSpriteData) {
         player.customSpriteData = userData.customSpriteData;
-        if (!activeScene.textures.exists('custom_sheet_' + charName)) {
-            activeScene.textures.addBase64('custom_sheet_' + charName, userData.customSpriteData);
+        const texKey = 'custom_sheet_' + charName;
+        
+        const applyCustomTexture = () => {
+            player.setTexture(texKey);
+            player.setFrame(0);
+        };
+
+        if (!activeScene.textures.exists(texKey)) {
+            activeScene.textures.addBase64(texKey, userData.customSpriteData);
+            activeScene.textures.once('addtexture', (key) => {
+                if (key === texKey) applyCustomTexture();
+            });
+        } else {
+            applyCustomTexture();
         }
-        player.setTexture('custom_sheet_' + charName);
     }
     charName = userData.name;
     charId = userData.charId; 
@@ -3823,6 +3834,7 @@ function abrirPainelPersonalizacao(scene) {
     const fileInput = document.getElementById('spriteFileInput');
     const previewImg = document.getElementById('skinPreviewImg');
     const placeholder = document.getElementById('previewPlaceholder');
+    const gallery = document.getElementById('savedSkinsGallery');
 
     modal.style.display = 'block';
 
@@ -3831,40 +3843,58 @@ function abrirPainelPersonalizacao(scene) {
         if (!isMenuOpen) setMinimapVisible(true);
     };
 
-    closeBtn.onclick = fechar;
+    const aplicarEFechar = (base64) => {
+        const texKey = 'custom_sheet_' + charName;
+        if (scene.textures.exists(texKey)) scene.textures.remove(texKey);
+        scene.textures.addBase64(texKey, base64);
+        player.setTexture(texKey);
+        player.customSpriteData = base64;
+        
+        fetch(`${BASE_URL}/api/upload-sprite`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user: currentUser, customSpriteData: base64, part: 'BODY' })
+        });
 
+        previewImg.src = base64;
+        previewImg.style.display = 'block';
+        placeholder.style.display = 'none';
+
+        setTimeout(fechar, 300);
+        adicionarMensagemChat('Sistema', `✅ Skin aplicada com sucesso!`);
+    };
+
+    const carregarGaleria = async () => {
+        gallery.innerHTML = '<p style="grid-column: span 4; font-size: 8px; color: #666; text-align: center;">Carregando salvos...</p>';
+        try {
+            const res = await fetch(`${BASE_URL}/api/list-sprites?user=${currentUser}`);
+            const data = await res.json();
+            gallery.innerHTML = '';
+            if (data.success && data.sprites.length > 0) {
+                data.sprites.forEach(base64 => {
+                    const img = document.createElement('img');
+                    img.src = base64;
+                    img.style.cssText = 'width: 100%; height: 40px; border: 1px solid #222; cursor: pointer; object-fit: none; object-position: 0 0; image-rendering: pixelated;';
+                    img.onclick = () => aplicarEFechar(base64);
+                    gallery.appendChild(img);
+                });
+            } else {
+                gallery.innerHTML = '<p style="grid-column: span 4; font-size: 8px; color: #444; text-align: center;">Nenhuma salva.</p>';
+            }
+        } catch (e) {
+            gallery.innerHTML = '<p style="grid-column: span 4; font-size: 8px; color: #822;">Erro.</p>';
+        }
+    };
+
+    carregarGaleria();
+    closeBtn.onclick = fechar;
     btnSelect.onclick = () => fileInput.click();
 
     fileInput.onchange = e => {
         const file = e.target.files[0];
         if (!file) return;
-
         const reader = new FileReader();
-        reader.onload = event => {
-            const base64 = event.target.result;
-            
-            // Preview
-            previewImg.src = base64;
-            previewImg.style.display = 'block';
-            placeholder.style.display = 'none';
-
-            // Atualização imediata no Phaser
-            const texKey = 'custom_sheet_' + charName;
-            if (scene.textures.exists(texKey)) scene.textures.remove(texKey);
-            scene.textures.addBase64(texKey, base64);
-            player.setTexture(texKey);
-            player.customSpriteData = base64;
-
-            // Envio para o servidor
-            fetch(`${BASE_URL}/api/upload-sprite`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user: currentUser, customSpriteData: base64, part: 'BODY' })
-            });
-
-            setTimeout(fechar, 500);
-            adicionarMensagemChat('Sistema', `✅ Skin aplicada com sucesso!`);
-        };
+        reader.onload = event => aplicarEFechar(event.target.result);
         reader.readAsDataURL(file);
     };
 }
