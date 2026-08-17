@@ -2803,22 +2803,29 @@ function abrirPerfilJogadorRemoto(scene, data) {
         `ID: ${data.mongoId || data.fixedId || 'N/A'} | CARGO: ${data.adminRole || 'Player'}`, 
     { font: 'bold 12px monospace', fill: '#ffffff', align: 'center' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002);
 
+    const targetID = data.name || data.accountUser;
+
     const callAdminAPI = async (target, action, value) => {
+        console.log(`[ADMIN] Solicitando ${action} para ${target}...`);
         try {
             const res = await fetch(`${BASE_URL}/api/admin/action`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ adminUser: currentUser, targetIdentifier: target, action, value })
             });
+            
+            const result = await res.json();
+            
             if (res.ok) {
-                adicionarMensagemChat('Sistema', `✅ Ação ${action} em ${target} concluída com sucesso!`, 'SISTEMA');
+                console.log(`[ADMIN] Sucesso:`, result);
+                adicionarMensagemChat('Sistema', `✅ Ação ${action} em ${target} concluída!`, 'SISTEMA');
             } else {
-                const err = await res.json();
-                adicionarMensagemChat('Sistema', `❌ Erro na ação ${action}: ${err.message}`, 'SISTEMA');
+                console.error(`[ADMIN] Erro retornado pela API:`, result);
+                adicionarMensagemChat('Sistema', `❌ Erro na ação: ${result.message || 'Desconhecido'}`, 'SISTEMA');
             }
         } catch (e) { 
-            console.error(e);
-            adicionarMensagemChat('Sistema', `❌ Erro de conexão ao executar ${action}.`, 'SISTEMA');
+            console.error(`[ADMIN] Falha crítica de conexão:`, e);
+            adicionarMensagemChat('Sistema', `❌ Erro de conexão com o servidor.`, 'SISTEMA');
         }
     };
 
@@ -2827,30 +2834,44 @@ function abrirPerfilJogadorRemoto(scene, data) {
     // Botões de Ações Admin
     const btnGold = scene.add.text(280, 260, '💰 DAR GOLD', btnStyle).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
     btnGold.on('pointerdown', () => {
-        const v = prompt(`Quanto gold deseja dar para ${data.name}?`);
-        if (v) callAdminAPI(data.accountUser, 'setGold', v);
+        const v = prompt(`Quanto gold deseja dar para ${targetID}?`);
+        if (v && !isNaN(v)) callAdminAPI(targetID, 'setGold', parseInt(v));
     });
 
     const btnWeapon = scene.add.text(400, 260, '⚔️ DAR ARMA', btnStyle).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
     btnWeapon.on('pointerdown', () => {
-        const lista = weaponsShopData.map((w, i) => `${i}: ${w.name}`).join('\n');
-        const idx = prompt(`Escolha o índice da arma:\n${lista}`);
-        if (idx !== null && weaponsShopData[idx]) callAdminAPI(data.accountUser, 'addItem', weaponsShopData[idx].id);
+        const lista = weaponsShopData.map((w, i) => `${i}: ${w.name} (${w.id})`).join('\n');
+        const itemID = prompt(`Digite o ID da arma ou escolha o índice:\n${lista}`);
+        if (itemID !== null) {
+            const weapon = weaponsShopData[parseInt(itemID)] || weaponsShopData.find(w => w.id === itemID);
+            if (weapon) {
+                callAdminAPI(targetID, 'addItem', weapon.id);
+            } else {
+                alert("Arma não encontrada.");
+            }
+        }
     });
 
     const btnCloth = scene.add.text(520, 260, '👗 DAR ROUPA', btnStyle).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
     btnCloth.on('pointerdown', () => {
-        const lista = clothesShopData.map((c, i) => `${i}: ${c.name}`).join('\n');
-        const idx = prompt(`Escolha o índice da roupa:\n${lista}`);
-        if (idx !== null && clothesShopData[idx]) callAdminAPI(data.accountUser, 'addItem', clothesShopData[idx].id);
+        const lista = clothesShopData.map((c, i) => `${i}: ${c.name} (${c.id})`).join('\n');
+        const itemID = prompt(`Digite o ID da roupa ou escolha o índice:\n${lista}`);
+        if (itemID !== null) {
+            const cloth = clothesShopData[parseInt(itemID)] || clothesShopData.find(c => c.id === itemID);
+            if (cloth) {
+                callAdminAPI(targetID, 'addItem', cloth.id);
+            } else {
+                alert("Roupa não encontrada.");
+            }
+        }
     });
 
     const isMestre = currentUser && currentUser.toLowerCase() === 'mestre';
-    if (isMestre) {
+    if (isMestre || adminLevel >= 8) {
         const btnPass = scene.add.text(400, 310, '🔑 TROCAR SENHA', { ...btnStyle, backgroundColor: '#800' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
         btnPass.on('pointerdown', () => {
-            const p = prompt(`Nova senha para ${data.accountUser}:`);
-            if (p) callAdminAPI(data.accountUser, 'setPass', p);
+            const p = prompt(`Nova senha para o usuário ${targetID}:`);
+            if (p) callAdminAPI(targetID, 'setPass', p);
         });
         menuElements.push(btnPass);
     }
