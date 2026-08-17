@@ -1258,6 +1258,29 @@ async function handleAuth(type) {
     }
 }
 
+function criarAnimacoesCustomizadas(scene, key) {
+    const directions = ['down', 'left', 'right', 'up'];
+    directions.forEach((dir, index) => {
+        const idleKey = `idle_${dir}_custom`;
+        const walkKey = `walk_${dir}_custom`;
+        if (scene.anims.exists(idleKey)) scene.anims.remove(idleKey);
+        if (scene.anims.exists(walkKey)) scene.anims.remove(walkKey);
+
+        scene.anims.create({
+            key: idleKey,
+            frames: scene.anims.generateFrameNumbers(key, { start: index * 4, end: index * 4 }),
+            frameRate: 1,
+            repeat: -1
+        });
+        scene.anims.create({
+            key: walkKey,
+            frames: scene.anims.generateFrameNumbers(key, { start: index * 4, end: (index * 4) + 3 }),
+            frameRate: 8,
+            repeat: -1
+        });
+    });
+}
+
 function finalizarLoginComDados(userData) {
     // Carrega posição e status salvos do servidor explicitamente
     console.log(`Carregando personagem: ${userData.name} em X:${userData.x} Y:${userData.y}`);
@@ -1286,13 +1309,13 @@ function finalizarLoginComDados(userData) {
             if (!activeScene || !activeScene.textures) return;
             if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
             
-            // Registra como spritesheet para evitar explosão de frames no mapa
             activeScene.textures.addSpriteSheet(texKey, img, { frameWidth: 64, frameHeight: 64 });
+            criarAnimacoesCustomizadas(activeScene, texKey);
             
             player.setTexture(texKey);
             player.setFrame(0);
             player.clearTint();
-            console.log("[SKIN] ✅ Spritesheet customizado aplicado (64x64).");
+            console.log("[SKIN] ✅ Spritesheet e animações customizadas aplicadas.");
         };
         img.src = userData.customSpriteData;
             
@@ -2584,19 +2607,7 @@ function conectarChatOnline() {
     socket.on('syncMapObjects', (objects) => {
         if (!objects || !Array.isArray(objects)) return;
         if (activeScene && monsterObstacles) {
-            console.log(`[REDE] Recebidos ${objects.length} objetos do mapa. Recriando...`);
-
-            // Garante aplicação da skin customizada no player local se houver
-            if (player && player.customSpriteData) {
-                const texKey = 'custom_sheet_' + charName;
-                if (!activeScene.textures.exists(texKey)) {
-                    activeScene.textures.addBase64(texKey, player.customSpriteData);
-                }
-                // Garante que a textura seja usada apenas como skin, não como objeto de mapa
-                player.setTexture(texKey);
-                player.setFrame(0);
-                player.clearTint();
-            }
+            console.log(`[REDE] Recebidos ${objects.length} objetos do mapa. Recriando cenário...`);
 
             monsterObstacles.clear(true, true);
             objects.forEach(d => {
@@ -4072,19 +4083,20 @@ function update() {
 
 
     let animToPlay = isMoving ? `walk_${playerFacing}` : `idle_${playerFacing}`;
+    
+    // Se estiver usando skin customizada, tenta usar as animações _custom
+    if (player.texture.key === 'customPlayerSkin') {
+        const customAnim = isMoving ? `walk_${playerFacing}_custom` : `idle_${playerFacing}_custom`;
+        if (player.anims.exists(customAnim)) {
+            animToPlay = customAnim;
+        }
+    }
+
     if (!player.anims.exists(animToPlay)) {
         animToPlay = isMoving ? 'walk' : 'idle'; 
     }
     player.anims.play(animToPlay, true);
 
-    // Bloqueio de segurança e Estabilização de Textura (Evita camada dupla/overwrites)
-    if (activeScene.textures.exists('customPlayerSkin')) {
-        if (player.texture.key !== 'customPlayerSkin') {
-            console.log("[SYSTEM] ⚠️ Correção em tempo real: Restaurando skin customizada.");
-            player.setTexture('customPlayerSkin');
-            player.clearTint(); // Garante que o tint do boneco padrão não afete a skin
-        }
-    }
 
     player.setDepth(player.y);
     if (equippedWeaponSprite) {
