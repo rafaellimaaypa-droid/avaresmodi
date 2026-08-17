@@ -438,16 +438,18 @@ io.on('connection', (socket) => {
             });
         }
 
-        // Envia a lista de todos os jogadores para o novo jogador conectado
+        // Sincronização global e imediata para garantir que jogadores de redes diferentes se vejam
+        // 1. Envia os objetos do mapa salvos no banco de dados para o novo cliente
+        socket.emit('syncMapObjects', worldObjects);
+
+        // 2. Envia a lista de todos os jogadores ativos na memória global do servidor
         socket.emit('currentPlayers', players);
         
-        // Notifica todos os outros jogadores sobre o novo jogador
-        socket.broadcast.emit('newPlayer', fullPlayerData);
-
-        // Sincroniza os objetos do mapa existentes para o novo jogador
-        socket.emit('syncMapObjects', worldObjects);
-        // Sincroniza territórios
+        // 3. Sincroniza territórios e dominação
         socket.emit('syncTerritories', territories);
+
+        // 4. Notifica via broadcast global (todos os clientes) a entrada do novo jogador
+        socket.broadcast.emit('newPlayer', fullPlayerData);
     });
 
     // Sistema de PvP: Ataque entre jogadores
