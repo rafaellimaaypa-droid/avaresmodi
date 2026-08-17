@@ -3845,16 +3845,30 @@ function abrirPainelPersonalizacao(scene) {
 
             const reader = new FileReader();
             reader.onload = readerEvent => {
-                const base64 = readerEvent.target.result;
-                if (base64 && base64.startsWith('data:image')) {
-                    tempBase64 = base64;
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    // Mantém proporções de spritesheet LPC ou redimensiona se for gigante
+                    const maxW = 832; 
+                    const scale = img.width > maxW ? maxW / img.width : 1;
+                    canvas.width = img.width * scale;
+                    canvas.height = img.height * scale;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.imageSmoothingEnabled = false; // Preserva Pixel Art
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    const compressedBase64 = canvas.toDataURL('image/png');
+                    tempBase64 = compressedBase64;
+                    
                     const previewCont = document.getElementById('spritePreviewContainer');
                     if (previewCont) {
-                        previewCont.style.backgroundImage = `url(${base64})`;
+                        previewCont.style.backgroundImage = `url(${compressedBase64})`;
                         previewCont.style.display = 'block';
                         btnConfirm.setVisible(true);
                     }
-                }
+                };
+                img.src = readerEvent.target.result;
             };
             reader.readAsDataURL(file);
         };
