@@ -3929,13 +3929,11 @@ function abrirPainelPersonalizacao(scene) {
                     const compressedBase64 = canvas.toDataURL('image/png');
                     tempBase64 = compressedBase64;
                     
-                    const previewCont = document.getElementById('spritePreviewContainer');
                     if (previewCont) {
-                        // Limpa e exibe como uma tag img única (Tarefa 1)
-                        previewCont.innerHTML = `<img src="${compressedBase64}" style="width: 100%; height: auto; display: block; image-rendering: pixelated;">`;
-                        previewCont.style.backgroundImage = 'none';
-                        previewCont.style.display = 'block';
-                        previewCont.style.overflowY = 'auto'; // Permite ver o sheet todo se for grande
+                        const dropTxt = previewCont.querySelector('.drop-text');
+                        if (dropTxt) dropTxt.style.display = 'none';
+                        previewCont.innerHTML = `<img src="${compressedBase64}" style="width: 192px; image-rendering: pixelated; display: block;">`;
+                        previewCont.style.display = 'flex';
                         confirmBtnDom.style.display = 'block';
                     }
                 };
