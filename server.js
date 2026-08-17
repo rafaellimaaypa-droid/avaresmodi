@@ -937,18 +937,29 @@ io.on('connection', (socket) => {
     });
 
    socket.on('saveProgress', async (data, callback) => {
-        // Tenta pegar o user do socket ou do payload data (fallback para o admin)
-        const user = socket.accountUser || (data.name ? data.name : null);
+        // Tenta identificar o usuário por múltiplas fontes (socket, payload accountUser ou char name)
+        const user = socket.accountUser || data.accountUser || data.name || null;
         
-        if (!user || !db) {
-            console.error(`[SAVE ERROR] Falha de Auth/DB para: ${user}`);
-            if (callback) callback({ success: false, error: 'Auth/DB Error' });
+        if (!db) {
+            console.error(`[SAVE ERROR] Banco de dados offline ao tentar salvar: ${user}`);
+            if (callback) callback({ success: false, error: 'Banco Offline' });
+            return;
+        }
+
+        if (!user) {
+            console.error(`[SAVE ERROR] Falha de identificação (Payload incompleto) para socket: ${socket.id}`);
+            if (callback) callback({ success: false, error: 'Identificação ausente' });
             return;
         }
 
         try {
-            // Busca a conta de forma insensível a maiúsculas/minúsculas
-            const account = await db.collection('contas').findOne({ user: new RegExp('^' + user + '$', 'i') });
+            // Busca flexível: tenta localizar por username da conta ou pelo nome do personagem
+            const account = await db.collection('contas').findOne({ 
+                $or: [
+                    { user: new RegExp('^' + user + '$', 'i') },
+                    { "characters.name": new RegExp('^' + user + '$', 'i') }
+                ]
+            });
             if (account) {
                 // A MÁGICA: Se a conta não tem personagem (array vazio), cria um na hora!
                 let char = {};

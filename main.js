@@ -1759,6 +1759,8 @@ function salvarEstadoRemoto() {
 
         const payload = {
             id: charId,
+            accountUser: currentUser,
+            name: charName,
             x: Math.round(player.x),
             y: Math.round(player.y),
             hp: playerHealth,
