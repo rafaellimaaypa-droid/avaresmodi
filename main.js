@@ -2631,6 +2631,24 @@ function conectarChatOnline() {
         }
     });
 
+    socket.on('skinUpdated', (data) => {
+        console.log("[DEBUG] Recebendo skin de outro jogador:", data.playerId);
+        const remoteSprite = otherPlayersSprites[data.playerId];
+        if (!remoteSprite || !data.skinData) return;
+
+        const texKey = 'skin_' + data.playerId;
+        const img = new Image();
+        img.onload = () => {
+            if (!activeScene || !activeScene.textures) return;
+            if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
+            activeScene.textures.addSpriteSheet(texKey, img, { frameWidth: 64, frameHeight: 64 });
+                
+            remoteSprite.setTexture(texKey);
+            remoteSprite.clearTint();
+        };
+        img.src = data.skinData;
+    });
+
     socket.on('receberConviteClan', (data) => {
         if (confirm(`🏰 CONVITE DE CLÃ\n\nO jogador ${data.leaderName} convidou você para o clã [${data.clanTag}].\n\nDeseja aceitar?`)) {
             socket.emit('aceitarConviteClan', { clanTag: data.clanTag });
@@ -2691,11 +2709,22 @@ function conectarChatOnline() {
     socket.on('playerMoved', (playerInfo) => {
         let remoteSprite = otherPlayersSprites[playerInfo.id];
         if (remoteSprite) {
-            if (playerInfo.customSpriteData && !activeScene.textures.exists('custom_sheet_' + playerInfo.id)) {
-                activeScene.textures.addBase64('custom_sheet_' + playerInfo.id, playerInfo.customSpriteData);
-                remoteSprite.setTexture('custom_sheet_' + playerInfo.id);
-            } else if (playerInfo.customSpriteData) {
-                remoteSprite.setTexture('custom_sheet_' + playerInfo.id);
+            // Sincronização de skin ao mover (caso ainda não tenha carregado)
+            if (playerInfo.customSpriteData) {
+                const texKey = 'skin_' + playerInfo.id;
+                if (!activeScene.textures.exists(texKey)) {
+                    const img = new Image();
+                    img.onload = () => {
+                        if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
+                        activeScene.textures.addSpriteSheet(texKey, img, { frameWidth: 64, frameHeight: 64 });
+                        remoteSprite.setTexture(texKey);
+                        remoteSprite.clearTint();
+                    };
+                    img.src = playerInfo.customSpriteData;
+                } else if (remoteSprite.texture.key !== texKey) {
+                    remoteSprite.setTexture(texKey);
+                    remoteSprite.clearTint();
+                }
             }
 
             remoteSprite.setData('playerData', playerInfo);
@@ -3880,6 +3909,11 @@ function abrirPainelPersonalizacao(scene) {
             player.clearTint();
             player.customSpriteData = base64;
             console.log("[DEBUG] Skin da galeria aplicada: ", texKey);
+
+            // Notifica o servidor sobre a mudança de skin para sincronizar com outros
+            if (socket && socket.connected) {
+                socket.emit('skinChanged', base64);
+            }
 
             setTimeout(() => {
                 if (player && scene.textures.exists(texKey)) {

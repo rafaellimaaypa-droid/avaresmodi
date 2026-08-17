@@ -554,6 +554,17 @@ io.on('connection', (socket) => {
     });
 
     // Sistema de PvP: Ataque entre jogadores
+    socket.on('skinChanged', (skinBase64) => {
+        if (players[socket.id]) {
+            players[socket.id].customSpriteData = skinBase64;
+            socket.broadcast.emit('skinUpdated', { 
+                playerId: socket.id, 
+                skinData: skinBase64 
+            });
+            console.log(`[SKIN] Jogador ${players[socket.id].name} mudou de skin.`);
+        }
+    });
+
     socket.on('atacarJogador', (data) => {
         const attacker = players[socket.id];
         const target = players[data.targetId];
