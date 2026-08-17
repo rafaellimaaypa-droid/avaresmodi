@@ -127,8 +127,7 @@ const CHAT_CONFIG = {
 };
 
 // Configuração de URL Inteligente para Local e Produção
-const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const BASE_URL = (IS_LOCAL ? 'http://localhost:3000' : 'https://avaresmodi.onrender.com').replace(/\/+$/, '');
+const BASE_URL = window.location.origin.replace(/\/+$/, '');
 
 // Configuração de rede (Socket.io)
 const CHAT_NETWORK = {
