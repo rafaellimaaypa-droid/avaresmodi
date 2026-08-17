@@ -99,7 +99,7 @@ app.post('/api/login', async (req, res) => {
             return res.status(400).json({ success: false, message: 'USUÁRIO E SENHA OBRIGATÓRIOS' });
         }
 
-        const account = await db.collection('contas').findOne({ user });
+        const account = await db.collection('contas').findOne({ user: new RegExp('^' + user + '$', 'i') });
         
         if (!account || account.pass !== pass) {
             return res.status(401).json({ success: false, message: 'DADOS INVÁLIDOS' });
@@ -394,12 +394,20 @@ io.on('connection', (socket) => {
         console.log(`[AUTH-LINK] Jogador ${playerData.name} (${accountUser}) conectado no socket ${socket.id}`);
 
         // Busca os dados REAIS e ATUAIS do banco de dados para evitar perda de dados (Clã, Ouro, etc)
-        const account = await db.collection('contas').findOne({ user: accountUser });
-        const dbChar = (account && account.characters && account.characters.length > 0) ? account.characters[0] : null;
+        const account = await db.collection('contas').findOne({ user: new RegExp('^' + accountUser + '$', 'i') });
+        let dbChar = (account && account.characters && account.characters.length > 0) ? account.characters[0] : null;
 
         if (!dbChar) {
-            console.warn(`[JOIN REJECTED] Personagem não encontrado para: ${accountUser}`);
-            return;
+            console.warn(`[JOIN REPAIR] Criando personagem básico para evitar erro de join: ${accountUser}`);
+            dbChar = {
+                name: playerData.name || accountUser,
+                x: 400,
+                y: 450,
+                gold: 1000,
+                health: 100,
+                maxHp: 100,
+                inventory: []
+            };
         }
 
         let savedClanTag = dbChar.clanTag || null;
