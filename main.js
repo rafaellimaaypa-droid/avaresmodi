@@ -2486,10 +2486,10 @@ function conectarChatOnline() {
         }
     });
 
-    socket.on('currentPlayers', (players) => {
-        Object.keys(players).forEach((id) => {
+    socket.on('currentPlayers', (remotePlayers) => {
+        Object.keys(remotePlayers).forEach((id) => {
             if (id !== socket.id) {
-                adicionarOutroJogador(activeScene, players[id]);
+                adicionarOutroJogador(activeScene, remotePlayers[id]);
             }
         });
     });
@@ -2677,7 +2677,7 @@ function conectarChatOnline() {
 }
 
 function adicionarOutroJogador(scene, data) {
-    if (otherPlayersSprites[data.id]) return;
+    if (!scene || !data || !data.id || otherPlayersSprites[data.id]) return;
     
     let other = scene.physics.add.sprite(data.x, data.y, 'player_idle');
     other.setTint(data.bodyColor || 0xffffff);
