@@ -3812,6 +3812,8 @@ function abrirPainelPersonalizacao(scene) {
     closeBtn.on('pointerdown', () => {
         bgOverlay.destroy(); panel.destroy(); title.destroy(); closeBtn.destroy();
         menuElements.forEach(e => e.destroy());
+        const previewImg = document.getElementById('spritePreview');
+        if (previewImg) previewImg.style.display = 'none';
         if (!isMenuOpen) setMinimapVisible(true);
     });
 
@@ -3833,11 +3835,18 @@ function abrirPainelPersonalizacao(scene) {
             reader.onload = readerEvent => {
                 const base64 = readerEvent.target.result;
                 if (base64 && base64.startsWith('data:image')) {
+                    const previewImg = document.getElementById('spritePreview');
+                    if (previewImg) {
+                        previewImg.src = base64;
+                        previewImg.style.display = 'block';
+                    }
+
                     player.customSpriteData = base64;
                     if (scene.textures.exists('custom_sheet_' + charName)) {
                         scene.textures.remove('custom_sheet_' + charName);
                     }
                     scene.textures.addBase64('custom_sheet_' + charName, base64);
+                    
                     player.setTexture('custom_sheet_' + charName);
                     salvarEstadoRemoto();
                     adicionarMensagemChat('Sistema', '✅ Sprite personalizado carregado com sucesso!');
