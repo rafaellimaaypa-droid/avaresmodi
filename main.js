@@ -2537,14 +2537,16 @@ function conectarChatOnline() {
 
     socket.on('currentPlayers', (remotePlayers) => {
         Object.keys(remotePlayers).forEach((id) => {
-            if (id !== socket.id) {
+            if (id !== socket.id && !otherPlayersSprites[id]) {
                 adicionarOutroJogador(activeScene, remotePlayers[id]);
             }
         });
     });
 
     socket.on('newPlayer', (playerInfo) => {
-        adicionarOutroJogador(activeScene, playerInfo);
+        if (playerInfo.id !== socket.id && !otherPlayersSprites[playerInfo.id]) {
+            adicionarOutroJogador(activeScene, playerInfo);
+        }
     });
 
     // Sincronização inicial e total de objetos do mapa
