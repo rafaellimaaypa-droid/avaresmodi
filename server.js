@@ -383,12 +383,18 @@ io.on('connection', (socket) => {
 
         if (savedClanTag) {
             const clanData = cachedClans[savedClanTag] || await db.collection('clans').findOne({ tag: savedClanTag });
-            const isMember = clanData && clanData.members && clanData.members.some(m => m.toLowerCase() === dbChar.name.toLowerCase());
+            if (clanData) {
+                const isMember = clanData.members && clanData.members.some(m => m.toLowerCase() === dbChar.name.toLowerCase());
+                const isLeader = clanData.leader && clanData.leader.toLowerCase() === dbChar.name.toLowerCase();
 
-            if (isMember) {
-                savedClanRole = (clanData.leader.toLowerCase() === dbChar.name.toLowerCase()) ? 'Líder' : 'Membro';
-                if (!cachedClans[savedClanTag]) {
-                    cachedClans[savedClanTag] = { leader: clanData.leader, members: clanData.members || [] };
+                if (isMember || isLeader) {
+                    savedClanRole = isLeader ? 'Líder' : 'Membro';
+                    if (!cachedClans[savedClanTag]) {
+                        cachedClans[savedClanTag] = { leader: clanData.leader, members: clanData.members || [] };
+                    }
+                } else {
+                    savedClanTag = null;
+                    savedClanRole = 'Membro';
                 }
             } else {
                 savedClanTag = null;
@@ -583,11 +589,11 @@ io.on('connection', (socket) => {
 
     // Enviar convite para um jogador específico
     socket.on('convidarCla', async (data) => {
-        const attacker = players[socket.id];
-        if (!attacker || !attacker.clanTag || !data.nomeAlvo) return;
+        const player = players[socket.id];
+        if (!player || !player.clanTag || !data.nomeAlvo) return;
 
-        const clanData = await db.collection('clans').findOne({ tag: attacker.clanTag });
-        const isLeader = clanData && (clanData.leader === attacker.name || attacker.clanRole === 'Líder');
+        const clanData = await db.collection('clans').findOne({ tag: player.clanTag });
+        const isLeader = clanData && (clanData.leader === player.name || player.clanRole === 'Líder');
 
         if (!isLeader) {
             socket.emit('chatMessage', { playerName: 'Sistema', message: '❌ Apenas o Líder pode convidar novos membros.', channel: 'SISTEMA' });
@@ -600,10 +606,10 @@ io.on('connection', (socket) => {
         });
 
         if (targetSocket) {
-            targetSocket.pendingClan = attacker.clanTag;
+            targetSocket.pendingClan = player.clanTag;
             targetSocket.emit('receberConviteClan', { 
-                clanTag: attacker.clanTag, 
-                leaderName: attacker.name 
+                clanTag: player.clanTag, 
+                leaderName: player.name 
             });
             socket.emit('chatMessage', { playerName: 'Sistema', message: `✅ Convite enviado para ${data.nomeAlvo}.`, channel: 'SISTEMA' });
         } else {

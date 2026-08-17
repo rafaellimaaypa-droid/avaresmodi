@@ -2528,47 +2528,6 @@ function conectarChatOnline() {
         }
     });
 
-    // Enviar convite para um jogador específico
-    socket.on('convidarCla', (data) => {
-        const attacker = players[socket.id];
-        if (!attacker || !attacker.clanTag) return;
-
-        // Procura o socket do alvo pelo nome do personagem
-        const targetSocketId = Object.keys(players).find(id => 
-            players[id].name.toLowerCase() === data.nomeAlvo.toLowerCase()
-        );
-
-        if (targetSocketId) {
-            io.to(targetSocketId).emit('receberConviteClan', { 
-                clanTag: attacker.clanTag, 
-                leaderName: attacker.name 
-            });
-        }
-    });
-
-    // Jogador aceita o convite
-    socket.on('aceitarConviteClan', async (data) => {
-        const player = players[socket.id];
-        if (!player) return;
-
-        player.clanTag = data.clanTag;
-        
-        // Persiste no Banco de Dados
-        const accountUser = socket.accountUser;
-        if (accountUser) {
-            await db.collection('contas').updateOne(
-                { user: accountUser }, 
-                { $set: { "characters.0.clanTag": data.clanTag } }
-            );
-        }
-
-        socket.emit('clanAtualizado', { clanTag: data.clanTag });
-        io.emit('chatMessage', { 
-            playerName: 'Sistema', 
-            message: `${player.name} juntou-se ao clã [${data.clanTag}]!`, 
-            channel: 'SISTEMA' 
-        });
-    });
 
     socket.on('clanAtualizado', (data) => {
         playerClanTag = (data.clanTag && data.clanTag !== "") ? data.clanTag : null;
