@@ -319,6 +319,27 @@ let players = {};
 let onlineAccounts = new Set();
 let cachedClans = {}; // { tag: { leader: name, members: [] } }
 
+// Sistema de Portais (Teleporte)
+const portals = [
+    { x: 200, y: 300, destX: 1600, destY: 1200, id: "portal_spawn_centro", radius: 50 },
+    { x: 1600, y: 1200, destX: 200, destY: 300, id: "portal_centro_spawn", radius: 50 }
+];
+
+function checkPortals(socket, p) {
+    if (!p) return;
+    for (const portal of portals) {
+        const dist = Math.sqrt(Math.pow(p.x - portal.x, 2) + Math.pow(p.y - portal.y, 2));
+        if (dist < (portal.radius || 40)) {
+            p.x = portal.destX;
+            p.y = portal.destY;
+            console.log(`[PORTAL] Jogador ${p.name} teleportado via ${portal.id}`);
+            socket.emit('teleportPlayer', { x: p.x, y: p.y });
+            return true;
+        }
+    }
+    return false;
+}
+
 async function loadClansCache() {
     if (!db) return;
     const clans = await db.collection('clans').find().toArray();
@@ -879,6 +900,10 @@ io.on('connection', (socket) => {
         if (players[socket.id]) {
             players[socket.id].x = movementData.x;
             players[socket.id].y = movementData.y;
+
+            // Verifica colisão com portais durante o movimento
+            checkPortals(socket, players[socket.id]);
+
             players[socket.id].facing = movementData.facing;
             players[socket.id].anim = movementData.anim;
             
@@ -1072,7 +1097,12 @@ app.post('/api/admin/action', async (req, res) => {
 
             if (onlineSocket && players[onlineSocket.id]) {
                 const p = players[onlineSocket.id];
-                if (action === 'setGold') {
+                if (action === 'teleport') {
+                    p.x = value.x;
+                    p.y = value.y;
+                    onlineSocket.emit('teleportPlayer', { x: p.x, y: p.y });
+                    onlineSocket.emit('chatMessage', { playerName: 'Sistema', message: `🚀 Você foi teleportado por um administrador!`, channel: 'SISTEMA' });
+                } else if (action === 'setGold') {
                     // Atualiza a memória do servidor para o loop de save não sobrescrever com o valor antigo
                     p.gold = char.gold;
                     // Notifica o cliente para atualizar a variável local e a HUD em tempo real

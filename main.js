@@ -2682,6 +2682,14 @@ function conectarChatOnline() {
         }
     });
 
+    socket.on('teleportPlayer', (data) => {
+        if (player) {
+            player.setPosition(data.x, data.y);
+            player.body.reset(data.x, data.y);
+            adicionarMensagemChat('Sistema', '🌌 Você atravessou um portal!');
+        }
+    });
+
     socket.on('takeDamage', (data) => {
         animarDanoImpacto(activeScene, player);
         adicionarMensagemChat('Sistema', `⚠️ Você recebeu ${data.amount} de dano de ${data.attackerName}!`);
