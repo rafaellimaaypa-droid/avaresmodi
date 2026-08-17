@@ -265,10 +265,8 @@ async function startServer() {
             worldObjects = [];
         }
 
-        const PORT = process.env.PORT || 3000;
-        server.listen(PORT, '0.0.0.0', () => {
-            console.log(`[SERVER] Rodando na porta ${PORT}`);
-            console.log(`[INFO] URL de conexão: ${mongoUri.split('@')[1]}`);
+        server.listen(process.env.PORT || 3000, '0.0.0.0', () => {
+            console.log(`Servidor rodando na porta ${process.env.PORT || 3000}`);
         });
 
         // Loop de Dominação (Adiciona tempo a cada 1 minuto)
@@ -326,9 +324,8 @@ async function startServer() {
         
         // Inicia o servidor mesmo sem DB para evitar 503 do Render no boot, 
         // mas as rotas retornarão erro controlado.
-        const PORT = process.env.PORT || 3000;
-        server.listen(PORT, '0.0.0.0', () => {
-            console.log(`[SERVER-FAILOVER] Rodando sem DB na porta ${PORT}`);
+        server.listen(process.env.PORT || 3000, '0.0.0.0', () => {
+            console.log(`Servidor rodando na porta ${process.env.PORT || 3000}`);
         });
     }
 }
