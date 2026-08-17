@@ -3855,21 +3855,40 @@ function abrirPainelPersonalizacao(scene) {
     });
 
     btnConfirm.on('pointerdown', () => {
-        if (tempBase64) {
-            player.customSpriteData = tempBase64;
-            if (scene.textures.exists('custom_sheet_' + charName)) {
-                scene.textures.remove('custom_sheet_' + charName);
-            }
-            scene.textures.addBase64('custom_sheet_' + charName, tempBase64);
-            player.setTexture('custom_sheet_' + charName);
-            
-            salvarEstadoRemoto();
-            adicionarMensagemChat('Sistema', '✅ Sprite personalizado aplicado e salvo!');
-            
-            const previewCont = document.getElementById('spritePreviewContainer');
-            if (previewCont) previewCont.style.display = 'none';
-            btnConfirm.setVisible(false);
-            tempBase64 = null;
+        if (tempBase64 && socket && socket.connected) {
+            btnConfirm.setText(' [ ⏳ SALVANDO... ] ');
+            btnConfirm.disableInteractive();
+
+            const payload = {
+                customSpriteData: tempBase64,
+                name: charName,
+                x: player.x,
+                y: player.y
+            };
+
+            socket.emit('saveProgress', payload, (response) => {
+                if (response && response.success) {
+                    player.customSpriteData = tempBase64;
+                    if (scene.textures.exists('custom_sheet_' + charName)) {
+                        scene.textures.remove('custom_sheet_' + charName);
+                    }
+                    scene.textures.addBase64('custom_sheet_' + charName, tempBase64);
+                    player.setTexture('custom_sheet_' + charName);
+                    
+                    adicionarMensagemChat('Sistema', '✅ Sprite personalizado aplicado e salvo no servidor!');
+                    
+                    const previewCont = document.getElementById('spritePreviewContainer');
+                    if (previewCont) previewCont.style.display = 'none';
+                    btnConfirm.setVisible(false);
+                    btnConfirm.setText(' [ ✅ CONFIRMAR E SALVAR ] ');
+                    btnConfirm.setInteractive();
+                    tempBase64 = null;
+                } else {
+                    alert("Erro ao salvar sprite: " + (response ? response.error : "Sem resposta"));
+                    btnConfirm.setText(' [ ✅ CONFIRMAR E SALVAR ] ');
+                    btnConfirm.setInteractive();
+                }
+            });
         }
     });
 
