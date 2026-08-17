@@ -2540,11 +2540,14 @@ function conectarChatOnline() {
 
     // Sincronização inicial e total de objetos do mapa
     socket.on('syncMapObjects', (objects) => {
+        if (!objects || !Array.isArray(objects)) return;
         if (activeScene && monsterObstacles) {
             console.log(`[REDE] Recebidos ${objects.length} objetos do mapa. Recriando...`);
             monsterObstacles.clear(true, true);
             objects.forEach(d => {
-                adicionarObjeto(activeScene, d.x, d.y, d.key, d.angle || 0, d.scaleX || 1, d.scaleY || 1, false, d.id, d.bodyEnable);
+                if (d && d.id) {
+                    adicionarObjeto(activeScene, d.x, d.y, d.key, d.angle || 0, d.scaleX || 1, d.scaleY || 1, false, d.id, d.bodyEnable);
+                }
             });
             activeScene.atualizarVisibilidadeColisoes();
         }
