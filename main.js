@@ -3817,83 +3817,74 @@ function abrirPerfilConta(scene) {
 
 function abrirPainelPersonalizacao(scene) {
     if (isPlayerDead) return;
-    menuElements.forEach(el => el.destroy());
-    menuElements = [];
-
-    const bgOverlay = scene.add.rectangle(400, 300, 800, 600, 0x000000, 0.85).setScrollFactor(0).setDepth(10000).setInteractive();
-    const panel = scene.add.image(400, 300, 'menu_panel_bg').setScrollFactor(0).setDepth(10001);
-    const title = scene.add.text(400, 85, '🎨 PERSONALIZAÇÃO DE PERSONAGEM', { font: 'bold 18px monospace', fill: '#f3e5ab' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002);
+    const modal = document.getElementById('customizationModal');
+    const gallery = document.getElementById('spriteGallery');
+    const previewCont = document.getElementById('spritePreviewContainer');
+    const closeSpan = modal.querySelector('.close-modal');
     
-    const closeBtn = scene.add.text(660, 85, ' [X] ', { font: 'bold 12px monospace', fill: '#fff', backgroundColor: '#811' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
-    closeBtn.on('pointerdown', () => {
-        bgOverlay.destroy(); panel.destroy(); title.destroy(); closeBtn.destroy();
-        menuElements.forEach(e => e.destroy());
-        const previewCont = document.getElementById('spritePreviewContainer');
-        if (previewCont) {
-            previewCont.style.display = 'none';
-            previewCont.innerHTML = '';
-        }
-        if (!isMenuOpen) setMinimapVisible(true);
-    });
-
-    const info = scene.add.text(400, 200, "Selecione o arquivo PNG do seu Spritesheet:", { font: 'bold 12px monospace', fill: '#ffffff' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002);
+    modal.style.display = 'block';
+    gallery.innerHTML = '<p style="color:#aaa; font-size:10px;">Carregando galeria...</p>';
+    previewCont.style.display = 'none';
+    previewCont.innerHTML = '';
     
-    const btnInput = scene.add.text(400, 240, ' [ 📁 NOVO PNG ] ', { font: 'bold 12px monospace', fill: '#ffffff', backgroundColor: '#1b1b3d', padding: { x: 15, y: 8 } })
-        .setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
-
-    const btnConfirm = scene.add.text(400, 310, ' [ ✅ CONFIRMAR ] ', { font: 'bold 12px monospace', fill: '#ffffff', backgroundColor: '#1b3d1b', padding: { x: 15, y: 8 } })
-        .setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive().setVisible(false);
-
-    const galeriaLabel = scene.add.text(400, 360, '--- GALERIA DE SALVOS ---', { font: 'bold 10px monospace', fill: '#7f899d' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002);
-
     let tempBase64 = null;
 
-    // Função para carregar galeria (Tarefa 2)
+    const fechar = () => {
+        modal.style.display = 'none';
+        if (!isMenuOpen) setMinimapVisible(true);
+    };
+    closeSpan.onclick = fechar;
+
+    // Função para aplicar sprite e fechar (Tarefa 2c)
+    const aplicarSpriteDireto = async (base64) => {
+        const texKey = 'custom_sheet_' + charName;
+        if (scene.textures.exists(texKey)) scene.textures.remove(texKey);
+        scene.textures.addBase64(texKey, base64);
+        player.setTexture(texKey);
+        player.setFrame(0);
+        player.customSpriteData = base64;
+        
+        // Salva no banco
+        await fetch(`${BASE_URL}/api/upload-sprite`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user: currentUser, customSpriteData: base64 })
+        });
+        
+        fechar();
+        adicionarMensagemChat('Sistema', '✅ Sprite aplicado com sucesso!');
+    };
+
     const carregarGaleriaSprites = async () => {
         try {
             const res = await fetch(`${BASE_URL}/api/list-sprites?user=${currentUser}`);
             const data = await res.json();
+            gallery.innerHTML = '';
             if (data.success && data.sprites.length > 0) {
-                data.sprites.forEach((spriteData, idx) => {
-                    if (idx > 4) return; // Limite visual
-                    const posX = 260 + (idx * 70);
-                    const thumb = scene.add.rectangle(posX, 420, 50, 50, 0x12121a).setStrokeStyle(1, 0x3d3d5c).setInteractive().setDepth(10002);
-                    const icon = scene.add.sprite(posX, 420, 'player_idle', 0).setDisplaySize(40, 40).setDepth(10003);
-                    
-                    const texKey = `thumb_preview_${idx}`;
-                    if (scene.textures.exists(texKey)) scene.textures.remove(texKey);
-                    
-                    // Carrega como imagem simples para o ícone da galeria
-                    scene.textures.addBase64(texKey, spriteData);
-                    
-                    // Espera a textura carregar para definir o frame inicial (se for LPC, o frame 0 costuma ser o topo esquerdo)
-                    scene.textures.once('addtexture', (key) => {
-                        if (key === texKey && icon.active) {
-                            icon.setTexture(texKey);
-                            icon.setFrame(0); 
-                        }
-                    });
-
-                    thumb.on('pointerdown', () => {
-                        tempBase64 = spriteData;
-                        const previewCont = document.getElementById('spritePreviewContainer');
-                        if (previewCont) {
-                            // Limpa e exibe como uma tag img única (Tarefa 1)
-                            previewCont.innerHTML = `<img src="${spriteData}" style="width: 100%; height: auto; display: block; image-rendering: pixelated;">`;
-                            previewCont.style.backgroundImage = 'none';
-                            previewCont.style.display = 'block';
-                            previewCont.style.overflowY = 'auto';
-                            btnConfirm.setVisible(true);
-                        }
-                    });
-                    menuElements.push(thumb, icon);
+                data.sprites.forEach((spriteData) => {
+                    const img = document.createElement('img');
+                    img.src = spriteData;
+                    img.className = 'gallery-item';
+                    img.onclick = () => aplicarSpriteDireto(spriteData);
+                    gallery.appendChild(img);
                 });
+            } else {
+                gallery.innerHTML = '<p style="color:#666; font-size:10px;">Nenhum salvo.</p>';
             }
-        } catch (e) { console.error("Erro galeria:", e); }
+        } catch (e) { gallery.innerHTML = 'Erro ao carregar.'; }
     };
     carregarGaleriaSprites();
 
-    btnInput.on('pointerdown', () => {
+    // Botão de Novo PNG (Tarefa 2a)
+    const btnInputPhaser = scene.add.text(400, 300, '', { font: '1px Arial' }).setInteractive(); // Dummy para manter lógica de clique se necessário
+    
+    // Injetar botão de upload no modal DOM para isolamento (Tarefa 2)
+    const uploadBtn = document.createElement('button');
+    uploadBtn.innerText = '📁 ENVIAR NOVO PNG';
+    uploadBtn.style.cssText = 'background:#1b1b3d; color:white; border:1px solid #f3e5ab; padding:8px; width:100%; cursor:pointer; font-family:monospace; margin-bottom:10px;';
+    gallery.parentNode.insertBefore(uploadBtn, gallery);
+
+    uploadBtn.onclick = () => {
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.accept = 'image/png';
@@ -3937,88 +3928,17 @@ function abrirPainelPersonalizacao(scene) {
         fileInput.click();
     });
 
-    btnConfirm.on('pointerdown', async () => {
-        if (tempBase64 && socket && socket.connected) {
-            btnConfirm.setText(' [ ⏳ SALVANDO... ] ');
-            btnConfirm.disableInteractive();
+    const confirmBtnDom = document.createElement('button');
+    confirmBtnDom.innerText = '✅ USAR ESTA SPRITE';
+    confirmBtnDom.style.cssText = 'background:#1b3d1b; color:white; border:1px solid #f3e5ab; padding:8px; width:100%; cursor:pointer; font-family:monospace; display:none; margin-top:10px;';
+    previewCont.parentNode.insertBefore(confirmBtnDom, previewCont.nextSibling);
 
-            try {
-                const response = await fetch(`${BASE_URL}/api/upload-sprite`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user: currentUser, customSpriteData: tempBase64 })
-                });
-
-                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-                const result = await response.json();
-
-                if (result.success) {
-                    const previewCont = document.getElementById('spritePreviewContainer');
-                    if (previewCont) {
-                        previewCont.style.display = 'none';
-                        previewCont.innerHTML = ''; // Limpa o DOM
-                    }
-
-                    if (scene && scene.textures) {
-                        try {
-                            const texKey = 'custom_sheet_' + charName;
-                            if (scene.textures.exists(texKey)) {
-                                scene.textures.remove(texKey);
-                            }
-                            
-                            // Adiciona a textura baseada no Base64. 
-                            // Nota: Para animações funcionarem corretamente com sheets dinâmicos de tamanhos variados, 
-                            // o ideal é que o sheet siga o padrão de frames do player_idle (32x32).
-                            scene.textures.addBase64(texKey, tempBase64);
-                            
-                            player.setTexture(texKey);
-                            player.setFrame(0);
-                            player.clearTint(); 
-                            player.customSpriteData = tempBase64;
-                            
-                            if (socket && socket.connected) {
-                                socket.emit('playerMovement', {
-                                    id: socket.id,
-                                    x: player.x,
-                                    y: player.y,
-                                    customSpriteData: tempBase64,
-                                    name: charName
-                                });
-                            }
-                        } catch (texErr) {
-                            console.error("Erro ao aplicar textura:", texErr);
-                        }
-                    }
-                    
-                    adicionarMensagemChat('Sistema', '✅ Sprite personalizado aplicado e salvo!');
-                    
-                    bgOverlay.destroy(); 
-                    panel.destroy(); 
-                    title.destroy(); 
-                    closeBtn.destroy();
-                    btnConfirm.destroy();
-                    btnInput.destroy();
-                    info.destroy();
-
-                    menuElements.forEach(e => { if(e && e.destroy) e.destroy(); });
-                    menuElements = [];
-                    
-                    if (!isMenuOpen) setMinimapVisible(true);
-                    
-                    tempBase64 = null;
-                } else {
-                    throw new Error(result.message || "Erro desconhecido no servidor");
-                }
-            } catch (err) {
-                console.error("Falha no upload de sprite:", err);
-                alert("Erro ao salvar: " + err.message);
-                btnConfirm.setText(' [ ✅ CONFIRMAR E SALVAR ] ');
-                btnConfirm.setInteractive();
-            }
+    confirmBtnDom.onclick = () => {
+        if (tempBase64) {
+            aplicarSpriteDireto(tempBase64);
+            confirmBtnDom.style.display = 'none';
         }
-    });
-
-    menuElements.push(bgOverlay, panel, title, closeBtn, info, btnInput, btnConfirm, galeriaLabel);
+    };
 }
 
 function abrirConfiguracoesHUD(scene) {

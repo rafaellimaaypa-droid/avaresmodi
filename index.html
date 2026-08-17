@@ -74,7 +74,15 @@
     </div>
     <div id="mobile-chat-btn">💬</div>
     <input type="text" id="mobile-chat-input" autocomplete="off" placeholder="Digite sua mensagem...">
-    <div id="spritePreviewContainer" style="position: fixed; top: 45%; left: 50%; transform: translate(-50%, -50%); width: 64px; height: 64px; display: none; z-index: 10005; border: 2px solid #f3e5ab; background: #111; overflow: hidden; background-size: 832px auto; background-position: 0px 0px; image-rendering: pixelated;">
+    
+    <!-- Modal de Personalização Isolado (Tarefa 1 e 2) -->
+    <div id="customizationModal" class="game-modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>🎨 PERSONALIZAÇÃO</h2>
+            <div id="spritePreviewContainer"></div>
+            <div id="spriteGallery" class="gallery-container"></div>
+        </div>
     </div>
 
     <!-- Carrega o seu script principal do jogo -->
