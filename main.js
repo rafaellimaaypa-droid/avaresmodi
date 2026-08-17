@@ -1259,10 +1259,17 @@ async function handleAuth(type) {
 }
 
 function aplicarSkinCustomizada(sprite, skinBase64, username) {
-    if (!activeScene || !skinBase64) return;
+    if (!activeScene || !skinBase64 || skinBase64.length < 100) return;
 
     const texKey = 'skin_' + username;
     const sheetKey = texKey + '_sheet';
+
+    // Se já estiver usando a mesma skin, não recarrega para evitar flicker
+    if (sprite.customSpriteData === skinBase64 && activeScene.textures.exists(sheetKey)) {
+        sprite.setTexture(sheetKey);
+        if (sprite.baseSprite) sprite.baseSprite.setVisible(false);
+        return;
+    }
 
     if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
     if (activeScene.textures.exists(sheetKey)) activeScene.textures.remove(sheetKey);
@@ -1274,18 +1281,22 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
             activeScene.textures.addSpriteSheet(sheetKey, img, { frameWidth: 64, frameHeight: 64 });
             criarAnimacoesCustomizadas(activeScene, sheetKey);
             
+            sprite.customSpriteData = skinBase64;
             sprite.setTexture(sheetKey);
             sprite.setFrame(0);
             sprite.clearTint();
             
-            // Ocultação permanente do sprite base para evitar flicker
-            if (sprite.baseSprite) sprite.baseSprite.setVisible(false);
-            if (sprite === player) player.setAlpha(1); // Garante visibilidade se estava em noclip
+            // Ocultação permanente e agressiva do sprite base
+            if (sprite.baseSprite) {
+                sprite.baseSprite.setVisible(false);
+                sprite.baseSprite.setAlpha(0);
+            }
+            if (sprite === player) player.setAlpha(1); 
             
             if (sprite.anims.exists('idle_down_custom')) {
                 sprite.play('idle_down_custom');
             }
-            console.log(`[SKIN] ✅ Skin aplicada e base ocultada para: ${username}`);
+            console.log(`[SKIN] ✅ Sincronização estável aplicada para: ${username}`);
         }
     });
 }
@@ -2732,7 +2743,7 @@ function conectarChatOnline() {
             const targetUsername = playerInfo.accountUser ? playerInfo.accountUser.toLowerCase() : "";
             const texKey = 'skin_' + targetUsername + '_sheet';
             
-            if (playerInfo.customSpriteData && remoteSprite.texture.key !== texKey) {
+            if (playerInfo.customSpriteData && remoteSprite.customSpriteData !== playerInfo.customSpriteData) {
                 aplicarSkinCustomizada(remoteSprite, playerInfo.customSpriteData, targetUsername);
             }
 
