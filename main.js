@@ -144,7 +144,7 @@ let playerId = null;
 let otherPlayers = {};
 
 function conectarMultiplayerOnline() {
-    if (chatSocket) return;
+    if (chatSocket && (chatSocket.readyState === WebSocket.OPEN || chatSocket.readyState === WebSocket.CONNECTING)) return;
     chatSocket = new WebSocket(wsUrl);
 
     chatSocket.onopen = () => console.log('🌐 Conexão multiplayer estabelecida!');

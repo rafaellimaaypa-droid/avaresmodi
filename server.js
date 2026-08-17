@@ -1074,7 +1074,7 @@ app.post('/api/admin/action', async (req, res) => {
         let { action, targetIdentifier, value, adminUser } = req.body;
 
         const cleanAdmin = adminUser ? adminUser.trim().toLowerCase() : '';
-        const cleanTarget = targetIdentifier ? targetIdentifier.trim() : '';
+        const cleanTarget = (targetIdentifier || "").trim();
 
         const adminAccount = await db.collection('contas').findOne({ user: cleanAdmin });
         
