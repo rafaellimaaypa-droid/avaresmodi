@@ -3855,10 +3855,19 @@ function abrirPainelPersonalizacao(scene) {
                     const thumb = scene.add.rectangle(posX, 420, 50, 50, 0x12121a).setStrokeStyle(1, 0x3d3d5c).setInteractive().setDepth(10002);
                     const icon = scene.add.sprite(posX, 420, 'player_idle', 0).setDisplaySize(40, 40).setDepth(10003);
                     
-                    const texKey = `thumb_${idx}`;
+                    const texKey = `thumb_preview_${idx}`;
                     if (scene.textures.exists(texKey)) scene.textures.remove(texKey);
+                    
+                    // Carrega como imagem simples para o ícone da galeria
                     scene.textures.addBase64(texKey, spriteData);
-                    icon.setTexture(texKey);
+                    
+                    // Espera a textura carregar para definir o frame inicial (se for LPC, o frame 0 costuma ser o topo esquerdo)
+                    scene.textures.once('addtexture', (key) => {
+                        if (key === texKey && icon.active) {
+                            icon.setTexture(texKey);
+                            icon.setFrame(0); 
+                        }
+                    });
 
                     thumb.on('pointerdown', () => {
                         tempBase64 = spriteData;
@@ -3942,8 +3951,14 @@ function abrirPainelPersonalizacao(scene) {
                             if (scene.textures.exists(texKey)) {
                                 scene.textures.remove(texKey);
                             }
+                            
+                            // Adiciona a textura baseada no Base64. 
+                            // Nota: Para animações funcionarem corretamente com sheets dinâmicos de tamanhos variados, 
+                            // o ideal é que o sheet siga o padrão de frames do player_idle (32x32).
                             scene.textures.addBase64(texKey, tempBase64);
+                            
                             player.setTexture(texKey);
+                            player.setFrame(0);
                             player.clearTint(); 
                             player.customSpriteData = tempBase64;
                             
