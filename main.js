@@ -748,7 +748,8 @@ function create() {
                 y: gameObject.y,
                 angle: gameObject.angle,
                 scaleX: gameObject.scaleX,
-                scaleY: gameObject.scaleY
+                scaleY: gameObject.scaleY,
+                bodyEnable: gameObject.body ? gameObject.body.enable : false
             });
         }
     });
@@ -784,10 +785,10 @@ function create() {
                 const worldY = Math.floor(pointer.worldY / TILE_SIZE) * TILE_SIZE;
                 const chosenKey = assetList[currentAssetIndex];
                 
-                const objData = { x: worldX, y: worldY, key: chosenKey, angle: 0, scaleX: 1, scaleY: 1 };
-                adicionarObjeto(this, worldX, worldY, chosenKey, 0, 1, 1);
+                const objId = Date.now() + Math.random().toString(36).substr(2, 9);
+                const objData = { id: objId, x: worldX, y: worldY, key: chosenKey, angle: 0, scaleX: 1, scaleY: 1 };
                 
-                // Emite para o servidor para sincronizar com todos
+                // Emite para o servidor para sincronizar e salvar no banco
                 if (socket && socket.connected) {
                     socket.emit('adminAddObject', objData);
                 }

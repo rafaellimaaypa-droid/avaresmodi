@@ -890,7 +890,7 @@ io.on('connection', (socket) => {
 
             Object.assign(worldObjects[index], updateFields);
             if (db) await db.collection('mapa').updateOne({ id: objData.id }, { $set: updateFields });
-            socket.broadcast.emit('updateMapObject', worldObjects[index]);
+            io.emit('updateMapObject', worldObjects[index]);
         }
     });
 
