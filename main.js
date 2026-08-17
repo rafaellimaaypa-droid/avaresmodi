@@ -3844,6 +3844,7 @@ function update() {
     // Sincronização periódica de posição e status (Apenas movimento leve)
     if (isLoggedIn && gameStarted && socket && socket.connected && !isPlayerDead) {
         socket.emit('playerMovement', {
+            id: socket.id,
             x: player.x,
             y: player.y,
             gold: playerGold,

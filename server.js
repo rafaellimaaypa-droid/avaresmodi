@@ -20,6 +20,7 @@ console.log(bannerVisual);
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
+const socketIo = require('socket.io');
 const WebSocket = require('ws');
 const path = require('path');
 const fs = require('fs');
@@ -27,7 +28,19 @@ const { MongoClient } = require('mongodb');
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const io = socketIo(server, {
+    cors: { origin: "*", methods: ["GET", "POST"] }
+});
+const wss = new WebSocket.Server({ noServer: true });
+
+server.on('upgrade', (request, socket, head) => {
+    const pathname = new URL(request.url, `http://${request.headers.host}`).pathname;
+    if (pathname === '/ws') {
+        wss.handleUpgrade(request, socket, head, (ws) => {
+            wss.emit('connection', ws, request);
+        });
+    }
+});
 
 wss.on('connection', (ws) => {
     ws.on('message', (message) => {
@@ -960,6 +973,7 @@ io.on('connection', (socket) => {
 
     socket.on('playerMovement', (movementData) => {
         if (players[socket.id]) {
+            players[socket.id].id = socket.id;
             players[socket.id].x = movementData.x;
             players[socket.id].y = movementData.y;
 
