@@ -1287,7 +1287,7 @@ function finalizarLoginComDados(userData) {
         img.onload = () => {
             if (!activeScene || !activeScene.textures) return;
             if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
-            activeScene.textures.addSpriteSheet(texKey, img, { frameWidth: 32, frameHeight: 32 });
+            activeScene.textures.addSpriteSheet(texKey, img, { frameWidth: 64, frameHeight: 64 });
             
             player.setTexture(texKey);
             player.clearTint();
@@ -3869,7 +3869,7 @@ function abrirPainelPersonalizacao(scene) {
         const img = new Image();
         img.onload = () => {
             if (scene.textures.exists(texKey)) scene.textures.remove(texKey);
-            scene.textures.addSpriteSheet(texKey, img, { frameWidth: 32, frameHeight: 32 });
+            scene.textures.addSpriteSheet(texKey, img, { frameWidth: 64, frameHeight: 64 });
             player.setTexture(texKey);
             player.clearTint();
             player.customSpriteData = base64;
