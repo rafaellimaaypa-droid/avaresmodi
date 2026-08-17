@@ -340,6 +340,7 @@ startServer();
 
 // Gerenciamento de Jogadores Online e Cache de Clãs
 let players = {};
+let userSockets = {}; // Mapeia username -> socketId para controle de sessão única
 let onlineAccounts = new Set();
 let cachedClans = {}; // { tag: { leader: name, members: [] } }
 
@@ -387,8 +388,19 @@ io.on('connection', (socket) => {
             return;
         }
 
+        // Bloqueio de Sessão Duplicada: Se o usuário já está logado, desconecta o socket antigo
+        if (userSockets[accountUser] && userSockets[accountUser] !== socket.id) {
+            const oldSocketId = userSockets[accountUser];
+            if (io.sockets.sockets.get(oldSocketId)) {
+                console.log(`[AUTH] Desconectando sessão duplicada de ${accountUser} (Socket: ${oldSocketId})`);
+                io.to(oldSocketId).emit('forceDisconnect', { message: 'Sua conta foi conectada em outro local.' });
+                io.sockets.sockets.get(oldSocketId).disconnect(true);
+            }
+        }
+
         socket.accountUser = accountUser;
         socket.charId = playerData.charId;
+        userSockets[accountUser] = socket.id;
         onlineAccounts.add(accountUser);
         
         console.log(`[AUTH-LINK] Jogador ${playerData.name} (${accountUser}) conectado no socket ${socket.id}`);
@@ -1066,6 +1078,9 @@ io.on('connection', (socket) => {
                 console.error(`[DISCONNECT SAVE ERROR] ${user}:`, err.message);
             }
             onlineAccounts.delete(user.toLowerCase());
+            if (userSockets[user.toLowerCase()] === socket.id) {
+                delete userSockets[user.toLowerCase()];
+            }
         }
         
         delete players[socket.id];
