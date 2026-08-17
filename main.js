@@ -3866,38 +3866,41 @@ function abrirPainelPersonalizacao(scene) {
                     body: JSON.stringify({ user: currentUser, customSpriteData: tempBase64 })
                 });
 
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                 const result = await response.json();
 
                 if (result.success) {
-                    player.customSpriteData = tempBase64;
-                    if (scene.textures.exists('custom_sheet_' + charName)) {
-                        scene.textures.remove('custom_sheet_' + charName);
+                    // Atualização segura da textura no Phaser
+                    if (scene && scene.textures) {
+                        try {
+                            if (scene.textures.exists('custom_sheet_' + charName)) {
+                                scene.textures.remove('custom_sheet_' + charName);
+                            }
+                            scene.textures.addBase64('custom_sheet_' + charName, tempBase64);
+                            player.setTexture('custom_sheet_' + charName);
+                            player.customSpriteData = tempBase64;
+                        } catch (texErr) {
+                            console.error("Erro ao aplicar textura:", texErr);
+                        }
                     }
-                    scene.textures.addBase64('custom_sheet_' + charName, tempBase64);
-                    player.setTexture('custom_sheet_' + charName);
                     
-                    // Notifica outros jogadores apenas que o sprite mudou
-                    socket.emit('playerMovement', {
-                        id: socket.id,
-                        x: player.x,
-                        y: player.y,
-                        customSpriteData: tempBase64,
-                        name: charName
-                    });
-
                     adicionarMensagemChat('Sistema', '✅ Sprite personalizado aplicado e salvo!');
                     
+                    // Fechamento automático e limpeza
                     const previewCont = document.getElementById('spritePreviewContainer');
                     if (previewCont) previewCont.style.display = 'none';
-                    btnConfirm.setVisible(false);
-                    btnConfirm.setText(' [ ✅ CONFIRMAR E SALVAR ] ');
-                    btnConfirm.setInteractive();
+                    
+                    bgOverlay.destroy(); panel.destroy(); title.destroy(); closeBtn.destroy();
+                    menuElements.forEach(e => e.destroy());
+                    if (!isMenuOpen) setMinimapVisible(true);
+                    
                     tempBase64 = null;
                 } else {
-                    throw new Error(result.message);
+                    throw new Error(result.message || "Erro desconhecido no servidor");
                 }
             } catch (err) {
-                alert("Erro ao fazer upload: " + err.message);
+                console.error("Falha no upload de sprite:", err);
+                alert("Erro ao salvar: " + err.message);
                 btnConfirm.setText(' [ ✅ CONFIRMAR E SALVAR ] ');
                 btnConfirm.setInteractive();
             }
