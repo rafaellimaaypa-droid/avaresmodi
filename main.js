@@ -3972,6 +3972,13 @@ function abrirPainelPersonalizacao(scene) {
     fileInput.onchange = e => {
         const file = e.target.files[0];
         if (!file) return;
+
+        // Validação de segurança: Limita o upload a 2MB para evitar instabilidade
+        if (file.size > 2 * 1024 * 1024) {
+            alert("❌ O arquivo é muito grande! O limite é de 2MB.");
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = event => aplicarEFechar(event.target.result);
         reader.readAsDataURL(file);
