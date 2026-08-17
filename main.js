@@ -84,6 +84,7 @@ let globalHudScale = parseFloat(localStorage.getItem('avaris_hud_scale')) || 1.0
 // Sistema de Menu / Interface
 let menuElements = [];
 let isMenuOpen = false;
+let isPixelEditorOpen = false;
 let modalText = null;
 let playerClanTag = null;
 let playerClanRole = 'Membro';
@@ -2629,6 +2630,13 @@ function conectarChatOnline() {
     socket.on('playerMoved', (playerInfo) => {
         let remoteSprite = otherPlayersSprites[playerInfo.id];
         if (remoteSprite) {
+            if (playerInfo.customSprite && !activeScene.textures.exists('custom_skin_' + playerInfo.id)) {
+                activeScene.textures.addBase64('custom_skin_' + playerInfo.id, playerInfo.customSprite);
+                remoteSprite.setTexture('custom_skin_' + playerInfo.id);
+            } else if (playerInfo.customSprite) {
+                remoteSprite.setTexture('custom_skin_' + playerInfo.id);
+            }
+
             remoteSprite.setData('playerData', playerInfo);
             remoteSprite.setPosition(playerInfo.x, playerInfo.y);
             remoteSprite.setDepth(playerInfo.y);
@@ -2980,6 +2988,7 @@ function toggleGameMenu(scene) {
 
         const sistemas = [
             { name: 'Inventário', icon: '🎒' },
+            { name: 'Personalizar', icon: '🎨' },
             { name: 'Shop', icon: '💰' },
             { name: 'Banco', icon: '🏦' },
             { name: 'Casa', icon: '🏠' },
@@ -2989,7 +2998,6 @@ function toggleGameMenu(scene) {
             { name: 'Discord', icon: '💬' },
             { name: 'Amigos', icon: '👥' },
             { name: 'Missão', icon: '📜' },
-            { name: 'Placares', icon: '🏆' },
             { name: 'Clã', icon: '🏰' }
         ];
 
@@ -3025,6 +3033,8 @@ function toggleGameMenu(scene) {
             itemBg.on('pointerdown', () => {
                 if (sys.name === 'Inventário') {
                     abrirInventario(scene);
+                } else if (sys.name === 'Personalizar') {
+                    abrirPixelEditor(scene);
                 } else if (sys.name === 'Shop') {
                     abrirLojaArmas(scene);
                 } else if (sys.name === 'Banco') {
@@ -3779,6 +3789,91 @@ function abrirPerfilConta(scene) {
     const timePlayed = scene.add.text(infoX, infoY + 260, `⏳ TEMPO DE JORNADA: --h --m`, { font: 'bold 10px monospace', fill: '#00ffcc' }).setScrollFactor(0).setDepth(2002);
 
     menuElements.push(bgOverlay, panel, title, backBtn, avatarBox, avatarImg, charNameTxt, divider, timePlayed);
+}
+
+function abrirPixelEditor(scene) {
+    if (isPlayerDead) return;
+    isPixelEditorOpen = true;
+    menuElements.forEach(el => el.destroy());
+    menuElements = [];
+
+    const PIXEL_SIZE = 12;
+    const GRID_SIZE = 16;
+    const EDITOR_DEPTH = 11000;
+
+    const bg = scene.add.rectangle(400, 300, 800, 600, 0x000000, 0.9).setScrollFactor(0).setDepth(EDITOR_DEPTH).setInteractive();
+    const panel = scene.add.image(400, 300, 'menu_panel_bg').setScrollFactor(0).setDepth(EDITOR_DEPTH + 1);
+    const title = scene.add.text(400, 60, 'DESENHE SEU PERSONAGEM (16x16)', { font: 'bold 20px monospace', fill: '#f3e5ab' }).setOrigin(0.5).setScrollFactor(0).setDepth(EDITOR_DEPTH + 2);
+
+    let selectedColor = 0xffffff;
+    let pixelData = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(null));
+
+    const startX = 400 - (GRID_SIZE * PIXEL_SIZE) / 2;
+    const startY = 300 - (GRID_SIZE * PIXEL_SIZE) / 2;
+
+    for (let y = 0; y < GRID_SIZE; y++) {
+        for (let x = 0; x < GRID_SIZE; x++) {
+            let px = scene.add.rectangle(startX + (x * PIXEL_SIZE), startY + (y * PIXEL_SIZE), PIXEL_SIZE - 1, PIXEL_SIZE - 1, 0x333333)
+                .setOrigin(0).setScrollFactor(0).setDepth(EDITOR_DEPTH + 2).setInteractive();
+            
+            px.on('pointerdown', () => {
+                px.setFillStyle(selectedColor === null ? 0x333333 : selectedColor);
+                pixelData[y][x] = selectedColor;
+            });
+            px.on('pointerover', (pointer) => {
+                if (pointer.isDown) {
+                    px.setFillStyle(selectedColor === null ? 0x333333 : selectedColor);
+                    pixelData[y][x] = selectedColor;
+                }
+            });
+            menuElements.push(px);
+        }
+    }
+
+    const colors = [0xffffff, 0x000000, 0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff, 0x8b4513, null];
+    colors.forEach((color, i) => {
+        let cBox = scene.add.rectangle(620, 150 + (i * 35), 25, 25, color === null ? 0x555555 : color)
+            .setScrollFactor(0).setDepth(EDITOR_DEPTH + 2).setStrokeStyle(selectedColor === color ? 2 : 1, 0xffffff).setInteractive();
+        if (color === null) scene.add.text(620, 150 + (i * 35), 'X', {font:'bold 12px Arial'}).setOrigin(0.5).setScrollFactor(0).setDepth(EDITOR_DEPTH + 3);
+        
+        cBox.on('pointerdown', () => {
+            selectedColor = color;
+            adicionarMensagemChat('Sistema', color === null ? 'Borracha selecionada' : 'Cor selecionada');
+        });
+        menuElements.push(cBox);
+    });
+
+    const btnSave = scene.add.text(400, 530, ' [ SALVAR TEXTURA ] ', { font: 'bold 16px monospace', fill: '#ffffff', backgroundColor: '#1b3d1b', padding: { x: 20, y: 10 } })
+        .setOrigin(0.5).setScrollFactor(0).setDepth(EDITOR_DEPTH + 2).setInteractive();
+
+    btnSave.on('pointerdown', () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 16; canvas.height = 16;
+        const ctx = canvas.getContext('2d');
+        for (let y = 0; y < GRID_SIZE; y++) {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                if (pixelData[y][x] !== null) {
+                    ctx.fillStyle = '#' + pixelData[y][x].toString(16).padStart(6, '0');
+                    ctx.fillRect(x, y, 1, 1);
+                }
+            }
+        }
+        const base64 = canvas.toDataURL();
+        scene.textures.addBase64('custom_skin_' + charName, base64);
+        player.setTexture('custom_skin_' + charName);
+        player.customSprite = base64;
+        
+        if (socket && socket.connected) {
+            socket.emit('updateCustomSprite', { sprite: base64 });
+        }
+        
+        adicionarMensagemChat('Sistema', '✅ Visual personalizado salvo com sucesso!');
+        isPixelEditorOpen = false;
+        menuElements.forEach(el => el.destroy());
+        toggleGameMenu(scene);
+    });
+
+    menuElements.push(bg, panel, title, btnSave);
 }
 
 function abrirConfiguracoesHUD(scene) {
