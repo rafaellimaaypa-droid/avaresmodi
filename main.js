@@ -628,7 +628,7 @@ function create() {
     this.physics.add.collider(ogres, clothingNPC);
 
     criarPainelChatNativo(this);
-    conectarChatOnline();
+    // conectarChatOnline será chamado dentro do fluxo de login/create para evitar conexões prematuras
     adicionarMensagemChat("Sistema", "Bem-vindo ao Avaris 2.0!");
 
     this.input.on('wheel', (pointer, over, deltaX, deltaY) => {
@@ -1239,6 +1239,7 @@ async function handleAuth(type) {
         adminLevel = data.adminLevel || 0;
         adminRole = data.adminRole || 'Player';
         startGame();
+        conectarChatOnline();
 
         const checkScene = setInterval(async () => {
             if (activeScene && player) {
@@ -2485,11 +2486,8 @@ function processarMensagemChat(texto) {
 function conectarChatOnline() {
     if (typeof CHAT_NETWORK === 'undefined' || !CHAT_NETWORK.enabled) return;
     
-    socket = io(CHAT_NETWORK.url, {
-        transports: ['websocket', 'polling'],
-        reconnectionAttempts: 5,
-        reconnectionDelay: 2000
-    });
+    // Garante que a conexão única seja estabelecida
+    conectarMultiplayerOnline();
 
     socket.on('connect', () => {
         console.log("Conectado ao servidor multiplayer!");
