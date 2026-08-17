@@ -484,10 +484,15 @@ io.on('connection', (socket) => {
         const accountUser = socket.accountUser;
         if (!player || !accountUser || !db || !data.clanTag) return;
 
-        const tag = data.clanTag.toUpperCase();
+        const tag = data.clanTag.trim().toUpperCase();
+        if (tag.length < 2 || tag.length > 4) {
+            socket.emit('chatMessage', { playerName: 'Sistema', message: '❌ A TAG deve ter entre 2 e 4 caracteres.', channel: 'SISTEMA' });
+            return;
+        }
+
         const existing = await db.collection('clans').findOne({ tag });
         if (existing) {
-            socket.emit('chatMessage', { playerName: 'Sistema', message: '❌ Esta TAG de clã já está em uso.', channel: 'SISTEMA' });
+            socket.emit('chatMessage', { playerName: 'Sistema', message: `❌ A TAG [${tag}] já está em uso por outro clã.`, channel: 'SISTEMA' });
             return;
         }
 
@@ -501,36 +506,41 @@ io.on('connection', (socket) => {
             stats: { kills: 0, spar: 0 }
         };
 
-        await db.collection('clans').insertOne(newClan);
-        
-        // Persiste no Banco garantindo que o cargo de Líder seja gravado
-        await db.collection('contas').updateOne(
-            { user: accountUser.toLowerCase() },
-            { 
-                $set: { 
-                    "characters.0.clanTag": tag, 
-                    "characters.0.clanRole": "Líder" 
-                } 
-            }
-        );
+        try {
+            await db.collection('clans').insertOne(newClan);
+            
+            // Persiste no Banco garantindo que o cargo de Líder seja gravado no personagem correto
+            await db.collection('contas').updateOne(
+                { user: accountUser.toLowerCase() },
+                { 
+                    $set: { 
+                        "characters.0.clanTag": tag, 
+                        "characters.0.clanRole": "Líder" 
+                    } 
+                }
+            );
 
-        // Atualiza Cache
-        cachedClans[tag] = { leader: player.name, members: [player.name] };
-        
-        player.clanTag = tag;
-        player.clanRole = "Líder";
+            // Atualiza Cache em memória
+            cachedClans[tag] = { leader: player.name, members: [player.name] };
+            
+            player.clanTag = tag;
+            player.clanRole = "Líder";
 
-        socket.emit('clanAtualizado', { 
-            clanTag: tag, 
-            clanRole: "Líder", 
-            members: [{ name: player.name, role: "Líder" }] 
-        });
+            socket.emit('clanAtualizado', { 
+                clanTag: tag, 
+                clanRole: "Líder", 
+                members: [{ name: player.name, role: "Líder" }] 
+            });
 
-        io.emit('chatMessage', { 
-            playerName: 'Sistema', 
-            message: `🏰 O clã [${tag}] foi fundado por ${player.name}!`, 
-            channel: 'SISTEMA' 
-        });
+            io.emit('chatMessage', { 
+                playerName: 'Sistema', 
+                message: `🏰 O clã [${tag}] foi fundado por ${player.name}!`, 
+                channel: 'SISTEMA' 
+            });
+        } catch (err) {
+            console.error("[CRIAR CLÃ ERROR]", err);
+            socket.emit('chatMessage', { playerName: 'Sistema', message: '❌ Erro interno ao criar clã.', channel: 'SISTEMA' });
+        }
     });
 
     // Remover membro do clã (Ação exclusiva do Líder)
@@ -602,7 +612,7 @@ io.on('connection', (socket) => {
         const player = players[socket.id];
         if (!player || !player.clanTag || !data.nomeAlvo) return;
 
-        // Verifica no cache ou banco se é líder
+        // Verifica se quem convida é líder (no cache ou banco)
         const clanData = cachedClans[player.clanTag] || await db.collection('clans').findOne({ tag: player.clanTag });
         const isLeader = clanData && (clanData.leader === player.name || player.clanRole === 'Líder');
 
@@ -611,16 +621,16 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // Localiza o socket do alvo
+        // Busca o socket do alvo de forma insensível a maiúsculas/minúsculas
         const targetSocket = Array.from(io.sockets.sockets.values()).find(s => {
             const p = players[s.id];
-            return p && p.name.toLowerCase() === data.nomeAlvo.trim().toLowerCase();
+            return p && p.name && p.name.toLowerCase() === data.nomeAlvo.trim().toLowerCase();
         });
 
         if (targetSocket) {
             const pTarget = players[targetSocket.id];
             if (pTarget.clanTag) {
-                socket.emit('chatMessage', { playerName: 'Sistema', message: `❌ ${data.nomeAlvo} já pertence a um clã.`, channel: 'SISTEMA' });
+                socket.emit('chatMessage', { playerName: 'Sistema', message: `❌ ${pTarget.name} já pertence ao clã [${pTarget.clanTag}].`, channel: 'SISTEMA' });
                 return;
             }
 
@@ -629,9 +639,9 @@ io.on('connection', (socket) => {
                 clanTag: player.clanTag, 
                 leaderName: player.name 
             });
-            socket.emit('chatMessage', { playerName: 'Sistema', message: `✅ Convite enviado para ${data.nomeAlvo}.`, channel: 'SISTEMA' });
+            socket.emit('chatMessage', { playerName: 'Sistema', message: `✅ Convite enviado para ${pTarget.name}.`, channel: 'SISTEMA' });
         } else {
-            socket.emit('chatMessage', { playerName: 'Sistema', message: `❌ Jogador ${data.nomeAlvo} não encontrado ou offline.`, channel: 'SISTEMA' });
+            socket.emit('chatMessage', { playerName: 'Sistema', message: `❌ Jogador "${data.nomeAlvo}" não encontrado ou está offline.`, channel: 'SISTEMA' });
         }
     });
 
