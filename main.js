@@ -3875,9 +3875,10 @@ function abrirPainelPersonalizacao(scene) {
     };
     carregarGaleriaSprites();
 
-    // Botão de Novo PNG (Tarefa 2a)
-    // Injetar botão de upload no modal DOM para isolamento (Tarefa 2)
+    // Injetar botões no modal DOM para isolamento (Tarefa 2)
     const uploadBtn = document.createElement('button');
+    const confirmBtnDom = document.createElement('button');
+
     uploadBtn.innerText = '📁 ENVIAR NOVO PNG';
     uploadBtn.style.cssText = 'background:#1b1b3d; color:white; border:1px solid #f3e5ab; padding:8px; width:100%; cursor:pointer; font-family:monospace; margin-bottom:10px;';
     gallery.parentNode.insertBefore(uploadBtn, gallery);
@@ -3926,7 +3927,6 @@ function abrirPainelPersonalizacao(scene) {
         fileInput.click();
     });
 
-    const confirmBtnDom = document.createElement('button');
     confirmBtnDom.innerText = '✅ USAR ESTA SPRITE';
     confirmBtnDom.style.cssText = 'background:#1b3d1b; color:white; border:1px solid #f3e5ab; padding:8px; width:100%; cursor:pointer; font-family:monospace; display:none; margin-top:10px;';
     previewCont.parentNode.insertBefore(confirmBtnDom, previewCont.nextSibling);
