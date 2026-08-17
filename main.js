@@ -2728,17 +2728,22 @@ function conectarChatOnline() {
     socket.on('playerMoved', (playerInfo) => {
         let remoteSprite = otherPlayersSprites[playerInfo.id];
         if (remoteSprite) {
-            // Sincronização de skin ao mover (caso ainda não tenha carregado)
+            const texKey = 'skin_' + playerInfo.id;
+            
+            // Sincronização de skin ao mover: Apenas aplica se a textura mudou ou não existe
             if (playerInfo.customSpriteData) {
-                const texKey = 'skin_' + playerInfo.id;
                 if (!activeScene.textures.exists(texKey)) {
-                    console.log(`[REDE] 📥 Carregando skin de movimento para: ${playerInfo.name}`);
+                    console.log(`[REDE] 📥 Carregando nova skin para: ${playerInfo.name}`);
                     const img = new Image();
                     img.onload = () => {
-                        if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
-                        activeScene.textures.addSpriteSheet(texKey, img, { frameWidth: 64, frameHeight: 64 });
-                        remoteSprite.setTexture(texKey);
-                        remoteSprite.clearTint();
+                        if (!activeScene.textures.exists(texKey)) {
+                            activeScene.textures.addSpriteSheet(texKey, img, { frameWidth: 64, frameHeight: 64 });
+                            criarAnimacoesCustomizadas(activeScene, texKey);
+                        }
+                        if (remoteSprite.texture.key !== texKey) {
+                            remoteSprite.setTexture(texKey);
+                            remoteSprite.clearTint();
+                        }
                     };
                     img.src = playerInfo.customSpriteData;
                 } else if (remoteSprite.texture.key !== texKey) {
@@ -3924,10 +3929,14 @@ function abrirPainelPersonalizacao(scene) {
         img.onload = () => {
             if (scene.textures.exists(texKey)) scene.textures.remove(texKey);
             scene.textures.addSpriteSheet(texKey, img, { frameWidth: 64, frameHeight: 64 });
+            criarAnimacoesCustomizadas(scene, texKey);
+            
             player.setTexture(texKey);
             player.setFrame(0);
             player.clearTint();
             player.customSpriteData = base64;
+
+            console.log("[SKIN] ✅ Skin aplicada manualmente via galeria.");
 
             if (socket && socket.connected) {
                 socket.emit('skinChanged', base64);
@@ -4098,17 +4107,19 @@ function update() {
 
     let animToPlay = isMoving ? `walk_${playerFacing}` : `idle_${playerFacing}`;
     
-    // Se estiver usando skin customizada, tenta usar as animações _custom
+    // Se estiver usando skin customizada, prioriza animações custom SEM trocar textura
     if (player.texture.key === 'customPlayerSkin') {
         const customAnim = isMoving ? `walk_${playerFacing}_custom` : `idle_${playerFacing}_custom`;
         if (player.anims.exists(customAnim)) {
             animToPlay = customAnim;
         }
+    } else {
+        // Se não for skin custom, garante que use a animação padrão e a textura padrão
+        if (!player.anims.exists(animToPlay)) {
+            animToPlay = isMoving ? 'walk' : 'idle'; 
+        }
     }
-
-    if (!player.anims.exists(animToPlay)) {
-        animToPlay = isMoving ? 'walk' : 'idle'; 
-    }
+    
     player.anims.play(animToPlay, true);
 
 
