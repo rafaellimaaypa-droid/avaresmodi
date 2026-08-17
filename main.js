@@ -1281,12 +1281,20 @@ function finalizarLoginComDados(userData) {
         
         const applyCustomTexture = () => {
             player.setTexture(texKey);
-            player.setFrame(0);
             player.clearTint();
+            // Notifica outros jogadores sobre a skin completa
+            if (socket && socket.connected) {
+                socket.emit('playerMovement', {
+                    id: socket.id,
+                    x: player.x,
+                    y: player.y,
+                    customSpriteData: player.customSpriteData
+                });
+            }
         };
 
         if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
-        activeScene.textures.addBase64(texKey, userData.customSpriteData);
+        activeScene.textures.addSpriteSheet(texKey, userData.customSpriteData, { frameWidth: 32, frameHeight: 32 });
         activeScene.textures.once('addtexture', (key) => {
             if (key === texKey) applyCustomTexture();
         });
@@ -3844,9 +3852,8 @@ function abrirPainelPersonalizacao(scene) {
     const aplicarEFechar = (base64) => {
         const texKey = 'customPlayerSkin';
         if (scene.textures.exists(texKey)) scene.textures.remove(texKey);
-        scene.textures.addBase64(texKey, base64);
+        scene.textures.addSpriteSheet(texKey, base64, { frameWidth: 32, frameHeight: 32 });
         player.setTexture(texKey);
-        player.setFrame(0);
         player.clearTint();
         player.customSpriteData = base64;
         
