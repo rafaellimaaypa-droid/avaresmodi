@@ -482,14 +482,17 @@ io.on('connection', (socket) => {
     socket.on('criarCla', async (data) => {
         const player = players[socket.id];
         const accountUser = socket.accountUser;
-        if (!player || !accountUser || !db) return;
+        if (!player || !accountUser || !db || !data.clanTag) return;
 
-        const tag = data.clanTag;
+        const tag = data.clanTag.toUpperCase();
         const existing = await db.collection('clans').findOne({ tag });
-        if (existing) return;
+        if (existing) {
+            socket.emit('chatMessage', { playerName: 'Sistema', message: '❌ Esta TAG de clã já está em uso.', channel: 'SISTEMA' });
+            return;
+        }
 
         const newClan = {
-            name: tag, // Usando a tag como nome por padrão no socket
+            name: tag,
             tag: tag,
             leader: player.name,
             members: [player.name],
@@ -511,6 +514,7 @@ io.on('connection', (socket) => {
             }
         );
 
+        // Atualiza Cache
         cachedClans[tag] = { leader: player.name, members: [player.name] };
         
         player.clanTag = tag;
@@ -520,6 +524,12 @@ io.on('connection', (socket) => {
             clanTag: tag, 
             clanRole: "Líder", 
             members: [{ name: player.name, role: "Líder" }] 
+        });
+
+        io.emit('chatMessage', { 
+            playerName: 'Sistema', 
+            message: `🏰 O clã [${tag}] foi fundado por ${player.name}!`, 
+            channel: 'SISTEMA' 
         });
     });
 
@@ -592,7 +602,8 @@ io.on('connection', (socket) => {
         const player = players[socket.id];
         if (!player || !player.clanTag || !data.nomeAlvo) return;
 
-        const clanData = await db.collection('clans').findOne({ tag: player.clanTag });
+        // Verifica no cache ou banco se é líder
+        const clanData = cachedClans[player.clanTag] || await db.collection('clans').findOne({ tag: player.clanTag });
         const isLeader = clanData && (clanData.leader === player.name || player.clanRole === 'Líder');
 
         if (!isLeader) {
@@ -600,12 +611,19 @@ io.on('connection', (socket) => {
             return;
         }
 
+        // Localiza o socket do alvo
         const targetSocket = Array.from(io.sockets.sockets.values()).find(s => {
             const p = players[s.id];
             return p && p.name.toLowerCase() === data.nomeAlvo.trim().toLowerCase();
         });
 
         if (targetSocket) {
+            const pTarget = players[targetSocket.id];
+            if (pTarget.clanTag) {
+                socket.emit('chatMessage', { playerName: 'Sistema', message: `❌ ${data.nomeAlvo} já pertence a um clã.`, channel: 'SISTEMA' });
+                return;
+            }
+
             targetSocket.pendingClan = player.clanTag;
             targetSocket.emit('receberConviteClan', { 
                 clanTag: player.clanTag, 
@@ -620,12 +638,17 @@ io.on('connection', (socket) => {
     // Jogador aceita o convite
     socket.on('aceitarConviteClan', async (data) => {
         const player = players[socket.id];
-        const tag = socket.pendingClan || data.clanTag;
+        const tag = (socket.pendingClan || data.clanTag || "").toUpperCase();
         if (!player || !tag) return;
 
         const clanData = await db.collection('clans').findOne({ tag });
         if (!clanData) {
-            socket.emit('chatMessage', { playerName: 'Sistema', message: '❌ Clã não existe mais.', channel: 'SISTEMA' });
+            socket.emit('chatMessage', { playerName: 'Sistema', message: '❌ O convite expirou ou o clã não existe mais.', channel: 'SISTEMA' });
+            return;
+        }
+
+        if (clanData.members && clanData.members.length >= 15) {
+            socket.emit('chatMessage', { playerName: 'Sistema', message: '❌ Este clã atingiu o limite de 15 membros.', channel: 'SISTEMA' });
             return;
         }
 
@@ -633,8 +656,10 @@ io.on('connection', (socket) => {
         player.clanRole = 'Membro';
         delete socket.pendingClan;
         
+        // Atualiza o Banco de Dados (Coleção Clãs)
         await db.collection('clans').updateOne({ tag }, { $addToSet: { members: player.name } });
         
+        // Atualiza o Banco de Dados (Coleção Contas/Personagem)
         const accountUser = socket.accountUser;
         if (accountUser) {
             await db.collection('contas').updateOne(
@@ -643,6 +668,7 @@ io.on('connection', (socket) => {
             );
         }
 
+        // Atualiza Cache em tempo real
         const updatedClan = await db.collection('clans').findOne({ tag });
         cachedClans[tag] = { leader: updatedClan.leader, members: updatedClan.members };
 
@@ -651,12 +677,15 @@ io.on('connection', (socket) => {
             role: m === updatedClan.leader ? 'Líder' : 'Membro'
         }));
 
+        // Notifica o jogador e o resto do servidor
         socket.emit('clanAtualizado', { clanTag: tag, clanRole: 'Membro', members: membersList });
         io.emit('chatMessage', { 
             playerName: 'Sistema', 
             message: `🏰 ${player.name} juntou-se ao clã [${tag}]!`, 
             channel: 'SISTEMA' 
         });
+        
+        // Atualiza a tag no sprite para os outros jogadores
         socket.broadcast.emit('playerMoved', player);
     });
 
