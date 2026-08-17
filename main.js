@@ -1281,26 +1281,29 @@ function finalizarLoginComDados(userData) {
         player.customSpriteData = userData.customSpriteData;
         const texKey = 'customPlayerSkin';
         
-        const img = new Image();
-        img.onload = () => {
-            if (!activeScene || !activeScene.textures) return;
-            console.log("[SKIN] ✅ Imagem carregada. Gerando Spritesheet...");
-            if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
-            activeScene.textures.addSpriteSheet(texKey, img, { frameWidth: 64, frameHeight: 64 });
-            
-            player.setTexture(texKey);
-            player.clearTint();
-            console.log("[SKIN] 🎭 Textura aplicada. Sprite original ocultado/substituído.");
+        activeScene.textures.addBase64(texKey, userData.customSpriteData);
+        
+        activeScene.textures.once('addtexture', (key) => {
+            if (key === texKey) {
+                console.log("[SKIN] ✅ Textura Base64 processada. Aplicando substituição total.");
+                
+                player.setTexture(texKey);
+                player.setFrame(0);
+                player.clearTint(); // Remove o branco do boneco padrão para não afetar a skin
+                
+                console.log("[SKIN] 🎭 Skin aplicada. Boneco base substituído.");
+            }
+        });
 
-            setTimeout(() => {
-                if (player && activeScene.textures.exists(texKey)) {
-                    console.log("[SKIN] 🔄 Re-verificação de segurança: Aplicando Skin Novamente.");
-                    player.setTexture(texKey);
-                    player.clearTint();
-                }
-            }, 2000);
+        // Fallback de segurança para garantir ocultação da base
+        setTimeout(() => {
+            if (player && activeScene.textures.exists(texKey)) {
+                player.setTexture(texKey);
+                player.clearTint();
+            }
+        }, 500);
             
-            if (socket && socket.connected) {
+        if (socket && socket.connected) {
                 socket.emit('playerMovement', {
                     id: socket.id,
                     x: player.x,
@@ -2637,17 +2640,16 @@ function conectarChatOnline() {
         if (!remoteSprite || !data.skinData) return;
 
         const texKey = 'skin_' + data.playerId;
-        const img = new Image();
-        img.onload = () => {
-            if (!activeScene || !activeScene.textures) return;
-            console.log(`[REDE-SKIN] ✅ Skin aplicada ao jogador ${data.playerId}`);
-            if (activeScene.textures.exists(texKey)) activeScene.textures.remove(texKey);
-            activeScene.textures.addSpriteSheet(texKey, img, { frameWidth: 64, frameHeight: 64 });
-                
-            remoteSprite.setTexture(texKey);
-            remoteSprite.clearTint();
-        };
-        img.src = data.skinData;
+        activeScene.textures.addBase64(texKey, data.skinData);
+        
+        activeScene.textures.once('addtexture', (key) => {
+            if (key === texKey && remoteSprite.active) {
+                console.log(`[REDE-SKIN] ✅ Substituindo base padrão do jogador ${data.playerId}`);
+                remoteSprite.setTexture(texKey);
+                remoteSprite.setFrame(0);
+                remoteSprite.clearTint();
+            }
+        });
     });
 
     socket.on('receberConviteClan', (data) => {

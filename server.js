@@ -186,7 +186,8 @@ app.post('/api/login', async (req, res) => {
             gold: charData ? charData.gold : 1000,
             health: charData ? charData.health : 100,
             clanTag: (charData && charData.clanTag) ? charData.clanTag : null,
-            clanRole: (charData && charData.clanRole) ? charData.clanRole : null
+            clanRole: (charData && charData.clanRole) ? charData.clanRole : null,
+            customSpriteData: charData ? charData.customSpriteData : null
         });
     } catch (e) { 
         console.error("Erro na rota de login:", e);
