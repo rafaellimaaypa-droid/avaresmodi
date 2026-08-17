@@ -3925,7 +3925,7 @@ function abrirPainelPersonalizacao(scene) {
             reader.readAsDataURL(file);
         };
         fileInput.click();
-    });
+    };
 
     confirmBtnDom.innerText = '✅ USAR ESTA SPRITE';
     confirmBtnDom.style.cssText = 'background:#1b3d1b; color:white; border:1px solid #f3e5ab; padding:8px; width:100%; cursor:pointer; font-family:monospace; display:none; margin-top:10px;';
