@@ -25,6 +25,7 @@ let editMode = false;
 let editMinimized = false;
 let editCollisionOnly = false;
 let isLoggedIn = false;
+let isSaving = false;
 let currentUser = null;
 let charId = null;
 let isInputActive = false; 
@@ -1780,9 +1781,12 @@ function atualizarHudGold() {
 
 function salvarEstadoRemoto() {
     return new Promise((resolve, reject) => {
+        if (isSaving) return resolve({ success: false, reason: 'Already saving' });
         if (!isLoggedIn || isPlayerDead || !socket || !socket.connected || !player || !charId) {
             return resolve({ success: false, reason: 'Disconnected or Dead' });
         }
+
+        isSaving = true;
 
         const payload = {
             id: charId,
@@ -1805,11 +1809,13 @@ function salvarEstadoRemoto() {
         // Timeout de segurança para evitar promessas infinitas no mobile em caso de lag
         const timeout = setTimeout(() => {
             console.warn("[AUDITORIA SAVE] ⚠️ Timeout na resposta do servidor.");
+            isSaving = false;
             resolve({ success: false, error: 'timeout' });
         }, 5000);
 
         socket.emit('saveProgress', payload, (response) => {
             clearTimeout(timeout);
+            isSaving = false;
             if (response && response.success) {
                 console.log(`[AUDITORIA SAVE] ✅ Servidor confirmou gravação no banco para ${charName}:`, response);
                 resolve(response);
