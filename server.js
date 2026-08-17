@@ -996,20 +996,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('updateCustomSprite', async (data) => {
-        if (players[socket.id] && data.sprite) {
-            players[socket.id].customSprite = data.sprite;
-            const accountUser = socket.accountUser;
-            if (accountUser && db) {
-                await db.collection('contas').updateOne(
-                    { user: accountUser.toLowerCase() },
-                    { $set: { "characters.0.customSprite": data.sprite } }
-                );
-            }
-            socket.broadcast.emit('playerMoved', players[socket.id]);
-        }
-    });
-
     socket.on('playerMovement', (movementData) => {
         if (players[socket.id]) {
             players[socket.id].id = socket.id;
