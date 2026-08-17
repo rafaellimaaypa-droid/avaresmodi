@@ -3818,141 +3818,54 @@ function abrirPerfilConta(scene) {
 function abrirPainelPersonalizacao(scene) {
     if (isPlayerDead) return;
     const modal = document.getElementById('customizationModal');
-    const gallery = document.getElementById('spriteGallery');
-    const previewCont = document.getElementById('spritePreviewContainer');
-    const closeSpan = modal.querySelector('.close-modal');
-    
+    const closeBtn = document.getElementById('closeCustomization');
+    const btnSelect = document.getElementById('btnSelectFile');
+    const fileInput = document.getElementById('spriteFileInput');
+    const previewImg = document.getElementById('skinPreviewImg');
+    const placeholder = document.getElementById('previewPlaceholder');
+
     modal.style.display = 'block';
-    gallery.innerHTML = '<p style="color:#aaa; font-size:10px;">Carregando galeria...</p>';
-    previewCont.style.display = 'none';
-    previewCont.innerHTML = '';
-    
-    let tempBase64 = null;
 
     const fechar = () => {
         modal.style.display = 'none';
         if (!isMenuOpen) setMinimapVisible(true);
     };
-    closeSpan.onclick = fechar;
 
-    // Função para aplicar sprite e fechar (Tarefa 2c)
-    const aplicarSpriteDireto = async (base64) => {
-        const part = document.getElementById('spriteBodyPart').value;
-        const texKey = 'custom_' + part.toLowerCase() + '_' + charName;
-        
-        if (scene.textures.exists(texKey)) scene.textures.remove(texKey);
-        scene.textures.addBase64(texKey, base64);
-        
-        if (part === 'BODY') {
+    closeBtn.onclick = fechar;
+
+    btnSelect.onclick = () => fileInput.click();
+
+    fileInput.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = event => {
+            const base64 = event.target.result;
+            
+            // Preview
+            previewImg.src = base64;
+            previewImg.style.display = 'block';
+            placeholder.style.display = 'none';
+
+            // Atualização imediata no Phaser
+            const texKey = 'custom_sheet_' + charName;
+            if (scene.textures.exists(texKey)) scene.textures.remove(texKey);
+            scene.textures.addBase64(texKey, base64);
             player.setTexture(texKey);
             player.customSpriteData = base64;
-        }
-        
-        // Salva no banco considerando a parte (Tarefa 3)
-        await fetch(`${BASE_URL}/api/upload-sprite`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                user: currentUser, 
-                customSpriteData: base64,
-                part: part
-            })
-        });
-        
-        fechar();
-        adicionarMensagemChat('Sistema', `✅ Skin (${part}) aplicada com sucesso!`);
-    };
 
-    const carregarGaleriaSprites = async () => {
-        try {
-            const res = await fetch(`${BASE_URL}/api/list-sprites?user=${currentUser}`);
-            const data = await res.json();
-            gallery.innerHTML = '';
-            if (data.success && data.sprites.length > 0) {
-                data.sprites.forEach((spriteData) => {
-                    const img = document.createElement('img');
-                    img.src = spriteData;
-                    img.className = 'gallery-item';
-                    img.onclick = () => aplicarSpriteDireto(spriteData);
-                    gallery.appendChild(img);
-                });
-            } else {
-                gallery.innerHTML = '<p style="color:#666; font-size:10px;">Nenhum salvo.</p>';
-            }
-        } catch (e) { gallery.innerHTML = 'Erro ao carregar.'; }
-    };
-    carregarGaleriaSprites();
+            // Envio para o servidor
+            fetch(`${BASE_URL}/api/upload-sprite`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user: currentUser, customSpriteData: base64, part: 'BODY' })
+            });
 
-    // Injetar botões no modal DOM para isolamento (Tarefa 2)
-    const uploadBtn = document.createElement('button');
-    const confirmBtnDom = document.createElement('button');
-
-    uploadBtn.innerText = '📁 OU ESCOLHA UM ARQUIVO';
-    uploadBtn.style.cssText = 'background:#3d2b1f; color:white; border:1px solid #f3e5ab; padding:8px; width:100%; cursor:pointer; font-family:monospace; margin-top:10px;';
-    const selectArea = document.querySelector('.custom-select-area');
-    selectArea.appendChild(uploadBtn);
-
-    let previewDirection = 0; // 0: down, 1: left, 2: right, 3: up
-    previewCont.onclick = () => {
-        const img = previewCont.querySelector('img');
-        if (!img) return;
-        previewDirection = (previewDirection + 1) % 4;
-        // Ajusta o posicionamento para focar no frame correto da direção (assumindo grid LPC 3x4 ou similar)
-        const frameSize = 64; 
-        img.style.marginTop = `-${previewDirection * frameSize}px`;
-    };
-
-    uploadBtn.onclick = () => {
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'image/png';
-        
-        fileInput.onchange = e => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = readerEvent => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    // Mantém proporções de spritesheet LPC ou redimensiona se for gigante
-                    const maxW = 832; 
-                    const scale = img.width > maxW ? maxW / img.width : 1;
-                    canvas.width = img.width * scale;
-                    canvas.height = img.height * scale;
-                    
-                    const ctx = canvas.getContext('2d');
-                    ctx.imageSmoothingEnabled = false; // Preserva Pixel Art
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    
-                    const compressedBase64 = canvas.toDataURL('image/png');
-                    tempBase64 = compressedBase64;
-                    
-                    if (previewCont) {
-                        const dropTxt = previewCont.querySelector('.drop-text');
-                        if (dropTxt) dropTxt.style.display = 'none';
-                        previewCont.innerHTML = `<img src="${compressedBase64}" style="width: 192px; image-rendering: pixelated; display: block;">`;
-                        previewCont.style.display = 'flex';
-                        confirmBtnDom.style.display = 'block';
-                    }
-                };
-                img.src = readerEvent.target.result;
-            };
-            reader.readAsDataURL(file);
+            setTimeout(fechar, 500);
+            adicionarMensagemChat('Sistema', `✅ Skin aplicada com sucesso!`);
         };
-        fileInput.click();
-    };
-
-    confirmBtnDom.innerText = '✅ USAR ESTA SPRITE';
-    confirmBtnDom.style.cssText = 'background:#1b3d1b; color:white; border:1px solid #f3e5ab; padding:8px; width:100%; cursor:pointer; font-family:monospace; display:none; margin-top:10px;';
-    previewCont.parentNode.insertBefore(confirmBtnDom, previewCont.nextSibling);
-
-    confirmBtnDom.onclick = () => {
-        if (tempBase64) {
-            aplicarSpriteDireto(tempBase64);
-            confirmBtnDom.style.display = 'none';
-        }
+        reader.readAsDataURL(file);
     };
 }
 

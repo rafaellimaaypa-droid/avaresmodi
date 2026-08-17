@@ -75,33 +75,25 @@
     <div id="mobile-chat-btn">💬</div>
     <input type="text" id="mobile-chat-input" autocomplete="off" placeholder="Digite sua mensagem...">
     
-    <!-- Modal de Personalização Isolado (Tarefa 1 e 2) -->
+    <!-- Modal de Personalização Reconstruído -->
     <div id="customizationModal" class="game-modal">
         <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h2>🎨 PERSONALIZAÇÃO</h2>
+            <span class="close-modal" id="closeCustomization">&times;</span>
+            <h2 style="font-family: monospace; color: #f3e5ab; text-align: center;">🎨 PERSONALIZAÇÃO</h2>
             
-            <div class="modal-flex-container">
-                <div id="spritePreviewContainer">
-                    <span class="drop-text">Solte os arquivos aqui!</span>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 20px; margin-top: 20px;">
+                <div id="skinPreviewBox" style="width: 64px; height: 64px; border: 2px solid #3d2b1f; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center;">
+                    <img id="skinPreviewImg" src="" style="display: none; width: auto; height: auto; image-rendering: pixelated; object-fit: none; object-position: 0 0;">
+                    <span id="previewPlaceholder" style="font-size: 9px; color: #444; text-align: center;">PREVIEW</span>
                 </div>
-                <div class="instruction-box">
-                    <p><b>Instruções:</b></p>
-                    <p>1. O arquivo deve ser um PNG transparente.</p>
-                    <p>2. Formato padrão LPC ou 32x32 frames.</p>
-                    <p>3. Clique na caixa à esquerda para alternar a direção do preview.</p>
-                </div>
-            </div>
 
-            <div class="custom-select-area">
-                <label>PARTE DO CORPO:</label>
-                <select id="spriteBodyPart">
-                    <option value="BODY">BODY (CORPO INTEIRO)</option>
-                    <option value="HEAD">CABEÇA / CABELO</option>
-                </select>
+                <input type="file" id="spriteFileInput" accept="image/png" style="display: none;">
+                <button id="btnSelectFile" style="background:#3d2b1f; color:#f3e5ab; border:1px solid #f3e5ab; padding:12px; width:100%; cursor:pointer; font-family:monospace; font-weight: bold;">
+                    ESCOLHER ARQUIVO PNG
+                </button>
+                
+                <p style="font-size: 10px; color: #666; font-family: monospace; text-align: center;">O primeiro frame da sua spritesheet será aplicado.</p>
             </div>
-
-            <div id="spriteGallery" class="gallery-container"></div>
         </div>
     </div>
 
