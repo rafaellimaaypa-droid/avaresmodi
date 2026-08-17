@@ -3811,9 +3811,32 @@ function abrirPixelEditor(scene) {
     const startX = 400 - (GRID_SIZE * PIXEL_SIZE) / 2;
     const startY = 300 - (GRID_SIZE * PIXEL_SIZE) / 2;
 
+    // Template de Silhueta (Guia visual para proporções)
+    const silhouette = [
+        [0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0],
+        [0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0],
+        [0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0],
+        [0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0],
+        [0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0],
+        [0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+        [0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+        [0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+        [0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+        [0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+        [0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0],
+        [0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0],
+        [0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,0],
+        [0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,0],
+        [0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,0],
+        [0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,0]
+    ];
+
     for (let y = 0; y < GRID_SIZE; y++) {
         for (let x = 0; x < GRID_SIZE; x++) {
-            let px = scene.add.rectangle(startX + (x * PIXEL_SIZE), startY + (y * PIXEL_SIZE), PIXEL_SIZE - 1, PIXEL_SIZE - 1, 0x333333)
+            const isGuide = silhouette[y][x] === 1;
+            const bgColor = isGuide ? 0x444455 : 0x333333;
+            
+            let px = scene.add.rectangle(startX + (x * PIXEL_SIZE), startY + (y * PIXEL_SIZE), PIXEL_SIZE - 1, PIXEL_SIZE - 1, bgColor)
                 .setOrigin(0).setScrollFactor(0).setDepth(EDITOR_DEPTH + 2).setInteractive();
             
             px.on('pointerdown', () => {
@@ -3839,6 +3862,12 @@ function abrirPixelEditor(scene) {
         cBox.on('pointerdown', () => {
             selectedColor = color;
             adicionarMensagemChat('Sistema', color === null ? 'Borracha selecionada' : 'Cor selecionada');
+            // Visual feedback for selected color
+            colors.forEach((_, idx) => {
+                if (menuElements[GRID_SIZE * GRID_SIZE + idx]) {
+                    menuElements[GRID_SIZE * GRID_SIZE + idx].setStrokeStyle(selectedColor === colors[idx] ? 2 : 1, 0xffffff);
+                }
+            });
         });
         menuElements.push(cBox);
     });
