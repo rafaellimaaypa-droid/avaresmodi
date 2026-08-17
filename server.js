@@ -63,6 +63,26 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(__dirname));
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.post('/api/upload-sprite', async (req, res) => {
+    try {
+        const { user, customSpriteData } = req.body;
+        if (!user || !customSpriteData) return res.status(400).json({ message: 'Dados incompletos' });
+        
+        if (db) {
+            await db.collection('contas').updateOne(
+                { user: user.toLowerCase() },
+                { $set: { "characters.0.customSpriteData": customSpriteData } }
+            );
+            console.log(`[HTTP] Sprite atualizado para: ${user}`);
+            res.json({ success: true });
+        } else {
+            res.status(503).json({ success: false, message: 'Banco offline' });
+        }
+    } catch (e) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
 app.post('/api/register', async (req, res) => {
     try {
         const { user, pass } = req.body;
@@ -227,22 +247,6 @@ app.post('/api/characters', async (req, res) => {
     } catch (e) { 
         console.error("Erro ao salvar personagem:", e);
         res.status(500).json({ success: false, message: 'ERRO AO SALVAR PERSONAGEM' }); 
-    }
-});
-
-app.post('/api/upload-sprite', async (req, res) => {
-    try {
-        const { user, customSpriteData } = req.body;
-        if (!user || !customSpriteData) return res.status(400).json({ message: 'Dados incompletos' });
-        
-        await db.collection('contas').updateOne(
-            { user: user.toLowerCase() },
-            { $set: { "characters.0.customSpriteData": customSpriteData } }
-        );
-        
-        res.json({ success: true });
-    } catch (e) {
-        res.status(500).json({ message: e.message });
     }
 });
 
