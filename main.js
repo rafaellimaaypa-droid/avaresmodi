@@ -3812,15 +3812,20 @@ function abrirPainelPersonalizacao(scene) {
     closeBtn.on('pointerdown', () => {
         bgOverlay.destroy(); panel.destroy(); title.destroy(); closeBtn.destroy();
         menuElements.forEach(e => e.destroy());
-        const previewImg = document.getElementById('spritePreview');
-        if (previewImg) previewImg.style.display = 'none';
+        const previewCont = document.getElementById('spritePreviewContainer');
+        if (previewCont) previewCont.style.display = 'none';
         if (!isMenuOpen) setMinimapVisible(true);
     });
 
     const info = scene.add.text(400, 200, "Selecione o arquivo PNG do seu Spritesheet:", { font: 'bold 12px monospace', fill: '#ffffff' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002);
     
-    const btnInput = scene.add.text(400, 300, ' [ SELECIONAR ARQUIVO PNG ] ', { font: 'bold 14px monospace', fill: '#ffffff', backgroundColor: '#1b1b3d', padding: { x: 20, y: 10 } })
+    const btnInput = scene.add.text(400, 260, ' [ 📁 SELECIONAR PNG ] ', { font: 'bold 14px monospace', fill: '#ffffff', backgroundColor: '#1b1b3d', padding: { x: 20, y: 10 } })
         .setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
+
+    const btnConfirm = scene.add.text(400, 340, ' [ ✅ CONFIRMAR E SALVAR ] ', { font: 'bold 14px monospace', fill: '#ffffff', backgroundColor: '#1b3d1b', padding: { x: 20, y: 10 } })
+        .setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive().setVisible(false);
+
+    let tempBase64 = null;
 
     btnInput.on('pointerdown', () => {
         const fileInput = document.createElement('input');
@@ -3835,27 +3840,41 @@ function abrirPainelPersonalizacao(scene) {
             reader.onload = readerEvent => {
                 const base64 = readerEvent.target.result;
                 if (base64 && base64.startsWith('data:image')) {
+                    tempBase64 = base64;
+                    const previewCont = document.getElementById('spritePreviewContainer');
                     const previewImg = document.getElementById('spritePreview');
-                    if (previewImg) {
+                    if (previewCont && previewImg) {
                         previewImg.src = base64;
-                        previewImg.style.display = 'block';
+                        previewCont.style.display = 'block';
+                        btnConfirm.setVisible(true);
                     }
-
-                    player.customSpriteData = base64;
-                    if (scene.textures.exists('custom_sheet_' + charName)) {
-                        scene.textures.remove('custom_sheet_' + charName);
-                    }
-                    scene.textures.addBase64('custom_sheet_' + charName, base64);
-                    
-                    player.setTexture('custom_sheet_' + charName);
-                    salvarEstadoRemoto();
-                    adicionarMensagemChat('Sistema', '✅ Sprite personalizado carregado com sucesso!');
                 }
             };
             reader.readAsDataURL(file);
         };
         fileInput.click();
     });
+
+    btnConfirm.on('pointerdown', () => {
+        if (tempBase64) {
+            player.customSpriteData = tempBase64;
+            if (scene.textures.exists('custom_sheet_' + charName)) {
+                scene.textures.remove('custom_sheet_' + charName);
+            }
+            scene.textures.addBase64('custom_sheet_' + charName, tempBase64);
+            player.setTexture('custom_sheet_' + charName);
+            
+            salvarEstadoRemoto();
+            adicionarMensagemChat('Sistema', '✅ Sprite personalizado aplicado e salvo!');
+            
+            const previewCont = document.getElementById('spritePreviewContainer');
+            if (previewCont) previewCont.style.display = 'none';
+            btnConfirm.setVisible(false);
+            tempBase64 = null;
+        }
+    });
+
+    menuElements.push(bgOverlay, panel, title, closeBtn, info, btnInput, btnConfirm);
 
     menuElements.push(bgOverlay, panel, title, closeBtn, info, btnInput);
 }

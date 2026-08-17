@@ -74,7 +74,9 @@
     </div>
     <div id="mobile-chat-btn">💬</div>
     <input type="text" id="mobile-chat-input" autocomplete="off" placeholder="Digite sua mensagem...">
-    <img id="spritePreview" src="" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 128px; display: none; z-index: 10005; border: 2px solid #f3e5ab; background: #000; image-rendering: pixelated;">
+    <div id="spritePreviewContainer" style="position: fixed; top: 45%; left: 50%; transform: translate(-50%, -50%); width: 64px; height: 64px; display: none; z-index: 10005; border: 2px solid #f3e5ab; background: #111; overflow: hidden;">
+        <img id="spritePreview" src="" style="width: 512px; height: 512px; image-rendering: pixelated; position: absolute; top: 0; left: 0;">
+    </div>
 
     <!-- Carrega o seu script principal do jogo -->
     <script src="main.js"></script>
