@@ -29,7 +29,8 @@ const { MongoClient } = require('mongodb');
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
-    cors: { origin: "*", methods: ["GET", "POST"] }
+    cors: { origin: "*", methods: ["GET", "POST"] },
+    transports: ['websocket', 'polling']
 });
 const wss = new WebSocket.Server({ noServer: true });
 
@@ -59,6 +60,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.post('/api/register', async (req, res) => {
     try {
