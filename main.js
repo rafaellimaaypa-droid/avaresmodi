@@ -1270,12 +1270,15 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
 
     const textureKey = 'skin_' + username + '_sheet';
 
-    // Bloqueio de redundância: Se a skin já está aplicada, não faz nada
-    if (sprite.getData('skinBase64') === skinBase64 && activeScene.textures.exists(textureKey)) {
+    // OTIMIZAÇÃO: Verifica se a textura já existe no cache do Phaser para evitar reprocessamento pesado de Base64
+    if (activeScene.textures.exists(textureKey)) {
         if (sprite.texture.key !== textureKey) {
             sprite.setTexture(textureKey);
+            sprite.setScale(1.0);
             sprite.clearTint();
         }
+        sprite.customTextureKey = textureKey;
+        sprite.setData('skinBase64', skinBase64);
         return;
     }
 
@@ -1284,12 +1287,7 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     img.onload = () => {
         if (!activeScene) return;
 
-        // Remove textura anterior se existir para evitar conflito de cache
-        if (activeScene.textures.exists(textureKey)) {
-            activeScene.textures.remove(textureKey);
-        }
-
-        // Registra o spritesheet com os quadros cortados corretamente (LPC padrão 64x64)
+        // Registra o spritesheet apenas uma vez no cache
         const fWidth = 64;
         const fHeight = 64;
         activeScene.textures.addSpriteSheet(textureKey, img, {
@@ -1297,62 +1295,55 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
             frameHeight: fHeight
         });
 
-        criarAnimacoesLPC(activeScene, textureKey, fWidth, fHeight);
+        criarAnimacoesLPC(activeScene, textureKey);
 
         sprite.setData('skinBase64', skinBase64);
         sprite.customSpriteData = skinBase64;
-        sprite.customTextureKey = textureKey; // Trava de segurança para a textura
+        sprite.customTextureKey = textureKey;
 
-        // Aplica a nova textura imediatamente no sprite principal existente
         if (sprite && sprite.active) {
             sprite.setTexture(textureKey);
             sprite.setScale(1.0); 
             sprite.clearTint();
-
             sprite.setVisible(true);
-            if (sprite === player) {
-                sprite.setAlpha(1);
-                // Garante que o player global aponte para o sprite correto e limpa duplicatas
-                if (activeScene.playerSprite && activeScene.playerSprite !== sprite) {
-                    activeScene.playerSprite.destroy();
-                    activeScene.playerSprite = sprite;
-                }
-            }
 
             const targetAnim = 'idle_down_custom';
             if (sprite.anims.exists(targetAnim)) {
                 sprite.play(targetAnim);
             }
-            
-            console.log(`[SKIN] ✅ Textura atualizada no sprite existente para: ${username}`);
+            console.log(`[PERFORMANCE] ✅ Nova skin processada e em cache para: ${username}`);
         }
     };
 }
 
-function criarAnimacoesLPC(scene, textureKey, fWidth, fHeight) {
-    // Mapeamento padrão das linhas do LPC (ex: 0: cima, 1: esquerda, 2: baixo, 3: direita para walk)
-    const direcoes = ['up', 'left', 'down', 'right'];
+function criarAnimacoesLPC(scene, textureKey) {
+    // Mapeamento LPC Standard: Linha 8=Cima, 9=Esquerda, 10=Baixo, 11=Direita (Caminhada)
+    const direcoes = [
+        { dir: 'up', row: 8 },
+        { dir: 'left', row: 9 },
+        { dir: 'down', row: 10 },
+        { dir: 'right', row: 11 }
+    ];
     
-    // Se a animação já não existir, cria os frames de caminhada (geralmente 8 quadros por linha no LPC)
-    direcoes.forEach((dir, index) => {
-        const animName = `walk_${dir}_custom`;
+    direcoes.forEach((config) => {
+        const animName = `walk_${config.dir}_custom`;
         if (!scene.anims.exists(animName)) {
             scene.anims.create({
                 key: animName,
                 frames: scene.anims.generateFrameNumbers(textureKey, {
-                    start: index * 13, // Linha correspondente na folha LPC padrão
-                    end: (index * 13) + 8
+                    start: config.row * 13, 
+                    end: (config.row * 13) + 8
                 }),
-                frameRate: 10,
+                frameRate: 12,
                 repeat: -1
             });
         }
         
-        const idleName = `idle_${dir}_custom`;
+        const idleName = `idle_${config.dir}_custom`;
         if (!scene.anims.exists(idleName)) {
             scene.anims.create({
                 key: idleName,
-                frames: [{ key: textureKey, frame: index * 13 }],
+                frames: [{ key: textureKey, frame: config.row * 13 }],
                 frameRate: 1
             });
         }
