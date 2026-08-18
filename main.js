@@ -2959,8 +2959,10 @@ function adicionarOutroJogador(scene, data) {
             other.play(idleAnim);
         }
     } else if (data.customSpriteData) {
+        console.log('[DEBUG REMOTO ⚙️] Registrando nova skin remota via Base64 para:', uniqueKey);
         aplicarSkinCustomizada(other, data.customSpriteData, targetUsername);
     } else {
+        console.log('[DEBUG REMOTO ⚠️ AVISO] customSpriteData veio vazio! Caindo no boneco padrão para:', targetUsername);
         other.setTint(data.bodyColor || 0xffffff);
         other.anims.play('idle_down', true);
         
