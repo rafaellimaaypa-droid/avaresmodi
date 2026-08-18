@@ -1309,6 +1309,12 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     const uniqueKey = 'skin_' + username.toLowerCase() + '_sheet';
     console.log('[SKIN DEBUG] Chave de textura única gerada:', uniqueKey, '| Já existe no cache Phaser?', activeScene.textures.exists(uniqueKey));
 
+    // Limpeza obrigatória de textura antiga se existir no cache para este usuário
+    if (activeScene.textures.exists(uniqueKey)) {
+        console.log(`[SKIN REPLACE] Limpando skin anterior antes de aplicar a nova para: ${username}`);
+        activeScene.textures.remove(uniqueKey);
+    }
+
     const vincularTextura = (key) => {
         sprite.setTexture(key);
         sprite.setScale(1.0);
@@ -2834,6 +2840,7 @@ function conectarChatOnline() {
 
             if (activeScene.textures.exists(textureKey)) {
                 if (remoteSprite.texture.key !== textureKey) {
+                    console.log(`[REMOTE MOVE] Jogador remoto [${targetUsername}] andando, mantendo textura: [${textureKey}]`);
                     remoteSprite.setTexture(textureKey);
                     remoteSprite.setScale(1.0);
                     remoteSprite.clearTint();
