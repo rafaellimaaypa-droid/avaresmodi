@@ -2813,7 +2813,7 @@ function conectarChatOnline() {
                 }
             }
 
-            if (playerInfo.anim) {
+            if (playerInfo.anim && remoteSprite && remoteSprite.anims) {
                 // Traduz animação padrão para custom se o sprite remoto tiver textura custom
                 let targetAnim = playerInfo.anim;
                 if (remoteSprite.customTextureKey && !targetAnim.endsWith('_custom')) {
@@ -2923,13 +2923,21 @@ function conectarChatOnline() {
 function adicionarOutroJogador(scene, data) {
     if (!scene || !data || !data.id || otherPlayersSprites[data.id]) return;
     
-    // Determina a textura inicial: se houver skin, o sprite nasce "vazio" ou invisível 
-    // para ser preenchido pela skin, evitando o boneco branco.
-    const initialTexture = data.customSpriteData ? null : 'player_idle';
+    // Barreira rígida: decide a textura antes de instanciar para evitar o boneco branco
+    let initialTexture = 'player_idle';
+    if (data.customSpriteData || data.customTextureKey) {
+        initialTexture = data.customTextureKey || null;
+    }
+
     let other = scene.physics.add.sprite(data.x, data.y, initialTexture);
     
+    if (other.baseSprite) {
+        other.baseSprite.destroy();
+        other.baseSprite = null;
+    }
+
     if (data.customSpriteData) {
-        other.setVisible(false); // Fica invisível até a skin carregar
+        if (!initialTexture) other.setVisible(false);
         aplicarSkinCustomizada(other, data.customSpriteData, (data.accountUser || data.name || data.id).toLowerCase());
     } else {
         other.setTint(data.bodyColor || 0xffffff);
@@ -4204,7 +4212,9 @@ function update() {
         }
     }
     
-    player.anims.play(animToPlay, true);
+    if (player && player.anims) {
+        player.anims.play(animToPlay, true);
+    }
 
     // Sincronização de acessórios (asas, etc) com o frame e animação do player
     if (player.accessory && player.accessory.active) {
