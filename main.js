@@ -1312,6 +1312,12 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     // Limpeza obrigatória de textura antiga se existir no cache para este usuário
     if (activeScene.textures.exists(uniqueKey)) {
         console.log(`[SKIN REPLACE] Limpando skin anterior antes de aplicar a nova para: ${username}`);
+        
+        // Proteção WebGL: Remove a referência da textura do sprite antes de deletá-la da memória
+        if (sprite && sprite.active) {
+            sprite.setTexture('player_idle');
+        }
+        
         activeScene.textures.remove(uniqueKey);
     }
 
