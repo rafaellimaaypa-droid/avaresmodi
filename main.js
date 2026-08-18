@@ -1291,6 +1291,7 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
 
         sprite.setData('skinBase64', skinBase64);
         sprite.customSpriteData = skinBase64;
+        sprite.customTextureKey = textureKey; // Trava de segurança para a textura
 
         // Aplica a nova textura imediatamente no sprite ativo
         if (sprite && sprite.active) {
@@ -2783,6 +2784,14 @@ function conectarChatOnline() {
             remoteSprite.setPosition(playerInfo.x, playerInfo.y);
             remoteSprite.setDepth(playerInfo.y);
             remoteSprite.setFlipX(playerInfo.facing === 'left');
+
+            // Trava de segurança: Se existe uma textura customizada, impede o retorno ao padrão
+            if (remoteSprite.customTextureKey) {
+                if (remoteSprite.texture.key !== remoteSprite.customTextureKey) {
+                    remoteSprite.setTexture(remoteSprite.customTextureKey);
+                }
+            }
+
             if (playerInfo.anim) remoteSprite.anims.play(playerInfo.anim, true);
             if (remoteSprite.playerNameText) {
                 remoteSprite.playerNameText.setPosition(playerInfo.x, playerInfo.y + 28);
@@ -4138,7 +4147,10 @@ function update() {
     let animToPlay = isMoving ? `walk_${playerFacing}` : `idle_${playerFacing}`;
     
     // Se estiver usando skin customizada, prioriza animações custom SEM trocar textura
-    if (player.texture.key === 'customPlayerSkin') {
+    if (player.customTextureKey) {
+        if (player.texture.key !== player.customTextureKey) {
+            player.setTexture(player.customTextureKey);
+        }
         const customAnim = isMoving ? `walk_${playerFacing}_custom` : `idle_${playerFacing}_custom`;
         if (player.anims.exists(customAnim)) {
             animToPlay = customAnim;
