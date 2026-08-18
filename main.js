@@ -1289,10 +1289,12 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
             activeScene.textures.remove(textureKey);
         }
 
-        // Registra o spritesheet com os quadros cortados corretamente
+        // Registra o spritesheet com os quadros cortados corretamente (LPC)
+        const fWidth = img.width / 4;
+        const fHeight = img.height / 4;
         activeScene.textures.addSpriteSheet(textureKey, img, {
-            frameWidth: 64,
-            frameHeight: 64
+            frameWidth: fWidth,
+            frameHeight: fHeight
         });
 
         criarAnimacoesCustomizadas(activeScene, textureKey);
@@ -1304,6 +1306,8 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
         // Aplica a nova textura imediatamente no sprite principal existente
         if (sprite && sprite.active) {
             sprite.setTexture(textureKey);
+            const scaleRatio = 32 / fWidth;
+            sprite.setScale(1.3 * scaleRatio);
             sprite.clearTint();
 
             sprite.setVisible(true);
@@ -2800,9 +2804,8 @@ function conectarChatOnline() {
                 if (remoteSprite.customTextureKey && !targetAnim.endsWith('_custom')) {
                     targetAnim += '_custom';
                 }
-                
+            
                 const animExists = activeScene.anims.exists(targetAnim);
-                console.log(`[DIAGNÓSTICO ANIM] Player Remoto: ${playerInfo.name} | Sprite: ${remoteSprite.texture.key} | Anim: ${targetAnim} | Existe: ${animExists}`);
 
                 if (animExists) {
                     remoteSprite.anims.play(targetAnim, true);
