@@ -2863,8 +2863,9 @@ function conectarChatOnline() {
             if (playerInfo.anim && remoteSprite && remoteSprite.anims) {
                 let targetAnim = playerInfo.anim;
                 const remoteName = (playerInfo.name || "").toLowerCase();
+                const hasCustomSkin = remoteSprite.customTextureKey || playerInfo.customSpriteData;
                 
-                if (remoteSprite.customTextureKey && remoteName) {
+                if (hasCustomSkin && remoteName) {
                     const isWalking = targetAnim.includes('walk');
                     targetAnim = isWalking ? `walk_${direction}_custom_${remoteName}` : `idle_${direction}_custom_${remoteName}`;
                 } else {
