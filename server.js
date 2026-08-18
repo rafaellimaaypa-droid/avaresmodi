@@ -1113,6 +1113,7 @@ io.on('connection', (socket) => {
                 x: p.x,
                 y: p.y,
                 facing: p.facing,
+                direction: p.facing,
                 anim: p.anim
             });
         }

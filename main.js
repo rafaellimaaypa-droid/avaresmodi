@@ -4171,6 +4171,7 @@ function update() {
                 x: Math.round(player.x),
                 y: Math.round(player.y),
                 facing: playerFacing,
+                direction: playerFacing,
                 anim: currentAnim
             });
 
