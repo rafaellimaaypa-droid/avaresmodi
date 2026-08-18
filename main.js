@@ -165,6 +165,12 @@ function conectarMultiplayerOnline() {
 
     socket.on('connect', () => {
         console.log(`[SOCKET] 🌐 Conexão estabelecida! ID: ${socket.id}`);
+
+        const savedSkin = localStorage.getItem('avaris_custom_skin');
+        if (savedSkin && player && currentUser) {
+            aplicarSkinCustomizada(player, savedSkin, currentUser.toLowerCase());
+        }
+
         if (isLoggedIn && charName) {
             socket.emit('joinGame', {
                 x: player.x,
@@ -1163,6 +1169,16 @@ function create() {
     cursors = this.input.keyboard.createCursorKeys();
     keys = this.input.keyboard.addKeys('W,A,S,D');
 
+    window.addEventListener('focus', () => {
+        const savedSkin = localStorage.getItem('avaris_custom_skin');
+        if (savedSkin && player && currentUser && activeScene) {
+            const uniqueKey = 'skin_' + currentUser.toLowerCase() + '_sheet';
+            if (!activeScene.textures.exists(uniqueKey)) {
+                aplicarSkinCustomizada(player, savedSkin, currentUser.toLowerCase());
+            }
+        }
+    });
+
     this.input.keyboard.on('keydown-S', (event) => {
         if (event.ctrlKey && !isChatOpen && !isPlayerDead) {
             event.preventDefault();
@@ -1318,6 +1334,10 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
         sprite.setData('skinBase64', skinBase64);
         sprite.customSpriteData = skinBase64;
         sprite.customTextureKey = uniqueKey;
+
+        if (sprite === player) {
+            localStorage.setItem('avaris_custom_skin', skinBase64);
+        }
 
         if (sprite && sprite.active) {
             sprite.setTexture(uniqueKey);
