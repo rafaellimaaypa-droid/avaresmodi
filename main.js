@@ -2795,11 +2795,18 @@ function conectarChatOnline() {
         let remoteSprite = otherPlayersSprites[playerInfo.id];
         if (remoteSprite) {
             const targetUsername = (playerInfo.accountUser || playerInfo.name || "").toLowerCase();
-            
             const textureKey = 'skin_' + targetUsername + '_sheet';
-            if (playerInfo.customSpriteData && !activeScene.textures.exists(textureKey)) {
+
+            if (activeScene.textures.exists(textureKey)) {
+                if (remoteSprite.texture.key !== textureKey) {
+                    remoteSprite.setTexture(textureKey);
+                    remoteSprite.setScale(1.0);
+                    remoteSprite.clearTint();
+                    remoteSprite.customTextureKey = textureKey;
+                }
+            } else if (playerInfo.customSpriteData) {
                 aplicarSkinCustomizada(remoteSprite, playerInfo.customSpriteData, targetUsername);
-            } else if (playerInfo.hasCustomSkin && !activeScene.textures.exists(textureKey) && !remoteSprite.getData('requestedSkin')) {
+            } else if (playerInfo.hasCustomSkin && !remoteSprite.getData('requestedSkin')) {
                 remoteSprite.setData('requestedSkin', true);
                 socket.emit('requestPlayerSkin', { targetId: playerInfo.id });
             }
@@ -2934,22 +2941,24 @@ function adicionarOutroJogador(scene, data) {
     const uniqueKey = 'skin_' + targetUsername + '_sheet';
     
     let initialTexture = 'player_idle';
+    let usesCustom = false;
     if (scene.textures.exists(uniqueKey)) {
         initialTexture = uniqueKey;
+        usesCustom = true;
     }
 
     let other = scene.physics.add.sprite(data.x, data.y, initialTexture);
     
-    if (data.customSpriteData && !scene.textures.exists(uniqueKey)) {
-        other.setVisible(false);
-        aplicarSkinCustomizada(other, data.customSpriteData, targetUsername);
-    } else if (scene.textures.exists(uniqueKey)) {
+    if (usesCustom) {
         other.setTexture(uniqueKey);
         other.setScale(1.0);
+        other.customTextureKey = uniqueKey;
         const idleAnim = `idle_down_custom_${targetUsername}`;
         if (scene.anims.exists(idleAnim)) {
             other.play(idleAnim);
         }
+    } else if (data.customSpriteData) {
+        aplicarSkinCustomizada(other, data.customSpriteData, targetUsername);
     } else {
         other.setTint(data.bodyColor || 0xffffff);
         other.anims.play('idle_down', true);
