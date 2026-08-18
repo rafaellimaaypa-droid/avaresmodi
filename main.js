@@ -930,7 +930,12 @@ function create() {
         if (player.adminTag) player.adminTag.destroy();
         player.destroy();
     }
-    player = this.physics.add.sprite(400, 450, 'player_idle');
+    if (player && player.customTextureKey) {
+        player.destroy();
+        player = this.physics.add.sprite(400, 450, player.customTextureKey);
+    } else {
+        player = this.physics.add.sprite(400, 450, 'player_idle');
+    }
     player.setScale(1.3);
     player.setVisible(false);
     player.setCollideWorldBounds(true);
