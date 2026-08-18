@@ -1295,13 +1295,29 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
 
         // Aplica a nova textura imediatamente no sprite ativo
         if (sprite && sprite.active) {
-            sprite.setTexture(textureKey);
+            // Se o sprite era o "boneco base" padrão, limpamos sua textura antes de aplicar a nova
+            if (sprite.texture.key === 'player_idle' || sprite.texture.key === 'player_walk' || !sprite.texture.key) {
+                sprite.setTexture(textureKey);
+            } else {
+                sprite.setTexture(textureKey);
+            }
+            
             sprite.clearTint();
 
-            // Garantia de segurança: Se houver qualquer sprite base vinculado, ele é removido
+            // Garantia de segurança extrema: Destruição de qualquer referência a sprites base
             if (sprite.baseSprite) {
                 sprite.baseSprite.destroy();
                 sprite.baseSprite = null;
+            }
+            
+            // Cleanup agressivo de outros sprites no mesmo local com textura padrão
+            if (sprite === player && activeScene) {
+                activeScene.children.list.forEach(child => {
+                    if (child !== sprite && child.texture && (child.texture.key === 'player_idle' || child.texture.key === 'player_walk')) {
+                        const dist = Phaser.Math.Distance.Between(sprite.x, sprite.y, child.x, child.y);
+                        if (dist < 5) child.destroy();
+                    }
+                });
             }
 
             sprite.setVisible(true);
@@ -1359,6 +1375,7 @@ function finalizarLoginComDados(userData) {
 
     if (userData.customSpriteData) {
         console.log("[SKIN] 📥 Aplicando skin customizada salva...");
+        player.customSpriteData = userData.customSpriteData;
         aplicarSkinCustomizada(player, userData.customSpriteData, userData.name.toLowerCase());
             
         if (socket && socket.connected) {
@@ -1371,8 +1388,11 @@ function finalizarLoginComDados(userData) {
         }
     } else {
         console.log("[SKIN] 👤 Usando boneco padrão.");
-        player.setTexture('player_idle');
-        player.anims.play('idle_down', true);
+        // Só aplica textura padrão se NÃO houver skin customizada ativa
+        if (!player.customTextureKey) {
+            player.setTexture('player_idle');
+            player.anims.play('idle_down', true);
+        }
     }
     player.setVisible(true);
     charName = userData.name;
@@ -2903,10 +2923,13 @@ function conectarChatOnline() {
 function adicionarOutroJogador(scene, data) {
     if (!scene || !data || !data.id || otherPlayersSprites[data.id]) return;
     
-    // Spawn inicial com textura padrão para garantir o objeto
-    let other = scene.physics.add.sprite(data.x, data.y, 'player_idle');
+    // Determina a textura inicial: se houver skin, o sprite nasce "vazio" ou invisível 
+    // para ser preenchido pela skin, evitando o boneco branco.
+    const initialTexture = data.customSpriteData ? null : 'player_idle';
+    let other = scene.physics.add.sprite(data.x, data.y, initialTexture);
     
     if (data.customSpriteData) {
+        other.setVisible(false); // Fica invisível até a skin carregar
         aplicarSkinCustomizada(other, data.customSpriteData, (data.accountUser || data.name || data.id).toLowerCase());
     } else {
         other.setTint(data.bodyColor || 0xffffff);
