@@ -145,11 +145,20 @@ let otherPlayers = {};
 function conectarMultiplayerOnline() {
     if (typeof CHAT_NETWORK === 'undefined' || !CHAT_NETWORK.enabled) return;
     
-    if (socket) return;
+    if (socket) {
+        socket.removeAllListeners();
+        socket.close();
+        socket = null;
+    }
 
     socket = io(CHAT_NETWORK.url, {
         transports: ['websocket', 'polling'],
-        autoConnect: true
+        autoConnect: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 2000,
+        reconnectionDelayMax: 10000,
+        timeout: 20000
     });
 
     socket.on('connect', () => {
