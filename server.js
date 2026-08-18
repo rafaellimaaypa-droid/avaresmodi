@@ -529,6 +529,7 @@ io.on('connection', (socket) => {
         };
 
         players[socket.id] = fullPlayerData;
+        console.log('[SERVIDOR SYNC] Enviando player:', fullPlayerData.accountUser || fullPlayerData.id, 'Tem customSpriteData?', !!fullPlayerData.customSpriteData);
 
         if (savedClanTag && cachedClans[savedClanTag]) {
             const membersList = cachedClans[savedClanTag].members.map(m => ({

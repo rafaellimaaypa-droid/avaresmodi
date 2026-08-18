@@ -2940,12 +2940,17 @@ function adicionarOutroJogador(scene, data) {
     const targetUsername = (data.accountUser || data.name || data.id).toLowerCase();
     const uniqueKey = 'skin_' + targetUsername + '_sheet';
     
+    console.log('[DEBUG REMOTO] Processando player remoto ID:', data.id, 'Username:', targetUsername);
+    console.log('[DEBUG REMOTO] customSpriteData recebido no pacote?', !!data.customSpriteData, data.customSpriteData ? data.customSpriteData.substring(0, 30) + '...' : 'NENHUM');
+    console.log('[DEBUG REMOTO] Chave gerada:', uniqueKey, '| Textura já existe no cache?', scene.textures.exists(uniqueKey));
+
     let initialTexture = 'player_idle';
     let isTextureReady = scene.textures.exists(uniqueKey);
 
     let other = scene.physics.add.sprite(data.x, data.y, initialTexture);
     
     if (isTextureReady) {
+        console.log('[DEBUG REMOTO ✅] Usando skin customizada do cache para:', uniqueKey);
         other.setTexture(uniqueKey);
         other.setScale(1.0);
         other.customTextureKey = uniqueKey;
