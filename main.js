@@ -1297,7 +1297,7 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
             frameHeight: fHeight
         });
 
-        criarAnimacoesCustomizadas(activeScene, textureKey);
+        criarAnimacoesLPC(activeScene, textureKey, fWidth, fHeight);
 
         sprite.setData('skinBase64', skinBase64);
         sprite.customSpriteData = skinBase64;
@@ -1330,26 +1330,33 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     };
 }
 
-function criarAnimacoesCustomizadas(scene, key) {
-    const directions = ['down', 'left', 'right', 'up'];
-    directions.forEach((dir, index) => {
-        const idleKey = `idle_${dir}_custom`;
-        const walkKey = `walk_${dir}_custom`;
-        if (scene.anims.exists(idleKey)) scene.anims.remove(idleKey);
-        if (scene.anims.exists(walkKey)) scene.anims.remove(walkKey);
-
-        scene.anims.create({
-            key: idleKey,
-            frames: scene.anims.generateFrameNumbers(key, { start: index * 4, end: index * 4 }),
-            frameRate: 1,
-            repeat: -1
-        });
-        scene.anims.create({
-            key: walkKey,
-            frames: scene.anims.generateFrameNumbers(key, { start: index * 4, end: (index * 4) + 3 }),
-            frameRate: 8,
-            repeat: -1
-        });
+function criarAnimacoesLPC(scene, textureKey, fWidth, fHeight) {
+    // Mapeamento padrão das linhas do LPC (ex: 0: cima, 1: esquerda, 2: baixo, 3: direita para walk)
+    const direcoes = ['up', 'left', 'down', 'right'];
+    
+    // Se a animação já não existir, cria os frames de caminhada (geralmente 8 quadros por linha no LPC)
+    direcoes.forEach((dir, index) => {
+        const animName = `walk_${dir}_custom`;
+        if (!scene.anims.exists(animName)) {
+            scene.anims.create({
+                key: animName,
+                frames: scene.anims.generateFrameNumbers(textureKey, {
+                    start: index * 13, // Linha correspondente na folha LPC padrão
+                    end: (index * 13) + 8
+                }),
+                frameRate: 10,
+                repeat: -1
+            });
+        }
+        
+        const idleName = `idle_${dir}_custom`;
+        if (!scene.anims.exists(idleName)) {
+            scene.anims.create({
+                key: idleName,
+                frames: [{ key: textureKey, frame: index * 13 }],
+                frameRate: 1
+            });
+        }
     });
 }
 
