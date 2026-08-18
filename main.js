@@ -2794,11 +2794,12 @@ function conectarChatOnline() {
     socket.on('playerMoved', (playerInfo) => {
         let remoteSprite = otherPlayersSprites[playerInfo.id];
         if (remoteSprite) {
-            const targetUsername = playerInfo.accountUser ? playerInfo.accountUser.toLowerCase() : "";
+            const targetUsername = (playerInfo.accountUser || playerInfo.name || "").toLowerCase();
             
-            // Se o jogador remoto tem skin mas ela não está no cache local, solicita apenas uma vez via rede
             const textureKey = 'skin_' + targetUsername + '_sheet';
-            if (playerInfo.hasCustomSkin && !activeScene.textures.exists(textureKey) && !remoteSprite.getData('requestedSkin')) {
+            if (playerInfo.customSpriteData && !activeScene.textures.exists(textureKey)) {
+                aplicarSkinCustomizada(remoteSprite, playerInfo.customSpriteData, targetUsername);
+            } else if (playerInfo.hasCustomSkin && !activeScene.textures.exists(textureKey) && !remoteSprite.getData('requestedSkin')) {
                 remoteSprite.setData('requestedSkin', true);
                 socket.emit('requestPlayerSkin', { targetId: playerInfo.id });
             }
@@ -2929,29 +2930,26 @@ function conectarChatOnline() {
 function adicionarOutroJogador(scene, data) {
     if (!scene || !data || !data.id || otherPlayersSprites[data.id]) return;
     
-    console.log(`[DIAGNÓSTICO SPAWN] Criando jogador: ${data.name || data.id}`);
-    console.log(` > customSpriteData: ${data.customSpriteData ? 'Presente (Base64)' : 'Ausente'}`);
-    console.log(` > customTextureKey: ${data.customTextureKey || 'N/A'}`);
-
-    // Barreira rígida: decide a textura antes de instanciar para evitar o boneco branco
+    const targetUsername = (data.accountUser || data.name || data.id).toLowerCase();
+    const uniqueKey = 'skin_' + targetUsername + '_sheet';
+    
     let initialTexture = 'player_idle';
-    if (data.customSpriteData || data.customTextureKey) {
-        initialTexture = data.customTextureKey || null;
-        console.log(` [OK] Entrou no bloco de skin customizada. Textura: ${initialTexture}`);
-    } else {
-        console.warn(` [ALERTA] Caindo no boneco padrão 'player_idle' para ${data.name}. Motivo: Dados de skin/textura não encontrados.`);
+    if (scene.textures.exists(uniqueKey)) {
+        initialTexture = uniqueKey;
     }
 
     let other = scene.physics.add.sprite(data.x, data.y, initialTexture);
     
-    if (other.baseSprite) {
-        other.baseSprite.destroy();
-        other.baseSprite = null;
-    }
-
-    if (data.customSpriteData) {
-        if (!initialTexture) other.setVisible(false);
-        aplicarSkinCustomizada(other, data.customSpriteData, (data.accountUser || data.name || data.id).toLowerCase());
+    if (data.customSpriteData && !scene.textures.exists(uniqueKey)) {
+        other.setVisible(false);
+        aplicarSkinCustomizada(other, data.customSpriteData, targetUsername);
+    } else if (scene.textures.exists(uniqueKey)) {
+        other.setTexture(uniqueKey);
+        other.setScale(1.0);
+        const idleAnim = `idle_down_custom_${targetUsername}`;
+        if (scene.anims.exists(idleAnim)) {
+            other.play(idleAnim);
+        }
     } else {
         other.setTint(data.bodyColor || 0xffffff);
         other.anims.play('idle_down', true);
