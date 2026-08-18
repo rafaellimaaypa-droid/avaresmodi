@@ -1289,9 +1289,9 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
             activeScene.textures.remove(textureKey);
         }
 
-        // Registra o spritesheet com os quadros cortados corretamente (LPC)
-        const fWidth = img.width / 4;
-        const fHeight = img.height / 4;
+        // Registra o spritesheet com os quadros cortados corretamente (LPC padrão 64x64)
+        const fWidth = 64;
+        const fHeight = 64;
         activeScene.textures.addSpriteSheet(textureKey, img, {
             frameWidth: fWidth,
             frameHeight: fHeight
@@ -1306,8 +1306,7 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
         // Aplica a nova textura imediatamente no sprite principal existente
         if (sprite && sprite.active) {
             sprite.setTexture(textureKey);
-            const scaleRatio = 32 / fWidth;
-            sprite.setScale(1.3 * scaleRatio);
+            sprite.setScale(1.0); 
             sprite.clearTint();
 
             sprite.setVisible(true);
