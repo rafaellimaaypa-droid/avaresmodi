@@ -1321,11 +1321,9 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
         if (!activeScene) return;
 
         // Registra o spritesheet com a chave única do usuário
-        const fWidth = 64;
-        const fHeight = 64;
         activeScene.textures.addSpriteSheet(uniqueKey, img, {
-            frameWidth: fWidth,
-            frameHeight: fHeight
+            frameWidth: 64,
+            frameHeight: 64
         });
 
         // Cria animações exclusivas para esta textura para evitar conflitos de frame
@@ -1355,12 +1353,13 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
 }
 
 function criarAnimacoesLPC(scene, textureKey, username) {
-    // Mapeamento LPC Standard: Linha 8=Cima, 9=Esquerda, 10=Baixo, 11=Direita (Caminhada)
+    // Mapeamento LPC Standard (13 colunas por linha): 
+    // Linha 0 (Cima), Linha 1 (Esquerda), Linha 2 (Baixo), Linha 3 (Direita)
     const direcoes = [
-        { dir: 'up', row: 8 },
-        { dir: 'left', row: 9 },
-        { dir: 'down', row: 10 },
-        { dir: 'right', row: 11 }
+        { dir: 'up', row: 0 },
+        { dir: 'left', row: 1 },
+        { dir: 'down', row: 2 },
+        { dir: 'right', row: 3 }
     ];
     
     direcoes.forEach((config) => {
@@ -4275,6 +4274,7 @@ function update() {
     if (player && player.anims) {
         if (this.anims.exists(animToPlay)) {
             player.anims.play(animToPlay, true);
+            console.log(`[ANIM DIAGNÓSTICO] Jogador: ${charName} | Animação solicitada: ${animToPlay} | Frame atual: ${player.anims.currentFrame ? player.anims.currentFrame.index : 'N/A'}`);
         }
     }
 
