@@ -925,6 +925,11 @@ function create() {
     }
 
     // --- JOGADOR COM Y-SORTING INICIAL (Spawn Padrão) ---
+    if (player) {
+        if (player.playerNameText) player.playerNameText.destroy();
+        if (player.adminTag) player.adminTag.destroy();
+        player.destroy();
+    }
     player = this.physics.add.sprite(400, 450, 'player_idle');
     player.setScale(1.3);
     player.setVisible(false);
@@ -4213,7 +4218,12 @@ function update() {
     }
     
     if (player && player.anims) {
-        player.anims.play(animToPlay, true);
+        console.log(`[ANIM] Tentando executar: ${animToPlay}`);
+        if (this.anims.exists(animToPlay)) {
+            player.anims.play(animToPlay, true);
+        } else {
+            console.warn(`[ANIM] Chave não encontrada: ${animToPlay}`);
+        }
     }
 
     // Sincronização de acessórios (asas, etc) com o frame e animação do player
