@@ -1284,12 +1284,6 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     img.onload = () => {
         if (!activeScene) return;
 
-        // Destrói o sprite antigo se for o jogador local para evitar duplicatas
-        if (sprite === player && activeScene.playerSprite && activeScene.playerSprite.texture.key !== textureKey) {
-            const oldSprite = activeScene.playerSprite;
-            if (oldSprite !== sprite) oldSprite.destroy();
-        }
-
         // Remove textura anterior se existir para evitar conflito de cache
         if (activeScene.textures.exists(textureKey)) {
             activeScene.textures.remove(textureKey);
@@ -1307,26 +1301,27 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
         sprite.customSpriteData = skinBase64;
         sprite.customTextureKey = textureKey; // Trava de segurança para a textura
 
-        // Aplica a nova textura imediatamente no sprite ativo
+        // Aplica a nova textura imediatamente no sprite principal existente
         if (sprite && sprite.active) {
-            // Se o sprite era o "boneco base" padrão, limpamos sua textura antes de aplicar a nova
-            if (sprite.texture.key === 'player_idle' || sprite.texture.key === 'player_walk' || !sprite.texture.key) {
-                sprite.setTexture(textureKey);
-            } else {
-                sprite.setTexture(textureKey);
-            }
-            
+            sprite.setTexture(textureKey);
             sprite.clearTint();
 
             sprite.setVisible(true);
-            if (sprite === player) player.setAlpha(1);
+            if (sprite === player) {
+                sprite.setAlpha(1);
+                // Garante que o player global aponte para o sprite correto e limpa duplicatas
+                if (activeScene.playerSprite && activeScene.playerSprite !== sprite) {
+                    activeScene.playerSprite.destroy();
+                    activeScene.playerSprite = sprite;
+                }
+            }
 
             const targetAnim = 'idle_down_custom';
             if (sprite.anims.exists(targetAnim)) {
                 sprite.play(targetAnim);
             }
             
-            console.log(`[SKIN] ✅ Spritesheet HTML carregada e aplicada para: ${username}`);
+            console.log(`[SKIN] ✅ Textura atualizada no sprite existente para: ${username}`);
         }
     };
 }
