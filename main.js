@@ -2806,7 +2806,9 @@ function conectarChatOnline() {
             remoteSprite.setData('playerData', playerInfo);
             remoteSprite.setPosition(playerInfo.x, playerInfo.y);
             remoteSprite.setDepth(playerInfo.y);
-            remoteSprite.setFlipX(playerInfo.facing === 'left');
+            
+            const direction = playerInfo.direction || playerInfo.facing || 'down';
+            remoteSprite.setFlipX(direction === 'left');
 
             if (playerInfo.anim && remoteSprite && remoteSprite.anims) {
                 // Traduz animação para a versão custom única deste jogador remoto
@@ -2814,14 +2816,11 @@ function conectarChatOnline() {
                 const remoteName = (playerInfo.name || "").toLowerCase();
                 
                 if (remoteSprite.customTextureKey && remoteName) {
-                    if (targetAnim.includes('walk_up')) targetAnim = `walk_up_custom_${remoteName}`;
-                    else if (targetAnim.includes('walk_down')) targetAnim = `walk_down_custom_${remoteName}`;
-                    else if (targetAnim.includes('walk_left')) targetAnim = `walk_left_custom_${remoteName}`;
-                    else if (targetAnim.includes('walk_right')) targetAnim = `walk_right_custom_${remoteName}`;
-                    else if (targetAnim.includes('idle_up')) targetAnim = `idle_up_custom_${remoteName}`;
-                    else if (targetAnim.includes('idle_down')) targetAnim = `idle_down_custom_${remoteName}`;
-                    else if (targetAnim.includes('idle_left')) targetAnim = `idle_left_custom_${remoteName}`;
-                    else if (targetAnim.includes('idle_right')) targetAnim = `idle_right_custom_${remoteName}`;
+                    const isWalking = targetAnim.includes('walk');
+                    targetAnim = isWalking ? `walk_${direction}_custom_${remoteName}` : `idle_${direction}_custom_${remoteName}`;
+                } else {
+                    const isWalking = targetAnim.includes('walk');
+                    targetAnim = isWalking ? `walk_${direction}` : `idle_${direction}`;
                 }
             
                 const animExists = activeScene.anims.exists(targetAnim);
