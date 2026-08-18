@@ -568,7 +568,7 @@ io.on('connection', (socket) => {
             players[socket.id].customSpriteData = skinBase64;
             socket.broadcast.emit('skinUpdated', { 
                 playerId: socket.id, 
-                username: players[socket.id].accountUser || players[socket.id].name,
+                playerName: players[socket.id].name,
                 skinData: skinBase64 
             });
             console.log(`[SKIN] Jogador ${players[socket.id].name} mudou de skin.`);
@@ -1112,6 +1112,7 @@ io.on('connection', (socket) => {
             // Broadcast incluindo dados de identificação e skin para evitar perda visual ao andar
             socket.broadcast.emit('playerMoved', {
                 id: socket.id,
+                name: p.name,
                 x: p.x,
                 y: p.y,
                 facing: p.facing,

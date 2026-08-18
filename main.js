@@ -167,8 +167,8 @@ function conectarMultiplayerOnline() {
         console.log(`[SOCKET] 🌐 Conexão estabelecida! ID: ${socket.id}`);
 
         const savedSkin = localStorage.getItem('avaris_custom_skin');
-        if (savedSkin && player && currentUser) {
-            aplicarSkinCustomizada(player, savedSkin, currentUser.toLowerCase());
+        if (savedSkin && player && charName) {
+            aplicarSkinCustomizada(player, savedSkin, charName.toLowerCase());
         }
 
         if (isLoggedIn && charName) {
@@ -1171,10 +1171,10 @@ function create() {
 
     window.addEventListener('focus', () => {
         const savedSkin = localStorage.getItem('avaris_custom_skin');
-        if (savedSkin && player && currentUser && activeScene) {
-            const uniqueKey = 'skin_' + currentUser.toLowerCase() + '_sheet';
+        if (savedSkin && player && charName && activeScene) {
+            const uniqueKey = 'skin_' + charName.toLowerCase() + '_sheet';
             if (!activeScene.textures.exists(uniqueKey)) {
-                aplicarSkinCustomizada(player, savedSkin, currentUser.toLowerCase());
+                aplicarSkinCustomizada(player, savedSkin, charName.toLowerCase());
             }
         }
     });
@@ -2759,19 +2759,19 @@ function conectarChatOnline() {
 
     socket.on('skinUpdated', (data) => {
         let targetSprite = null;
-        const targetUsername = data.username ? data.username.toLowerCase() : "";
+        const targetName = data.playerName ? data.playerName.toLowerCase() : "";
 
-        if (targetUsername === currentUser.toLowerCase()) {
+        if (targetName === charName.toLowerCase()) {
             targetSprite = player;
         } else {
             targetSprite = Object.values(otherPlayersSprites).find(s => {
                 const pData = s.getData('playerData');
-                return pData && pData.accountUser && pData.accountUser.toLowerCase() === targetUsername;
+                return pData && pData.name && pData.name.toLowerCase() === targetName;
             });
         }
 
         if (targetSprite && data.skinData) {
-            aplicarSkinCustomizada(targetSprite, data.skinData, targetUsername);
+            aplicarSkinCustomizada(targetSprite, data.skinData, targetName);
         }
     });
 
@@ -2835,12 +2835,12 @@ function conectarChatOnline() {
     socket.on('playerMoved', (playerInfo) => {
         let remoteSprite = otherPlayersSprites[playerInfo.id];
         if (remoteSprite) {
-            const targetUsername = (playerInfo.accountUser || playerInfo.name || "").toLowerCase();
-            const textureKey = 'skin_' + targetUsername + '_sheet';
+            const targetName = (playerInfo.name || "").toLowerCase();
+            const textureKey = 'skin_' + targetName + '_sheet';
 
             // Garantia de Skin: Se o pacote de movimento traz dados de skin e a textura não existe, registra agora
             if (!activeScene.textures.exists(textureKey) && playerInfo.customSpriteData) {
-                aplicarSkinCustomizada(remoteSprite, playerInfo.customSpriteData, targetUsername);
+                aplicarSkinCustomizada(remoteSprite, playerInfo.customSpriteData, targetName);
             }
 
             if (activeScene.textures.exists(textureKey)) {
@@ -2851,7 +2851,7 @@ function conectarChatOnline() {
                     remoteSprite.customTextureKey = textureKey;
                 }
             } else if (playerInfo.customSpriteData) {
-                aplicarSkinCustomizada(remoteSprite, playerInfo.customSpriteData, targetUsername);
+                aplicarSkinCustomizada(remoteSprite, playerInfo.customSpriteData, targetName);
             } else if (playerInfo.hasCustomSkin && !remoteSprite.customTextureKey && !remoteSprite.getData('requestedSkin')) {
                 remoteSprite.setData('requestedSkin', true);
                 socket.emit('requestPlayerSkin', { targetId: playerInfo.id });
@@ -4097,7 +4097,7 @@ function abrirPainelPersonalizacao(scene) {
 
     const aplicarEFechar = async (base64) => {
         player.customSpriteData = base64;
-        aplicarSkinCustomizada(player, base64, currentUser.toLowerCase());
+        aplicarSkinCustomizada(player, base64, charName.toLowerCase());
 
         if (socket && socket.connected) {
             socket.emit('skinChanged', base64);
@@ -4286,9 +4286,12 @@ function update() {
             player.clearTint(); 
         }
         const customAnim = isMoving ? `walk_${playerFacing}_custom_${charName.toLowerCase()}` : `idle_${playerFacing}_custom_${charName.toLowerCase()}`;
-        if (this.anims.exists(customAnim)) {
-            animToPlay = customAnim;
+        
+        // Garante que a animação exista, forçando criação se necessário
+        if (!this.anims.exists(customAnim)) {
+            criarAnimacoesLPC(this, player.customTextureKey, charName.toLowerCase());
         }
+        animToPlay = customAnim;
     } else {
         // Se não for skin custom, garante que use a animação padrão e a textura padrão
         if (!this.anims.exists(animToPlay)) {
