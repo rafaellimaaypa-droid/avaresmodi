@@ -925,14 +925,15 @@ function create() {
     }
 
     // --- JOGADOR COM Y-SORTING INICIAL (Spawn Padrão) ---
-    if (player) {
-        if (player.playerNameText) player.playerNameText.destroy();
-        if (player.adminTag) player.adminTag.destroy();
-        player.destroy();
+    if (this.playerSprite) {
+        if (this.playerSprite.playerNameText) this.playerSprite.playerNameText.destroy();
+        if (this.playerSprite.adminTag) this.playerSprite.adminTag.destroy();
+        this.playerSprite.destroy();
     }
 
     const initialTexture = (player && player.customTextureKey) ? player.customTextureKey : 'player_idle';
-    player = this.physics.add.sprite(400, 450, initialTexture);
+    this.playerSprite = this.physics.add.sprite(400, 450, initialTexture);
+    player = this.playerSprite;
     player.setScale(1.3);
     player.setVisible(false);
     player.setCollideWorldBounds(true);
@@ -1311,22 +1312,6 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
             
             sprite.clearTint();
 
-            // Garantia de segurança extrema: Destruição de qualquer referência a sprites base
-            if (sprite.baseSprite) {
-                sprite.baseSprite.destroy();
-                sprite.baseSprite = null;
-            }
-            
-            // Cleanup agressivo de outros sprites no mesmo local com textura padrão
-            if (sprite === player && activeScene) {
-                activeScene.children.list.forEach(child => {
-                    if (child !== sprite && child.texture && (child.texture.key === 'player_idle' || child.texture.key === 'player_walk')) {
-                        const dist = Phaser.Math.Distance.Between(sprite.x, sprite.y, child.x, child.y);
-                        if (dist < 5) child.destroy();
-                    }
-                });
-            }
-
             sprite.setVisible(true);
             if (sprite === player) player.setAlpha(1);
 
@@ -1381,7 +1366,6 @@ function finalizarLoginComDados(userData) {
     playerClanRole = userData.clanRole || 'Membro';
 
     if (userData.customSpriteData) {
-        console.log("[SKIN] 📥 Aplicando skin customizada salva...");
         player.customSpriteData = userData.customSpriteData;
         aplicarSkinCustomizada(player, userData.customSpriteData, userData.name.toLowerCase());
             
@@ -1394,7 +1378,6 @@ function finalizarLoginComDados(userData) {
             });
         }
     } else {
-        console.log("[SKIN] 👤 Usando boneco padrão.");
         player.setTexture('player_idle');
         player.anims.play('idle_down', true);
     }
@@ -2810,13 +2793,6 @@ function conectarChatOnline() {
             remoteSprite.setDepth(playerInfo.y);
             remoteSprite.setFlipX(playerInfo.facing === 'left');
 
-            // Trava de segurança: Se existe uma textura customizada, impede o retorno ao padrão
-            if (remoteSprite.customTextureKey) {
-                if (remoteSprite.texture.key !== remoteSprite.customTextureKey) {
-                    remoteSprite.setTexture(remoteSprite.customTextureKey);
-                }
-            }
-
             if (playerInfo.anim && remoteSprite && remoteSprite.anims) {
                 // Traduz animação padrão para custom se o sprite remoto tiver textura custom
                 let targetAnim = playerInfo.anim;
@@ -4217,11 +4193,8 @@ function update() {
     }
     
     if (player && player.anims) {
-        console.log(`[ANIM] Tentando executar: ${animToPlay}`);
         if (this.anims.exists(animToPlay)) {
             player.anims.play(animToPlay, true);
-        } else {
-            console.warn(`[ANIM] Chave não encontrada: ${animToPlay}`);
         }
     }
 
