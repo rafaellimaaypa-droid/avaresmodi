@@ -1317,7 +1317,8 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
         sprite.setData('skinBase64', skinBase64);
         
         if (sprite === player && profileAvatarImg) {
-            profileAvatarImg.setTexture(key, 0);
+            // No padrão LPC 13 colunas, Linha 10 (baixo) frame 0 é o índice 130
+            profileAvatarImg.setTexture(key, 130);
             profileAvatarImg.setScale(0.85);
             profileAvatarImg.clearTint();
             console.log('[SKIN DEBUG] HUD e Perfil atualizados com skin customizada.');
@@ -1336,7 +1337,9 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
 
         activeScene.textures.addSpriteSheet(uniqueKey, img, {
             frameWidth: 64,
-            frameHeight: 64
+            frameHeight: 64,
+            margin: 0,
+            spacing: 0
         });
 
         criarAnimacoesLPC(activeScene, uniqueKey, username.toLowerCase());
@@ -1360,12 +1363,12 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
 
 function criarAnimacoesLPC(scene, textureKey, username) {
     // Mapeamento LPC Standard (13 colunas por linha): 
-    // Linha 0 (Cima), Linha 1 (Esquerda), Linha 2 (Baixo), Linha 3 (Direita)
+    // Caminhada (Walk): Linha 8 (Cima), 9 (Esquerda), 10 (Baixo), 11 (Direita)
     const direcoes = [
-        { dir: 'up', row: 0 },
-        { dir: 'left', row: 1 },
-        { dir: 'down', row: 2 },
-        { dir: 'right', row: 3 }
+        { dir: 'up', row: 8 },
+        { dir: 'left', row: 9 },
+        { dir: 'down', row: 10 },
+        { dir: 'right', row: 11 }
     ];
     
     direcoes.forEach((config) => {
@@ -4025,7 +4028,9 @@ function abrirPerfilConta(scene) {
     const avatarBox = scene.add.rectangle(230, 240, 140, 180, 0x12121a).setScrollFactor(0).setDepth(2002).setStrokeStyle(2, 0x967322);
     
     let texParaExibir = player.customTextureKey || 'player_idle';
-    const avatarImg = scene.add.sprite(230, 230, texParaExibir, 0).setScrollFactor(0).setDepth(2003);
+    // Se for skin customizada, usa o frame 130 (frontal LPC), senão usa o frame 0
+    const startFrame = player.customTextureKey ? 130 : 0;
+    const avatarImg = scene.add.sprite(230, 230, texParaExibir, startFrame).setScrollFactor(0).setDepth(2003);
     
     if (player.customTextureKey) {
         avatarImg.setScale(1.2);
