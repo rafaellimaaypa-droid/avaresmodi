@@ -166,7 +166,7 @@ function conectarMultiplayerOnline() {
                 adminRole: adminRole,
                 adminLevel: adminLevel,
                 clanTag: playerClanTag,
-                customSpriteData: player.customSpriteData
+                hasCustomSkin: !!player.customSpriteData
             });
         }
     });
@@ -1375,8 +1375,7 @@ function finalizarLoginComDados(userData) {
             socket.emit('playerMovement', {
                 id: socket.id,
                 x: player.x,
-                y: player.y,
-                customSpriteData: userData.customSpriteData
+                y: player.y
             });
         }
     } else {
@@ -2785,9 +2784,11 @@ function conectarChatOnline() {
         if (remoteSprite) {
             const targetUsername = playerInfo.accountUser ? playerInfo.accountUser.toLowerCase() : "";
             
-            // Apenas reprocessa a skin se os dados de Base64 mudaram
-            if (playerInfo.customSpriteData && remoteSprite.getData('skinBase64') !== playerInfo.customSpriteData) {
-                aplicarSkinCustomizada(remoteSprite, playerInfo.customSpriteData, targetUsername);
+            // Se o jogador remoto tem skin mas ela não está no cache local, solicita apenas uma vez via rede
+            const textureKey = 'skin_' + targetUsername + '_sheet';
+            if (playerInfo.hasCustomSkin && !activeScene.textures.exists(textureKey) && !remoteSprite.getData('requestedSkin')) {
+                remoteSprite.setData('requestedSkin', true);
+                socket.emit('requestPlayerSkin', { targetId: playerInfo.id });
             }
 
             remoteSprite.setData('playerData', playerInfo);
@@ -4013,7 +4014,6 @@ function abrirPainelPersonalizacao(scene) {
         aplicarSkinCustomizada(player, base64, currentUser.toLowerCase());
 
         if (socket && socket.connected) {
-            socket.emit('updateSpriteSheet', base64);
             socket.emit('skinChanged', base64);
         }
         
@@ -4137,22 +4137,14 @@ function update() {
         return;
     }
 
-    // Sincronização periódica de posição e status (Apenas movimento leve)
+    // Sincronização periódica de posição (Leve, sem tráfego de Base64)
     if (isLoggedIn && gameStarted && socket && socket.connected && !isPlayerDead) {
         socket.emit('playerMovement', {
             id: socket.id,
             x: player.x,
             y: player.y,
-            gold: playerGold,
-            health: playerHealth,
             facing: playerFacing,
-            anim: player.anims.currentAnim ? player.anims.currentAnim.key : 'idle_down',
-            adminRole: adminRole,
-            adminLevel: adminLevel,
-            name: charName,
-            bodyColor: charBodyColor,
-            clanTag: playerClanTag,
-            customSpriteData: player.customSpriteData
+            anim: player.anims.currentAnim ? player.anims.currentAnim.key : 'idle_down'
         });
     }
 
