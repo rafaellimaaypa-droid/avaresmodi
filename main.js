@@ -924,8 +924,11 @@ function create() {
         criarMapaInicial(this);
     }
 
-    // --- JOGADOR COM Y-SORTING INICIAL ---
-    // O sprite será instanciado apenas após a definição da skin no login/create.
+    // --- JOGADOR COM Y-SORTING INICIAL (Spawn Padrão) ---
+    player = this.physics.add.sprite(400, 450, 'player_idle');
+    player.setScale(1.3);
+    player.setVisible(false);
+    player.setCollideWorldBounds(true);
     player.body.setSize(20, 24); 
     player.body.setOffset(6, 6);  
     player.setDepth(player.y);
@@ -1339,8 +1342,8 @@ function finalizarLoginComDados(userData) {
     // Carrega posição e status salvos do servidor explicitamente
     console.log(`Carregando personagem: ${userData.name} em X:${userData.x} Y:${userData.y}`);
     
-    const posX = userData.x || 400;
-    const posY = userData.y || 450;
+    player.setPosition(userData.x || 400, userData.y || 450);
+    player.body.reset(player.x, player.y);
     
     playerGold = userData.gold !== undefined ? userData.gold : 1000;
     playerBankGold = userData.bank !== undefined ? userData.bank : 500;
@@ -1352,44 +1355,21 @@ function finalizarLoginComDados(userData) {
     playerClanTag = (userData.clanTag && userData.clanTag !== "") ? userData.clanTag : null;
     playerClanRole = userData.clanRole || 'Membro';
 
-    let initialTexture = 'player_idle';
-    let isCustom = false;
-
     if (userData.customSpriteData) {
-        const textureKey = 'skin_' + userData.name.toLowerCase() + '_sheet';
-        const img = new Image();
-        img.src = userData.customSpriteData;
-        
-        // Carregamento síncrono forçado para o Phaser via Image object
-        activeScene.textures.addSpriteSheet(textureKey, img, { frameWidth: 64, frameHeight: 64 });
-        criarAnimacoesCustomizadas(activeScene, textureKey);
-        initialTexture = textureKey;
-        isCustom = true;
-    }
-
-    // Instancia o jogador apenas aqui, já com a textura correta
-    player = activeScene.physics.add.sprite(posX, posY, initialTexture);
-    player.setScale(1.3);
-    player.setCollideWorldBounds(true);
-    player.body.setSize(20, 24);
-    player.body.setOffset(6, 6);
-    player.setDepth(player.y);
-    
-    // Configura colisões
-    activeScene.physics.add.collider(player, monsterObstacles);
-    activeScene.physics.add.collider(player, blacksmithNPC);
-    activeScene.physics.add.collider(player, bankNPC);
-    activeScene.physics.add.collider(player, clothingNPC);
-    activeScene.cameras.main.startFollow(player, true, 0.09, 0.09);
-
-    if (isCustom) {
-        player.setData('skinBase64', userData.customSpriteData);
-        player.customSpriteData = userData.customSpriteData;
-        player.anims.play('idle_down_custom', true);
+        console.log("[SKIN] 📥 Aplicando skin customizada salva...");
+        aplicarSkinCustomizada(player, userData.customSpriteData, userData.name.toLowerCase());
+            
         if (socket && socket.connected) {
-            socket.emit('playerMovement', { id: socket.id, x: player.x, y: player.y, customSpriteData: userData.customSpriteData });
+            socket.emit('playerMovement', {
+                id: socket.id,
+                x: player.x,
+                y: player.y,
+                customSpriteData: userData.customSpriteData
+            });
         }
     } else {
+        console.log("[SKIN] 👤 Usando boneco padrão.");
+        player.setTexture('player_idle');
         player.anims.play('idle_down', true);
     }
     player.setVisible(true);
@@ -2896,26 +2876,11 @@ function conectarChatOnline() {
 function adicionarOutroJogador(scene, data) {
     if (!scene || !data || !data.id || otherPlayersSprites[data.id]) return;
     
-    let initialTexture = 'player_idle';
-    let isCustom = false;
-    const username = (data.accountUser || data.name || data.id).toLowerCase();
-
-    if (data.customSpriteData) {
-        const textureKey = 'skin_' + username + '_sheet';
-        const img = new Image();
-        img.src = data.customSpriteData;
-        
-        scene.textures.addSpriteSheet(textureKey, img, { frameWidth: 64, frameHeight: 64 });
-        criarAnimacoesCustomizadas(scene, textureKey);
-        initialTexture = textureKey;
-        isCustom = true;
-    }
-
-    let other = scene.physics.add.sprite(data.x, data.y, initialTexture);
+    // Spawn inicial com textura padrão para garantir o objeto
+    let other = scene.physics.add.sprite(data.x, data.y, 'player_idle');
     
-    if (isCustom) {
-        other.setData('skinBase64', data.customSpriteData);
-        other.anims.play('idle_down_custom', true);
+    if (data.customSpriteData) {
+        aplicarSkinCustomizada(other, data.customSpriteData, (data.accountUser || data.name || data.id).toLowerCase());
     } else {
         other.setTint(data.bodyColor || 0xffffff);
         other.anims.play('idle_down', true);
