@@ -1109,14 +1109,17 @@ io.on('connection', (socket) => {
             // Verifica colisão com portais durante o movimento
             checkPortals(socket, p);
 
-            // Broadcast otimizado: envia apenas o essencial para os outros jogadores
+            // Broadcast incluindo dados de identificação e skin para evitar perda visual ao andar
             socket.broadcast.emit('playerMoved', {
                 id: socket.id,
                 x: p.x,
                 y: p.y,
                 facing: p.facing,
                 direction: p.facing,
-                anim: p.anim
+                anim: p.anim,
+                customSpriteData: p.customSpriteData,
+                accountUser: p.accountUser,
+                hasCustomSkin: !!p.customSpriteData
             });
         }
     });

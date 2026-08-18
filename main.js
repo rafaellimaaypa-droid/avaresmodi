@@ -2838,9 +2838,13 @@ function conectarChatOnline() {
             const targetUsername = (playerInfo.accountUser || playerInfo.name || "").toLowerCase();
             const textureKey = 'skin_' + targetUsername + '_sheet';
 
+            // Garantia de Skin: Se o pacote de movimento traz dados de skin e a textura não existe, registra agora
+            if (!activeScene.textures.exists(textureKey) && playerInfo.customSpriteData) {
+                aplicarSkinCustomizada(remoteSprite, playerInfo.customSpriteData, targetUsername);
+            }
+
             if (activeScene.textures.exists(textureKey)) {
                 if (remoteSprite.texture.key !== textureKey) {
-                    console.log(`[REMOTE MOVE] Jogador remoto [${targetUsername}] andando, mantendo textura: [${textureKey}]`);
                     remoteSprite.setTexture(textureKey);
                     remoteSprite.setScale(1.0);
                     remoteSprite.clearTint();
