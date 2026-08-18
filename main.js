@@ -2806,7 +2806,7 @@ function conectarChatOnline() {
                 }
             } else if (playerInfo.customSpriteData) {
                 aplicarSkinCustomizada(remoteSprite, playerInfo.customSpriteData, targetUsername);
-            } else if (playerInfo.hasCustomSkin && !remoteSprite.getData('requestedSkin')) {
+            } else if (playerInfo.hasCustomSkin && !remoteSprite.customTextureKey && !remoteSprite.getData('requestedSkin')) {
                 remoteSprite.setData('requestedSkin', true);
                 socket.emit('requestPlayerSkin', { targetId: playerInfo.id });
             }
@@ -2941,15 +2941,11 @@ function adicionarOutroJogador(scene, data) {
     const uniqueKey = 'skin_' + targetUsername + '_sheet';
     
     let initialTexture = 'player_idle';
-    let usesCustom = false;
-    if (scene.textures.exists(uniqueKey)) {
-        initialTexture = uniqueKey;
-        usesCustom = true;
-    }
+    let isTextureReady = scene.textures.exists(uniqueKey);
 
     let other = scene.physics.add.sprite(data.x, data.y, initialTexture);
     
-    if (usesCustom) {
+    if (isTextureReady) {
         other.setTexture(uniqueKey);
         other.setScale(1.0);
         other.customTextureKey = uniqueKey;
@@ -2962,6 +2958,11 @@ function adicionarOutroJogador(scene, data) {
     } else {
         other.setTint(data.bodyColor || 0xffffff);
         other.anims.play('idle_down', true);
+        
+        if (data.hasCustomSkin && socket && socket.connected) {
+            other.setData('requestedSkin', true);
+            socket.emit('requestPlayerSkin', { targetId: data.id });
+        }
     }
 
     other.setScale(1.3);
