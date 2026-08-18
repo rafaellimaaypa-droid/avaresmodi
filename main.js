@@ -2799,7 +2799,11 @@ function conectarChatOnline() {
                 if (remoteSprite.customTextureKey && !targetAnim.endsWith('_custom')) {
                     targetAnim += '_custom';
                 }
-                if (remoteSprite.anims.exists(targetAnim)) {
+                
+                const animExists = activeScene.anims.exists(targetAnim);
+                console.log(`[DIAGNÓSTICO ANIM] Player Remoto: ${playerInfo.name} | Sprite: ${remoteSprite.texture.key} | Anim: ${targetAnim} | Existe: ${animExists}`);
+
+                if (animExists) {
                     remoteSprite.anims.play(targetAnim, true);
                 }
             }
@@ -2903,10 +2907,17 @@ function conectarChatOnline() {
 function adicionarOutroJogador(scene, data) {
     if (!scene || !data || !data.id || otherPlayersSprites[data.id]) return;
     
+    console.log(`[DIAGNÓSTICO SPAWN] Criando jogador: ${data.name || data.id}`);
+    console.log(` > customSpriteData: ${data.customSpriteData ? 'Presente (Base64)' : 'Ausente'}`);
+    console.log(` > customTextureKey: ${data.customTextureKey || 'N/A'}`);
+
     // Barreira rígida: decide a textura antes de instanciar para evitar o boneco branco
     let initialTexture = 'player_idle';
     if (data.customSpriteData || data.customTextureKey) {
         initialTexture = data.customTextureKey || null;
+        console.log(` [OK] Entrou no bloco de skin customizada. Textura: ${initialTexture}`);
+    } else {
+        console.warn(` [ALERTA] Caindo no boneco padrão 'player_idle' para ${data.name}. Motivo: Dados de skin/textura não encontrados.`);
     }
 
     let other = scene.physics.add.sprite(data.x, data.y, initialTexture);
@@ -4193,7 +4204,10 @@ function update() {
     }
     
     if (player && player.anims) {
-        if (this.anims.exists(animToPlay)) {
+        const animExists = this.anims.exists(animToPlay);
+        console.log(`[DIAGNÓSTICO ANIM] Player Local | Sprite: ${player.texture.key} | Anim: ${animToPlay} | Existe no Manager: ${animExists}`);
+        
+        if (animExists) {
             player.anims.play(animToPlay, true);
         }
     }
