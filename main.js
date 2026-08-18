@@ -1298,6 +1298,7 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
             sprite.setTexture(textureKey);
             sprite.clearTint();
 
+            // Garantia de segurança: Se houver qualquer sprite base vinculado, ele é removido
             if (sprite.baseSprite) {
                 sprite.baseSprite.destroy();
                 sprite.baseSprite = null;
@@ -2792,7 +2793,24 @@ function conectarChatOnline() {
                 }
             }
 
-            if (playerInfo.anim) remoteSprite.anims.play(playerInfo.anim, true);
+            if (playerInfo.anim) {
+                // Traduz animação padrão para custom se o sprite remoto tiver textura custom
+                let targetAnim = playerInfo.anim;
+                if (remoteSprite.customTextureKey && !targetAnim.endsWith('_custom')) {
+                    targetAnim += '_custom';
+                }
+                if (remoteSprite.anims.exists(targetAnim)) {
+                    remoteSprite.anims.play(targetAnim, true);
+                }
+            }
+            
+            // Sincronização de acessórios para jogadores remotos
+            if (remoteSprite.accessory && remoteSprite.accessory.active) {
+                remoteSprite.accessory.anims.play(remoteSprite.anims.currentAnim.key, true);
+                remoteSprite.accessory.setFrame(remoteSprite.anims.currentFrame.index - 1);
+                remoteSprite.accessory.setFlipX(remoteSprite.flipX);
+            }
+
             if (remoteSprite.playerNameText) {
                 remoteSprite.playerNameText.setPosition(playerInfo.x, playerInfo.y + 28);
                 remoteSprite.playerNameText.setDepth(playerInfo.y + 1);
@@ -4150,6 +4168,7 @@ function update() {
     if (player.customTextureKey) {
         if (player.texture.key !== player.customTextureKey) {
             player.setTexture(player.customTextureKey);
+            player.clearTint(); // Remove tint para não manchar a skin customizada
         }
         const customAnim = isMoving ? `walk_${playerFacing}_custom` : `idle_${playerFacing}_custom`;
         if (player.anims.exists(customAnim)) {
@@ -4163,6 +4182,13 @@ function update() {
     }
     
     player.anims.play(animToPlay, true);
+
+    // Sincronização de acessórios (asas, etc) com o frame e animação do player
+    if (player.accessory && player.accessory.active) {
+        player.accessory.anims.play(player.anims.currentAnim.key, true);
+        player.accessory.setFrame(player.anims.currentFrame.index - 1);
+        player.accessory.setFlipX(player.flipX);
+    }
 
 
     player.setDepth(player.y);
