@@ -1293,25 +1293,39 @@ async function handleAuth(type) {
 }
 
 function aplicarSkinCustomizada(sprite, skinBase64, username) {
-    if (!activeScene || !skinBase64 || skinBase64.length < 100 || !username) return;
+    console.log('[SKIN DEBUG] Analisando jogador:', username, '| Possui customSpriteData?', !!skinBase64);
+    
+    if (!activeScene || !skinBase64 || skinBase64.length < 100 || !username) {
+        let motivo = !activeScene ? "Cena inativa" : (!skinBase64 ? "Dados base64 vazios" : "Nome de usuário inválido");
+        console.warn('[SKIN DEBUG ⚠️ FALLBACK] O avatar caiu no padrão para:', username, 'Motivo:', motivo);
+        return;
+    }
 
-    // Correção de Overlap: Destrói acessórios antigos antes de aplicar a nova skin
     if (sprite.accessory) {
         sprite.accessory.destroy();
         sprite.accessory = null;
     }
 
     const uniqueKey = 'skin_' + username.toLowerCase() + '_sheet';
+    console.log('[SKIN DEBUG] Chave de textura única gerada:', uniqueKey, '| Já existe no cache Phaser?', activeScene.textures.exists(uniqueKey));
 
-    // OTIMIZAÇÃO: Verifica se a textura específica deste usuário já existe no cache
-    if (activeScene.textures.exists(uniqueKey)) {
-        if (sprite.texture.key !== uniqueKey) {
-            sprite.setTexture(uniqueKey);
-            sprite.setScale(1.0);
-            sprite.clearTint();
-        }
-        sprite.customTextureKey = uniqueKey;
+    const vincularTextura = (key) => {
+        sprite.setTexture(key);
+        sprite.setScale(1.0);
+        sprite.clearTint();
+        sprite.customTextureKey = key;
         sprite.setData('skinBase64', skinBase64);
+        
+        if (sprite === player && profileAvatarImg) {
+            profileAvatarImg.setTexture(key, 0);
+            profileAvatarImg.setScale(0.85);
+            profileAvatarImg.clearTint();
+            console.log('[SKIN DEBUG] HUD e Perfil atualizados com skin customizada.');
+        }
+    };
+
+    if (activeScene.textures.exists(uniqueKey)) {
+        vincularTextura(uniqueKey);
         return;
     }
 
@@ -1320,34 +1334,26 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     img.onload = () => {
         if (!activeScene) return;
 
-        // Registra o spritesheet com a chave única do usuário
         activeScene.textures.addSpriteSheet(uniqueKey, img, {
             frameWidth: 64,
             frameHeight: 64
         });
 
-        // Cria animações exclusivas para esta textura para evitar conflitos de frame
         criarAnimacoesLPC(activeScene, uniqueKey, username.toLowerCase());
-
-        sprite.setData('skinBase64', skinBase64);
+        vincularTextura(uniqueKey);
         sprite.customSpriteData = skinBase64;
-        sprite.customTextureKey = uniqueKey;
 
         if (sprite === player) {
             localStorage.setItem('avaris_custom_skin', skinBase64);
         }
 
         if (sprite && sprite.active) {
-            sprite.setTexture(uniqueKey);
-            sprite.setScale(1.0); 
-            sprite.clearTint();
             sprite.setVisible(true);
-
             const targetAnim = `idle_down_custom_${username.toLowerCase()}`;
             if (sprite.anims.exists(targetAnim)) {
                 sprite.play(targetAnim);
             }
-            console.log(`[PERFORMANCE] ✅ Nova skin única processada para: ${username}`);
+            console.log(`[SKIN DEBUG] ✅ Nova skin única processada e aplicada para: ${username}`);
         }
     };
 }
@@ -2966,29 +2972,21 @@ function adicionarOutroJogador(scene, data) {
     const targetUsername = (data.accountUser || data.name || data.id).toLowerCase();
     const uniqueKey = 'skin_' + targetUsername + '_sheet';
     
-    console.log('[DEBUG REMOTO] Processando player remoto ID:', data.id, 'Username:', targetUsername);
-    console.log('[DEBUG REMOTO] customSpriteData recebido no pacote?', !!data.customSpriteData, data.customSpriteData ? data.customSpriteData.substring(0, 30) + '...' : 'NENHUM');
-    console.log('[DEBUG REMOTO] Chave gerada:', uniqueKey, '| Textura já existe no cache?', scene.textures.exists(uniqueKey));
+    console.log('[SKIN DEBUG] Processando player remoto:', targetUsername, '| Possui customSpriteData?', !!data.customSpriteData);
 
-    let initialTexture = 'player_idle';
-    let isTextureReady = scene.textures.exists(uniqueKey);
-
-    let other = scene.physics.add.sprite(data.x, data.y, initialTexture);
+    let other = scene.physics.add.sprite(data.x, data.y, 'player_idle');
     
-    if (isTextureReady) {
-        console.log('[DEBUG REMOTO ✅] Usando skin customizada do cache para:', uniqueKey);
+    if (scene.textures.exists(uniqueKey)) {
+        console.log('[SKIN DEBUG ✅] Usando skin customizada do cache para:', targetUsername);
         other.setTexture(uniqueKey);
         other.setScale(1.0);
         other.customTextureKey = uniqueKey;
         const idleAnim = `idle_down_custom_${targetUsername}`;
-        if (scene.anims.exists(idleAnim)) {
-            other.play(idleAnim);
-        }
+        if (scene.anims.exists(idleAnim)) other.play(idleAnim);
     } else if (data.customSpriteData) {
-        console.log('[DEBUG REMOTO ⚙️] Registrando nova skin remota via Base64 para:', uniqueKey);
         aplicarSkinCustomizada(other, data.customSpriteData, targetUsername);
     } else {
-        console.log('[DEBUG REMOTO ⚠️ AVISO] customSpriteData veio vazio! Caindo no boneco padrão para:', targetUsername);
+        console.warn('[SKIN DEBUG ⚠️ FALLBACK] Avatar remoto sem skin customizada:', targetUsername);
         other.setTint(data.bodyColor || 0xffffff);
         other.anims.play('idle_down', true);
         
@@ -4025,7 +4023,17 @@ function abrirPerfilConta(scene) {
     backBtn.on('pointerdown', () => toggleGameMenu(scene));
 
     const avatarBox = scene.add.rectangle(230, 240, 140, 180, 0x12121a).setScrollFactor(0).setDepth(2002).setStrokeStyle(2, 0x967322);
-    const avatarImg = scene.add.sprite(230, 230, 'player_idle', 0).setScale(4).setScrollFactor(0).setDepth(2003).setTint(charBodyColor);
+    
+    let texParaExibir = player.customTextureKey || 'player_idle';
+    const avatarImg = scene.add.sprite(230, 230, texParaExibir, 0).setScrollFactor(0).setDepth(2003);
+    
+    if (player.customTextureKey) {
+        avatarImg.setScale(1.2);
+        console.log('[SKIN DEBUG] Painel de Perfil renderizando com skin customizada.');
+    } else {
+        avatarImg.setScale(4).setTint(charBodyColor);
+        console.log('[SKIN DEBUG] Painel de Perfil renderizando com avatar padrão.');
+    }
     const charNameTxt = scene.add.text(230, 300, charName.toUpperCase(), { font: 'bold 14px monospace', fill: '#f3e5ab' }).setOrigin(0.5).setScrollFactor(0).setDepth(2003);
 
     const infoX = 330;
