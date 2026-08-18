@@ -930,12 +930,9 @@ function create() {
         if (player.adminTag) player.adminTag.destroy();
         player.destroy();
     }
-    if (player && player.customTextureKey) {
-        player.destroy();
-        player = this.physics.add.sprite(400, 450, player.customTextureKey);
-    } else {
-        player = this.physics.add.sprite(400, 450, 'player_idle');
-    }
+
+    const initialTexture = (player && player.customTextureKey) ? player.customTextureKey : 'player_idle';
+    player = this.physics.add.sprite(400, 450, initialTexture);
     player.setScale(1.3);
     player.setVisible(false);
     player.setCollideWorldBounds(true);
@@ -1398,11 +1395,8 @@ function finalizarLoginComDados(userData) {
         }
     } else {
         console.log("[SKIN] 👤 Usando boneco padrão.");
-        // Só aplica textura padrão se NÃO houver skin customizada ativa
-        if (!player.customTextureKey) {
-            player.setTexture('player_idle');
-            player.anims.play('idle_down', true);
-        }
+        player.setTexture('player_idle');
+        player.anims.play('idle_down', true);
     }
     player.setVisible(true);
     charName = userData.name;
