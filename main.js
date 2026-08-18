@@ -1284,6 +1284,12 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     img.onload = () => {
         if (!activeScene) return;
 
+        // Destrói o sprite antigo se for o jogador local para evitar duplicatas
+        if (sprite === player && activeScene.playerSprite && activeScene.playerSprite.texture.key !== textureKey) {
+            const oldSprite = activeScene.playerSprite;
+            if (oldSprite !== sprite) oldSprite.destroy();
+        }
+
         // Remove textura anterior se existir para evitar conflito de cache
         if (activeScene.textures.exists(textureKey)) {
             activeScene.textures.remove(textureKey);
