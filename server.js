@@ -1097,39 +1097,24 @@ io.on('connection', (socket) => {
     });
 
     socket.on('playerMovement', (movementData) => {
-        if (players[socket.id]) {
-            players[socket.id].id = socket.id;
-            players[socket.id].x = movementData.x;
-            players[socket.id].y = movementData.y;
+        const p = players[socket.id];
+        if (p) {
+            p.x = movementData.x;
+            p.y = movementData.y;
+            p.facing = movementData.facing;
+            p.anim = movementData.anim;
 
             // Verifica colisão com portais durante o movimento
-            checkPortals(socket, players[socket.id]);
+            checkPortals(socket, p);
 
-            players[socket.id].facing = movementData.facing;
-            players[socket.id].anim = movementData.anim;
-            
-            // Garante que o cliente atualize gold/health ou mantenha o valor padrão de segurança
-            if (typeof movementData.gold === 'number') {
-                players[socket.id].gold = movementData.gold;
-            } else if (players[socket.id].gold === undefined) {
-                players[socket.id].gold = 1000;
-            }
-
-            if (typeof movementData.health === 'number') {
-                players[socket.id].health = movementData.health;
-            } else if (players[socket.id].health === undefined) {
-                players[socket.id].health = 100;
-            }
-
-            if (movementData.inventory) {
-                players[socket.id].inventory = movementData.inventory;
-            }
-            if (movementData.equippedWeapon !== undefined) {
-                players[socket.id].equippedWeapon = movementData.equippedWeapon;
-            }
-
-            // Notifica todos os outros sobre a movimentação deste jogador
-            socket.broadcast.emit('playerMoved', players[socket.id]);
+            // Broadcast otimizado: envia apenas o essencial para os outros jogadores
+            socket.broadcast.emit('playerMoved', {
+                id: socket.id,
+                x: p.x,
+                y: p.y,
+                facing: p.facing,
+                anim: p.anim
+            });
         }
     });
 

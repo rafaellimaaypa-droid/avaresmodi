@@ -141,6 +141,8 @@ let socket;
 // Sistema de Rede Multiplayer
 let playerId = null;
 let otherPlayers = {};
+let lastMoveEmit = 0;
+let lastSentPos = { x: 0, y: 0, anim: '' };
 
 function conectarMultiplayerOnline() {
     if (typeof CHAT_NETWORK === 'undefined' || !CHAT_NETWORK.enabled) return;
@@ -4156,15 +4158,25 @@ function update() {
         return;
     }
 
-    // Sincronização periódica de posição (Leve, sem tráfego de Base64)
-    if (isLoggedIn && gameStarted && socket && socket.connected && !isPlayerDead) {
-        socket.emit('playerMovement', {
-            id: socket.id,
-            x: player.x,
-            y: player.y,
-            facing: playerFacing,
-            anim: player.anims.currentAnim ? player.anims.currentAnim.key : 'idle_down'
-        });
+    // Sincronização otimizada de posição (Throttle de 50ms + Verificação de mudança)
+    const now = Date.now();
+    if (isLoggedIn && gameStarted && socket && socket.connected && !isPlayerDead && now - lastMoveEmit > 50) {
+        const currentAnim = player.anims.currentAnim ? player.anims.currentAnim.key : 'idle_down';
+        
+        if (Math.abs(player.x - lastSentPos.x) > 0.5 || 
+            Math.abs(player.y - lastSentPos.y) > 0.5 || 
+            currentAnim !== lastSentPos.anim) {
+            
+            socket.emit('playerMovement', {
+                x: Math.round(player.x),
+                y: Math.round(player.y),
+                facing: playerFacing,
+                anim: currentAnim
+            });
+
+            lastSentPos = { x: player.x, y: player.y, anim: currentAnim };
+            lastMoveEmit = now;
+        }
     }
 
     atualizarMinimapaHUD();
