@@ -1275,18 +1275,18 @@ async function handleAuth(type) {
 }
 
 function aplicarSkinCustomizada(sprite, skinBase64, username) {
-    if (!activeScene || !skinBase64 || skinBase64.length < 100) return;
+    if (!activeScene || !skinBase64 || skinBase64.length < 100 || !username) return;
 
-    const textureKey = 'skin_' + username + '_sheet';
+    const uniqueKey = 'skin_' + username.toLowerCase() + '_sheet';
 
-    // OTIMIZAÇÃO: Verifica se a textura já existe no cache do Phaser para evitar reprocessamento pesado de Base64
-    if (activeScene.textures.exists(textureKey)) {
-        if (sprite.texture.key !== textureKey) {
-            sprite.setTexture(textureKey);
+    // OTIMIZAÇÃO: Verifica se a textura específica deste usuário já existe no cache
+    if (activeScene.textures.exists(uniqueKey)) {
+        if (sprite.texture.key !== uniqueKey) {
+            sprite.setTexture(uniqueKey);
             sprite.setScale(1.0);
             sprite.clearTint();
         }
-        sprite.customTextureKey = textureKey;
+        sprite.customTextureKey = uniqueKey;
         sprite.setData('skinBase64', skinBase64);
         return;
     }
@@ -1296,36 +1296,37 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     img.onload = () => {
         if (!activeScene) return;
 
-        // Registra o spritesheet apenas uma vez no cache
+        // Registra o spritesheet com a chave única do usuário
         const fWidth = 64;
         const fHeight = 64;
-        activeScene.textures.addSpriteSheet(textureKey, img, {
+        activeScene.textures.addSpriteSheet(uniqueKey, img, {
             frameWidth: fWidth,
             frameHeight: fHeight
         });
 
-        criarAnimacoesLPC(activeScene, textureKey);
+        // Cria animações exclusivas para esta textura para evitar conflitos de frame
+        criarAnimacoesLPC(activeScene, uniqueKey, username.toLowerCase());
 
         sprite.setData('skinBase64', skinBase64);
         sprite.customSpriteData = skinBase64;
-        sprite.customTextureKey = textureKey;
+        sprite.customTextureKey = uniqueKey;
 
         if (sprite && sprite.active) {
-            sprite.setTexture(textureKey);
+            sprite.setTexture(uniqueKey);
             sprite.setScale(1.0); 
             sprite.clearTint();
             sprite.setVisible(true);
 
-            const targetAnim = 'idle_down_custom';
+            const targetAnim = `idle_down_custom_${username.toLowerCase()}`;
             if (sprite.anims.exists(targetAnim)) {
                 sprite.play(targetAnim);
             }
-            console.log(`[PERFORMANCE] ✅ Nova skin processada e em cache para: ${username}`);
+            console.log(`[PERFORMANCE] ✅ Nova skin única processada para: ${username}`);
         }
     };
 }
 
-function criarAnimacoesLPC(scene, textureKey) {
+function criarAnimacoesLPC(scene, textureKey, username) {
     // Mapeamento LPC Standard: Linha 8=Cima, 9=Esquerda, 10=Baixo, 11=Direita (Caminhada)
     const direcoes = [
         { dir: 'up', row: 8 },
@@ -1335,7 +1336,7 @@ function criarAnimacoesLPC(scene, textureKey) {
     ];
     
     direcoes.forEach((config) => {
-        const animName = `walk_${config.dir}_custom`;
+        const animName = `walk_${config.dir}_custom_${username}`;
         if (!scene.anims.exists(animName)) {
             scene.anims.create({
                 key: animName,
@@ -1348,7 +1349,7 @@ function criarAnimacoesLPC(scene, textureKey) {
             });
         }
         
-        const idleName = `idle_${config.dir}_custom`;
+        const idleName = `idle_${config.dir}_custom_${username}`;
         if (!scene.anims.exists(idleName)) {
             scene.anims.create({
                 key: idleName,
@@ -2806,10 +2807,19 @@ function conectarChatOnline() {
             remoteSprite.setFlipX(playerInfo.facing === 'left');
 
             if (playerInfo.anim && remoteSprite && remoteSprite.anims) {
-                // Traduz animação padrão para custom se o sprite remoto tiver textura custom
+                // Traduz animação para a versão custom única deste jogador remoto
                 let targetAnim = playerInfo.anim;
-                if (remoteSprite.customTextureKey && !targetAnim.endsWith('_custom')) {
-                    targetAnim += '_custom';
+                const remoteName = (playerInfo.name || "").toLowerCase();
+                
+                if (remoteSprite.customTextureKey && remoteName) {
+                    if (targetAnim.includes('walk_up')) targetAnim = `walk_up_custom_${remoteName}`;
+                    else if (targetAnim.includes('walk_down')) targetAnim = `walk_down_custom_${remoteName}`;
+                    else if (targetAnim.includes('walk_left')) targetAnim = `walk_left_custom_${remoteName}`;
+                    else if (targetAnim.includes('walk_right')) targetAnim = `walk_right_custom_${remoteName}`;
+                    else if (targetAnim.includes('idle_up')) targetAnim = `idle_up_custom_${remoteName}`;
+                    else if (targetAnim.includes('idle_down')) targetAnim = `idle_down_custom_${remoteName}`;
+                    else if (targetAnim.includes('idle_left')) targetAnim = `idle_left_custom_${remoteName}`;
+                    else if (targetAnim.includes('idle_right')) targetAnim = `idle_right_custom_${remoteName}`;
                 }
             
                 const animExists = activeScene.anims.exists(targetAnim);
@@ -4188,13 +4198,13 @@ function update() {
 
     let animToPlay = isMoving ? `walk_${playerFacing}` : `idle_${playerFacing}`;
     
-    // Se estiver usando skin customizada, prioriza animações custom SEM trocar textura
-    if (player.customTextureKey) {
+    // Se estiver usando skin customizada, prioriza animações custom únicas do usuário
+    if (player.customTextureKey && charName) {
         if (player.texture.key !== player.customTextureKey) {
             player.setTexture(player.customTextureKey);
-            player.clearTint(); // Remove tint para não manchar a skin customizada
+            player.clearTint(); 
         }
-        const customAnim = isMoving ? `walk_${playerFacing}_custom` : `idle_${playerFacing}_custom`;
+        const customAnim = isMoving ? `walk_${playerFacing}_custom_${charName.toLowerCase()}` : `idle_${playerFacing}_custom_${charName.toLowerCase()}`;
         if (this.anims.exists(customAnim)) {
             animToPlay = customAnim;
         }
