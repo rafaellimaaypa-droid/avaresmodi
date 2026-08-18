@@ -2861,7 +2861,6 @@ function conectarChatOnline() {
             remoteSprite.setFlipX(direction === 'left');
 
             if (playerInfo.anim && remoteSprite && remoteSprite.anims) {
-                // Traduz animação para a versão custom única deste jogador remoto
                 let targetAnim = playerInfo.anim;
                 const remoteName = (playerInfo.name || "").toLowerCase();
                 
@@ -2873,10 +2872,11 @@ function conectarChatOnline() {
                     targetAnim = isWalking ? `walk_${direction}` : `idle_${direction}`;
                 }
             
-                const animExists = activeScene.anims.exists(targetAnim);
-
-                if (animExists) {
-                    remoteSprite.anims.play(targetAnim, true);
+                if (activeScene.anims.exists(targetAnim)) {
+                    if (remoteSprite.anims.currentAnim?.key !== targetAnim) {
+                        console.log('[ANIM FIX LOG] Jogador Remoto:', remoteName, '| Tentando tocar:', targetAnim, '| Já está tocando?', remoteSprite.anims.currentAnim?.key === targetAnim);
+                        remoteSprite.anims.play(targetAnim, true);
+                    }
                 }
             }
             
@@ -4293,8 +4293,10 @@ function update() {
     
     if (player && player.anims) {
         if (this.anims.exists(animToPlay)) {
-            player.anims.play(animToPlay, true);
-            console.log(`[ANIM DIAGNÓSTICO] Jogador: ${charName} | Animação solicitada: ${animToPlay} | Frame atual: ${player.anims.currentFrame ? player.anims.currentFrame.index : 'N/A'}`);
+            if (player.anims.currentAnim?.key !== animToPlay) {
+                console.log('[ANIM FIX LOG] Jogador Local:', charName, '| Tentando tocar:', animToPlay, '| Já está tocando?', player.anims.currentAnim?.key === animToPlay);
+                player.anims.play(animToPlay, true);
+            }
         }
     }
 
