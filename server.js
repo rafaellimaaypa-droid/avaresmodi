@@ -1049,6 +1049,7 @@ io.on('connection', (socket) => {
                 char.equippedWeapon = data.equippedWeapon || char.equippedWeapon || null;
                 char.equippedClothes = data.equippedClothes || char.equippedClothes || null;
                 char.bank = typeof data.bank === 'number' ? data.bank : (char.bank || 0);
+                // Persistência da skin customizada no MongoDB
                 char.customSpriteData = data.customSpriteData || char.customSpriteData || null;
         
                 // Validação de clã antes de salvar

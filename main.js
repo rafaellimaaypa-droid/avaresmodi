@@ -1279,6 +1279,12 @@ async function handleAuth(type) {
 function aplicarSkinCustomizada(sprite, skinBase64, username) {
     if (!activeScene || !skinBase64 || skinBase64.length < 100 || !username) return;
 
+    // Correção de Overlap: Destrói acessórios antigos antes de aplicar a nova skin
+    if (sprite.accessory) {
+        sprite.accessory.destroy();
+        sprite.accessory = null;
+    }
+
     const uniqueKey = 'skin_' + username.toLowerCase() + '_sheet';
 
     // OTIMIZAÇÃO: Verifica se a textura específica deste usuário já existe no cache
@@ -1882,7 +1888,8 @@ function salvarEstadoRemoto() {
             inventory: playerInventory,
             equippedWeapon: playerEquippedWeapon,
             equippedClothes: playerEquippedClothes,
-            clanTag: playerClanTag
+            clanTag: playerClanTag,
+            customSpriteData: player.customSpriteData
         };
 
         console.log(`[AUDITORIA SAVE] Enviando dados para o servidor... (Ouro: ${playerGold}, Itens: ${playerInventory.length})`);
@@ -4044,7 +4051,7 @@ function abrirPainelPersonalizacao(scene) {
         if (!isMenuOpen) setMinimapVisible(true);
     };
 
-    const aplicarEFechar = (base64) => {
+    const aplicarEFechar = async (base64) => {
         player.customSpriteData = base64;
         aplicarSkinCustomizada(player, base64, currentUser.toLowerCase());
 
@@ -4052,6 +4059,9 @@ function abrirPainelPersonalizacao(scene) {
             socket.emit('skinChanged', base64);
         }
         
+        // Garante o salvamento imediato da nova skin no banco de dados
+        await salvarEstadoRemoto();
+
         fetch(`${BASE_URL}/api/upload-sprite`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
