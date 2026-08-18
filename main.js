@@ -4194,21 +4194,18 @@ function update() {
             player.clearTint(); // Remove tint para não manchar a skin customizada
         }
         const customAnim = isMoving ? `walk_${playerFacing}_custom` : `idle_${playerFacing}_custom`;
-        if (player.anims.exists(customAnim)) {
+        if (this.anims.exists(customAnim)) {
             animToPlay = customAnim;
         }
     } else {
         // Se não for skin custom, garante que use a animação padrão e a textura padrão
-        if (!player.anims.exists(animToPlay)) {
+        if (!this.anims.exists(animToPlay)) {
             animToPlay = isMoving ? 'walk' : 'idle'; 
         }
     }
     
     if (player && player.anims) {
-        const animExists = this.anims.exists(animToPlay);
-        console.log(`[DIAGNÓSTICO ANIM] Player Local | Sprite: ${player.texture.key} | Anim: ${animToPlay} | Existe no Manager: ${animExists}`);
-        
-        if (animExists) {
+        if (this.anims.exists(animToPlay)) {
             player.anims.play(animToPlay, true);
         }
     }
