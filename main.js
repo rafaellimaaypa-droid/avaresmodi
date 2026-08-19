@@ -3310,17 +3310,24 @@ function conectarChatOnline() {
 
     socket.on('currentPlayers', (remotePlayers) => {
         if (!remotePlayers) return;
-        Object.keys(remotePlayers).forEach((id) => {
-            if (id !== socket.id && !otherPlayersSprites[id] && activeScene) {
-                adicionarOutroJogador(activeScene, remotePlayers[id]);
-            }
-        });
+        otherPlayers = remotePlayers;
+        const targetScene = activeScene || (game && game.scene && game.scene.scenes && game.scene.scenes[0]);
+        if (targetScene) {
+            Object.keys(remotePlayers).forEach((id) => {
+                if (id !== socket.id && !otherPlayersSprites[id]) {
+                    adicionarOutroJogador(targetScene, remotePlayers[id]);
+                }
+            });
+        }
     });
 
     socket.on('newPlayer', (playerInfo) => {
-        console.log("📢 Novo jogador detectado:", playerInfo.name);
-        if (playerInfo && playerInfo.id !== socket.id && !otherPlayersSprites[playerInfo.id] && activeScene) {
-            adicionarOutroJogador(activeScene, playerInfo);
+        console.log("📢 Novo jogador detectado:", playerInfo?.name);
+        if (!playerInfo) return;
+        otherPlayers[playerInfo.id] = playerInfo;
+        const targetScene = activeScene || (game && game.scene && game.scene.scenes && game.scene.scenes[0]);
+        if (playerInfo.id !== socket.id && !otherPlayersSprites[playerInfo.id] && targetScene) {
+            adicionarOutroJogador(targetScene, playerInfo);
         }
     });
 
