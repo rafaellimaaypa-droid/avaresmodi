@@ -137,6 +137,54 @@ app.post('/api/upload-sprite', async (req, res) => {
     }
 });
 
+app.get('/api/default-skins', async (req, res) => {
+    try {
+        if (!db) {
+            return res.status(503).json({ success: false, message: 'Banco offline' });
+        }
+        const skins = await db.collection('default_skins').find().toArray();
+        res.json({ success: true, skins });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/admin/upload-default-skin', async (req, res) => {
+    try {
+        if (!db) {
+            return res.status(503).json({ success: false, message: 'Banco offline' });
+        }
+
+        const { adminUser, name, spriteData } = req.body;
+        if (!adminUser || !name || !spriteData) {
+            return res.status(400).json({ success: false, message: 'Dados incompletos' });
+        }
+
+        const cleanAdmin = adminUser.trim().toLowerCase();
+        const adminAccount = await db.collection('contas').findOne({ user: cleanAdmin });
+        const isMestre = cleanAdmin === 'mestre';
+        const isAdmin = isMestre || (adminAccount && (adminAccount.adminLevel >= 8));
+
+        if (!isAdmin) {
+            return res.status(403).json({ success: false, message: 'Acesso negado: Requer nível 8 ou Mestre' });
+        }
+
+        const newDefaultSkin = {
+            name: name.trim(),
+            spriteData,
+            uploadedBy: cleanAdmin,
+            createdAt: new Date()
+        };
+
+        await db.collection('default_skins').insertOne(newDefaultSkin);
+        console.log(`[ADMIN] Nova skin padrão cadastrada: ${name} por ${cleanAdmin}`);
+
+        res.json({ success: true, message: 'Skin padrão cadastrada com sucesso!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
 // Rota para listar sprites salvas (Tarefa 2)
 app.get('/api/list-sprites', async (req, res) => {
     try {
