@@ -4180,7 +4180,7 @@ function abrirLojaArmas(scene) {
                 itemBox.on('pointerover', () => { itemBox.setFillStyle(0x1f1f33); itemBox.setStrokeStyle(1, 0xf3e5ab); });
                 itemBox.on('pointerout', () => { itemBox.setFillStyle(0x12121a); itemBox.setStrokeStyle(1, 0x3d3d5c); });
 
-                const comprarItem = () => {
+                const comprarItem = async () => {
                     if (playerGold >= weapon.price) {
                         if (playerInventory.length >= 16) {
                             modalText.setText('❌ Inventário cheio!');
@@ -4189,7 +4189,7 @@ function abrirLojaArmas(scene) {
                         playerGold -= weapon.price;
                         atualizarHudGold();
                         playerInventory.push({ ...weapon });
-                        salvarEstadoRemoto();
+                        await salvarEstadoRemoto();
                         modalText.setText(`✅ Você comprou: ${weapon.name}!`);
                     } else {
                         modalText.setText('❌ Ouro insuficiente na mão!');
@@ -4237,7 +4237,7 @@ function abrirLojaArmas(scene) {
                         stroke: '#000000', strokeThickness: 2
                     }).setOrigin(0.5).setScrollFactor(0).setDepth(2003).setInteractive();
 
-                    const venderItem = () => {
+                    const venderItem = async () => {
                         let precoVenda = invItem.price || 2;
                         playerGold += precoVenda;
                         atualizarHudGold();
@@ -4247,7 +4247,7 @@ function abrirLojaArmas(scene) {
                         } else {
                             playerInventory.splice(index, 1);
                         }
-                        salvarEstadoRemoto();
+                        await salvarEstadoRemoto();
                         modalText.setText(`✅ Vendeu 1x ${invItem.name} por ${precoVenda} ouros!`);
                         renderShopUI();
                     };
