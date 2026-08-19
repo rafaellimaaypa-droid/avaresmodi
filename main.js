@@ -56,6 +56,9 @@ let playerEquippedWeapon = null;
 let equippedWeaponSprite = null; 
 let playerEquippedClothes = null;
 let equippedClothesSprite = null;
+let playerEquippedWings = null;
+let equippedWingsSprite = null;
+let premiumItemsList = [];
 let isAttacking = false; 
 
 // Sistema de Controles Mobile (Toque)
@@ -276,6 +279,83 @@ const clothesShopData = [
     { id: 'cloth_ranger', name: 'Roupa de Caçador', price: 260, defense: 4, type: 'clothing' },
     { id: 'cloth_knight', name: 'Armadura de Cavaleiro', price: 650, defense: 8, type: 'clothing' }
 ];
+
+async function carregarItensPremium() {
+    try {
+        const res = await fetch(`${BASE_URL}/api/premium-items`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.items)) {
+            premiumItemsList = data.items;
+            console.log(`[PREMIUM] ${premiumItemsList.length} itens premium carregados com sucesso.`);
+        }
+    } catch (err) {
+        console.error('[PREMIUM] Erro ao carregar itens premium:', err);
+    }
+}
+
+function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData, depthOffset, frameWidth = 64, frameHeight = 64) {
+    if (!scene || !parentSprite || !parentSprite.active) return;
+
+    if (!spriteData) {
+        if (parentSprite[layerPropName]) {
+            parentSprite[layerPropName].destroy();
+            parentSprite[layerPropName] = null;
+        }
+        return;
+    }
+
+    const cleanUser = (parentSprite.name || (parentSprite.getData && parentSprite.getData('playerData')?.name) || 'player').toLowerCase();
+    const layerKey = `layer_${cleanUser}_${layerPropName}_sheet`;
+
+    const atualizarSpriteCamada = () => {
+        if (!scene.textures.exists(layerKey)) return;
+
+        if (!parentSprite[layerPropName] || !parentSprite[layerPropName].active) {
+            parentSprite[layerPropName] = scene.add.sprite(parentSprite.x, parentSprite.y, layerKey);
+            if (minimap) minimap.ignore(parentSprite[layerPropName]);
+        }
+
+        const layerSprite = parentSprite[layerPropName];
+        layerSprite.setTexture(layerKey);
+        layerSprite.setScale(parentSprite.scaleX, parentSprite.scaleY);
+        layerSprite.setPosition(parentSprite.x, parentSprite.y);
+        layerSprite.setDepth(parentSprite.depth + depthOffset);
+        layerSprite.setFlipX(parentSprite.flipX);
+    };
+
+    if (scene.textures.exists(layerKey)) {
+        atualizarSpriteCamada();
+    } else {
+        const img = new Image();
+        img.src = spriteData;
+        img.onload = () => {
+            if (!scene || !scene.textures) return;
+            if (!scene.textures.exists(layerKey)) {
+                scene.textures.addSpriteSheet(layerKey, img, {
+                    frameWidth: frameWidth,
+                    frameHeight: frameHeight,
+                    margin: 0,
+                    spacing: 0
+                });
+                criarAnimacoesLPC(scene, layerKey, `${cleanUser}_${layerPropName}`);
+            }
+            atualizarSpriteCamada();
+        };
+    }
+}
+
+function renderizarJogadorCamadas(scene, targetSprite) {
+    if (!scene || !targetSprite || !targetSprite.active) return;
+
+    const isLocalPlayer = (targetSprite === player);
+    const wingsData = isLocalPlayer ? (playerEquippedWings ? playerEquippedWings.spriteData : null) : targetSprite.customWingsData;
+    const clothesData = isLocalPlayer ? (playerEquippedClothes ? playerEquippedClothes.spriteData : null) : targetSprite.customClothesData;
+
+    // Camada de asas (atrás do corpo: offset -0.1)
+    sincronizarCamadaVisual(scene, targetSprite, 'wingsLayerSprite', wingsData, -0.1);
+    // Camada de roupas (sobre o corpo: offset +0.1)
+    sincronizarCamadaVisual(scene, targetSprite, 'clothesLayerSprite', clothesData, 0.1);
+}
 
 function preload() {
     this.load.image('chao', 'assets/chao.png');
@@ -1234,6 +1314,7 @@ function create() {
 
     atualizarSpriteArmaEquipada(this);
     atualizarTextoEditor();
+    carregarItensPremium();
 
     drawCastle(this);
 
@@ -4862,6 +4943,23 @@ function update() {
         player.accessory.anims.play(player.anims.currentAnim.key, true);
         player.accessory.setFrame(player.anims.currentFrame.index - 1);
         player.accessory.setFlipX(player.flipX);
+    }
+
+    // Sincronização das camadas de renderização do jogador (asas e roupas)
+    renderizarJogadorCamadas(this, player);
+    if (player.wingsLayerSprite && player.wingsLayerSprite.active && player.anims.currentAnim) {
+        player.wingsLayerSprite.setPosition(player.x, player.y);
+        player.wingsLayerSprite.setDepth(player.y - 0.1);
+        player.wingsLayerSprite.setFlipX(player.flipX);
+        const wingAnim = player.anims.currentAnim.key.replace(charName.toLowerCase(), `${charName.toLowerCase()}_wingsLayerSprite`);
+        if (this.anims.exists(wingAnim)) player.wingsLayerSprite.anims.play(wingAnim, true);
+    }
+    if (player.clothesLayerSprite && player.clothesLayerSprite.active && player.anims.currentAnim) {
+        player.clothesLayerSprite.setPosition(player.x, player.y);
+        player.clothesLayerSprite.setDepth(player.y + 0.1);
+        player.clothesLayerSprite.setFlipX(player.flipX);
+        const clothAnim = player.anims.currentAnim.key.replace(charName.toLowerCase(), `${charName.toLowerCase()}_clothesLayerSprite`);
+        if (this.anims.exists(clothAnim)) player.clothesLayerSprite.anims.play(clothAnim, true);
     }
 
 
