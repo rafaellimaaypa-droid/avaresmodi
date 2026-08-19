@@ -48,6 +48,7 @@ let charElements = [];
 
 // Sistema de Jogador, Ouro, Banco, Inventário, Equipamento, Sprite na Mão e Ataque
 let playerGold = 1000;
+let playerPremiumCoins = 0;
 let playerBankGold = 500;
 let playerInventory = [];
 let playerEquippedWeapon = null; 
@@ -71,7 +72,7 @@ let playerMaxMana = 100;
 let isPlayerDead = false;
 let playerDeaths = 0;
 let deathScreenElements = [];
-let profileAvatarBg, profileAvatarImg, healthBarBg, healthBarFill, healthText, hudGoldText;
+let profileAvatarBg, profileAvatarImg, healthBarBg, healthBarFill, healthText, hudGoldText, hudPremiumText;
 let manaBarFill;
 let hotbarElements = [];
 
@@ -538,7 +539,14 @@ function create() {
         strokeThickness: 3
     });
 
-    hudGroup.add([profileAvatarBg, profileAvatarImg, hpBar.bg, hpBar.fill, hpBar.txt, mpBar.bg, mpBar.fill, mpBar.txt, hudGoldText]);
+    hudPremiumText = this.add.text(70, 68, `💎 ${playerPremiumCoins} PREMIUM`, { 
+        font: 'bold 12px monospace', 
+        fill: '#00e5ff',
+        stroke: '#000000',
+        strokeThickness: 2
+    });
+
+    hudGroup.add([profileAvatarBg, profileAvatarImg, hpBar.bg, hpBar.fill, hpBar.txt, mpBar.bg, mpBar.fill, mpBar.txt, hudGoldText, hudPremiumText]);
 
     // --- HOTBAR (INFERIOR CENTRAL) ---
     const hotbarX = 400 - ((5 * 46) / 2) + 20;
@@ -1445,6 +1453,7 @@ function finalizarLoginComDados(userData) {
     player.body.reset(player.x, player.y);
     
     playerGold = userData.gold !== undefined ? userData.gold : 1000;
+    playerPremiumCoins = userData.premiumCoins !== undefined ? userData.premiumCoins : 0;
     playerBankGold = userData.bank !== undefined ? userData.bank : 500;
     playerHealth = (userData.health !== undefined && userData.health !== null) ? userData.health : 100;
     playerMaxHealth = userData.maxHp || 100;
@@ -1998,6 +2007,9 @@ function atualizarHudGold() {
     if (hudGoldText) {
         hudGoldText.setText(`💰 ${playerGold} GOLD`);
     }
+    if (hudPremiumText) {
+        hudPremiumText.setText(`💎 ${playerPremiumCoins} PREMIUM`);
+    }
     salvarEstadoRemoto();
 }
 
@@ -2019,6 +2031,7 @@ function salvarEstadoRemoto() {
             hp: playerHealth,
             maxHp: playerMaxHealth,
             gold: playerGold,
+            premiumCoins: playerPremiumCoins,
             bank: playerBankGold,
             inventory: playerInventory,
             equippedWeapon: playerEquippedWeapon,
@@ -3062,6 +3075,11 @@ function conectarChatOnline() {
         atualizarHudGold();
     });
 
+    socket.on('updatePremiumCoins', (newAmount) => {
+        playerPremiumCoins = newAmount;
+        atualizarHudGold();
+    });
+
     socket.on('jogadorMorreu', (data) => {
         if (!isPlayerDead) {
             isPlayerDead = true;
@@ -3284,7 +3302,16 @@ function abrirPerfilJogadorRemoto(scene, data) {
 
     const isMestre = currentUser && currentUser.toLowerCase() === 'mestre';
     if (isMestre || adminLevel >= 8) {
-        const btnPass = scene.add.text(400, 310, '🔑 TROCAR SENHA', { ...btnStyle, backgroundColor: '#800' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
+        const btnSetPremium = scene.add.text(400, 310, '💎 SET PREMIUM COINS', { ...btnStyle, backgroundColor: '#005566' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
+        btnSetPremium.on('pointerdown', () => {
+            const v = prompt(`Digite o novo saldo de moedas premium para ${targetID}:`);
+            if (v !== null && !isNaN(v)) {
+                socket.emit('setPremiumCoins', { targetPlayer: targetID, amount: parseInt(v) });
+            }
+        });
+        menuElements.push(btnSetPremium);
+
+        const btnPass = scene.add.text(400, 350, '🔑 TROCAR SENHA', { ...btnStyle, backgroundColor: '#800' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
         btnPass.on('pointerdown', () => {
             const p = prompt(`Nova senha para o usuário ${targetID}:`);
             if (p) callAdminAPI(targetID, 'setPass', p);
@@ -4195,12 +4222,13 @@ function abrirPerfilConta(scene) {
     createInfoRow(infoY + 35, "CARGO", adminRole.toUpperCase(), "🛡️");
     createInfoRow(infoY + 105, "LOGIN", currentUser || "Visitante", "👤");
     createInfoRow(infoY + 140, "STATUS", "Online", "🟢");
-    createInfoRow(infoY + 175, "MORTES", playerDeaths.toString(), "💀");
-    createInfoRow(infoY + 210, "E-MAIL", "Protegido", "📧");
+    createInfoRow(infoY + 175, "PREMIUM", playerPremiumCoins.toString(), "💎");
+    createInfoRow(infoY + 210, "MORTES", playerDeaths.toString(), "💀");
+    createInfoRow(infoY + 245, "E-MAIL", "Protegido", "📧");
     
-    const divider = scene.add.rectangle(480, infoY + 240, 300, 1, 0x3d3d5c).setScrollFactor(0).setDepth(2002);
+    const divider = scene.add.rectangle(480, infoY + 280, 300, 1, 0x3d3d5c).setScrollFactor(0).setDepth(2002);
 
-    const timePlayed = scene.add.text(infoX, infoY + 260, `⏳ TEMPO DE JORNADA: --h --m`, { font: 'bold 10px monospace', fill: '#00ffcc' }).setScrollFactor(0).setDepth(2002);
+    const timePlayed = scene.add.text(infoX, infoY + 300, `⏳ TEMPO DE JORNADA: --h --m`, { font: 'bold 10px monospace', fill: '#00ffcc' }).setScrollFactor(0).setDepth(2002);
 
     menuElements.push(bgOverlay, panel, title, backBtn, avatarBox, avatarImg, charNameTxt, divider, timePlayed);
 }

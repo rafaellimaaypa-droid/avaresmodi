@@ -191,6 +191,7 @@ app.post('/api/login', async (req, res) => {
             x: charData ? charData.x : 400,
             y: charData ? charData.y : 450,
             gold: charData ? charData.gold : 1000,
+            premiumCoins: charData ? (charData.premiumCoins || 0) : 0,
             health: charData ? charData.health : 100,
             clanTag: (charData && charData.clanTag) ? charData.clanTag : null,
             clanRole: (charData && charData.clanRole) ? charData.clanRole : null,
@@ -373,6 +374,7 @@ async function startServer() {
                                 "characters.0.x": Math.round(p.x),
                                 "characters.0.y": Math.round(p.y),
                                 "characters.0.gold": p.gold,
+                                "characters.0.premiumCoins": p.premiumCoins || 0,
                                 "characters.0.health": p.health,
                                 "characters.0.inventory": p.inventory || [],
                                 "characters.0.equippedWeapon": p.equippedWeapon || null,
@@ -478,6 +480,41 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('setPremiumCoins', async (data) => {
+        const p = players[socket.id];
+        const isMestre = socket.accountUser === 'mestre';
+        const isAdmin = p && (p.adminLevel >= 8 || isMestre);
+
+        if (!isAdmin || !db) return;
+
+        const targetName = data.targetPlayer;
+        const amount = parseInt(data.amount);
+
+        try {
+            await db.collection('contas').updateOne(
+                { "characters.name": new RegExp('^' + targetName + '$', 'i') },
+                { $set: { "characters.0.premiumCoins": amount } }
+            );
+
+            // Atualiza em tempo real se o alvo estiver online
+            for (const sid in players) {
+                if (players[sid].name.toLowerCase() === targetName.toLowerCase()) {
+                    players[sid].premiumCoins = amount;
+                    io.to(sid).emit('updatePremiumCoins', amount);
+                    break;
+                }
+            }
+
+            socket.emit('chatMessage', { 
+                playerName: 'Sistema', 
+                message: `✅ Saldo premium de ${targetName} definido para ${amount}.`, 
+                channel: 'SISTEMA' 
+            });
+        } catch (err) {
+            console.error("[PREMIUM SET ERROR]", err);
+        }
+    });
+
     socket.on('joinGame', async (playerData) => {
         if (Object.keys(cachedClans).length === 0) await loadClansCache();
         
@@ -552,6 +589,7 @@ io.on('connection', (socket) => {
             ...playerData,
             name: dbChar.name,
             gold: dbChar.gold,
+            premiumCoins: dbChar.premiumCoins || 0,
             health: dbChar.health,
             maxHp: dbChar.maxHp || 100,
             inventory: dbChar.inventory || [],
@@ -1080,6 +1118,7 @@ io.on('connection', (socket) => {
                 char.x = typeof data.x === 'number' ? data.x : (char.x || 400);
                 char.y = typeof data.y === 'number' ? data.y : (char.y || 450);
                 char.gold = typeof data.gold === 'number' ? data.gold : (char.gold || 1000);
+                char.premiumCoins = typeof data.premiumCoins === 'number' ? data.premiumCoins : (char.premiumCoins || 0);
                 char.health = typeof data.hp === 'number' ? data.hp : (char.health || 100);
                 char.maxHp = data.maxHp || char.maxHp || 100;
                 char.inventory = Array.isArray(data.inventory) ? data.inventory : (char.inventory || []);
@@ -1179,6 +1218,7 @@ io.on('connection', (socket) => {
                             "characters.0.x": Math.round(p.x),
                             "characters.0.y": Math.round(p.y),
                             "characters.0.gold": p.gold,
+                            "characters.0.premiumCoins": p.premiumCoins || 0,
                             "characters.0.health": p.health,
                             "characters.0.inventory": p.inventory || [],
                             "characters.0.clanTag": p.clanTag,
