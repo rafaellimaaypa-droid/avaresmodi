@@ -382,6 +382,7 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
                         margin: 0,
                         spacing: 0
                     });
+                    criarAnimacoesLPC(currentScene, layerKey, `${cleanUser}_${layerPropName}`);
                 }
                 if (currentScene.textures.exists(layerKey)) {
                     atualizarSpriteCamada();
@@ -3224,7 +3225,7 @@ function abrirModalUploadItemPremium(scene) {
             <input type="number" id="adminPremItemPrice" placeholder="Ex: 50" min="0" style="width:100%;box-sizing:border-box;padding:8px;background:#151522;border:1px solid #3d3d5c;color:#fff;font-family:monospace;margin-top:4px;">
         </div>
         <div style="width:80px; height:80px; margin:10px auto; border:2px dashed #ffd700; display:flex; align-items:center; justify-content:center; background:#000; overflow:hidden;">
-            <img id="adminPremItemPreview" style="display:none; max-width:64px; max-height:64px; object-fit:contain; image-rendering:pixelated;">
+            <img id="adminPremItemPreview" style="display:none; width:64px; height:64px; object-fit:none; object-position: top left; image-rendering:pixelated;">
             <span id="adminPremItemPlaceholder" style="font-size:10px; color:#666;">Prévia</span>
         </div>
         <input type="file" id="adminPremItemFileInput" accept="image/png" style="display:none;">
