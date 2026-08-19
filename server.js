@@ -185,6 +185,62 @@ app.post('/api/admin/upload-default-skin', async (req, res) => {
     }
 });
 
+app.get('/api/premium-items', async (req, res) => {
+    try {
+        if (!db) {
+            return res.status(503).json({ success: false, message: 'Banco offline' });
+        }
+        const items = await db.collection('premium_items').find().toArray();
+        res.json({ success: true, items });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/admin/upload-premium-item', async (req, res) => {
+    try {
+        if (!db) {
+            return res.status(503).json({ success: false, message: 'Banco offline' });
+        }
+
+        const { adminUser, name, category, price, spriteData } = req.body;
+        if (!adminUser || !name || !category || price === undefined || !spriteData) {
+            return res.status(400).json({ success: false, message: 'Dados incompletos' });
+        }
+
+        const cleanAdmin = adminUser.trim().toLowerCase();
+        const adminAccount = await db.collection('contas').findOne({ user: cleanAdmin });
+        const isMestre = cleanAdmin === 'mestre';
+        const isAdmin = isMestre || (adminAccount && (adminAccount.adminLevel >= 8));
+
+        if (!isAdmin) {
+            return res.status(403).json({ success: false, message: 'Acesso negado: Requer nível 8 ou Mestre' });
+        }
+
+        const validCategories = ['wings', 'clothes', 'weapon'];
+        const itemCategory = category.toLowerCase().trim();
+        if (!validCategories.includes(itemCategory)) {
+            return res.status(400).json({ success: false, message: 'Categoria inválida. Use: wings, clothes ou weapon' });
+        }
+
+        const newPremiumItem = {
+            name: name.trim(),
+            category: itemCategory,
+            price: Number(price),
+            spriteData,
+            uploadedBy: cleanAdmin,
+            createdAt: new Date()
+        };
+
+        await db.collection('premium_items').insertOne(newPremiumItem);
+        console.log(`[ADMIN] Novo item premium cadastrado: ${name} (${itemCategory}) por ${cleanAdmin}`);
+
+        res.json({ success: true, message: 'Item premium cadastrado com sucesso!', item: newPremiumItem });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
 // Rota para listar sprites salvas (Tarefa 2)
 app.get('/api/list-sprites', async (req, res) => {
     try {
