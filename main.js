@@ -45,6 +45,7 @@ let charBodyColor = 0xffffff;
 let charClothColor = 0xffffff;
 let charLang = "Português";
 let charElements = [];
+let selectedDefaultSkin = null;
 
 // Sistema de Jogador, Ouro, Banco, Inventário, Equipamento, Sprite na Mão e Ataque
 let playerGold = 1000;
@@ -1640,19 +1641,60 @@ function abrirCriacaoPersonagem(scene) {
         });
     };
 
-    criarSeletor(300, 'COR CABELO:', 'charHairColor');
-    criarSeletor(350, 'COR CORPO:', 'charBodyColor');
-    criarSeletor(400, 'COR ROUPA:', 'charClothColor');
+    criarSeletor(280, 'COR CABELO:', 'charHairColor');
+    criarSeletor(315, 'COR CORPO:', 'charBodyColor');
+    criarSeletor(350, 'COR ROUPA:', 'charClothColor');
 
-    const labelLang = scene.add.text(250, 450, 'IDIOMA:', { font: 'bold 12px monospace', fill: '#ffffff' }).setScrollFactor(0).setDepth(5002);
+    const renderSkinsPadrao = async () => {
+        try {
+            const res = await fetch(`${BASE_URL}/api/default-skins`);
+            const data = await res.json();
+            console.log('[DEFAULT SKINS] Retorno da API:', data);
+
+            const labelSkin = scene.add.text(250, 390, 'SKIN INICIAL:', { font: 'bold 12px monospace', fill: '#ffffff' }).setScrollFactor(0).setDepth(5002);
+            charElements.push(labelSkin);
+
+            const skinsList = (data && data.success && Array.isArray(data.skins)) ? data.skins : [];
+            const opcoes = [{ name: 'Padrão', spriteData: null }, ...skinsList];
+
+            opcoes.forEach((sk, idx) => {
+                const posX = 380 + (idx * 90);
+                const btnSkin = scene.add.text(posX, 390, `[ ${sk.name} ]`, {
+                    font: 'bold 10px monospace',
+                    fill: (selectedDefaultSkin === sk.spriteData) ? '#ffd700' : '#00ffcc',
+                    backgroundColor: '#1b1b2f',
+                    padding: { x: 6, y: 4 }
+                }).setScrollFactor(0).setDepth(5002).setInteractive();
+
+                btnSkin.on('pointerdown', () => {
+                    selectedDefaultSkin = sk.spriteData;
+                    if (sk.spriteData) {
+                        preview.clearTint();
+                        aplicarSkinCustomizada(preview, sk.spriteData, 'preview_temp');
+                    } else {
+                        preview.setTexture('player_idle', 0);
+                        preview.setTint(charBodyColor);
+                    }
+                });
+
+                charElements.push(btnSkin);
+            });
+        } catch (err) {
+            console.error('[DEFAULT SKINS] Erro ao carregar skins padrão:', err);
+        }
+    };
+
+    renderSkinsPadrao();
+
+    const labelLang = scene.add.text(250, 440, 'IDIOMA:', { font: 'bold 12px monospace', fill: '#ffffff' }).setScrollFactor(0).setDepth(5002);
     charElements.push(labelLang);
-    const btnLang = scene.add.text(380, 445, ` [ ${charLang} ] `, { font: '12px monospace', fill: '#00ffcc', backgroundColor: '#1b1b3d', padding: { x: 10, y: 5 } }).setScrollFactor(0).setDepth(5002).setInteractive();
+    const btnLang = scene.add.text(380, 435, ` [ ${charLang} ] `, { font: '12px monospace', fill: '#00ffcc', backgroundColor: '#1b1b3d', padding: { x: 10, y: 5 } }).setScrollFactor(0).setDepth(5002).setInteractive();
     btnLang.on('pointerdown', () => {
         charLang = charLang === "Português" ? "English" : "Português";
         btnLang.setText(` [ ${charLang} ] `);
     });
 
-    const btnJogar = scene.add.text(400, 530, ' [ JOGAR AGORA ] ', { font: 'bold 20px monospace', fill: '#ffffff', backgroundColor: '#1b3d1b', padding: { x: 40, y: 15 } }).setOrigin(0.5).setScrollFactor(0).setDepth(5002).setInteractive();
+    const btnJogar = scene.add.text(400, 520, ' [ JOGAR AGORA ] ', { font: 'bold 20px monospace', fill: '#ffffff', backgroundColor: '#1b3d1b', padding: { x: 40, y: 15 } }).setOrigin(0.5).setScrollFactor(0).setDepth(5002).setInteractive();
     btnJogar.on('pointerdown', async () => {
         if (!charName) { alert("Escolha um nome!"); return; }
 
@@ -1663,7 +1705,8 @@ function abrirCriacaoPersonagem(scene) {
             y: 450,
             gold: 1000,
             bank: 500,
-            health: 100
+            health: 100,
+            customSpriteData: selectedDefaultSkin || null
         };
 
         try {
@@ -1682,7 +1725,12 @@ function abrirCriacaoPersonagem(scene) {
         }
 
         isCreatingCharacter = false;
-        player.setTint(charBodyColor);
+        if (selectedDefaultSkin) {
+            player.customSpriteData = selectedDefaultSkin;
+            aplicarSkinCustomizada(player, selectedDefaultSkin, charName.toLowerCase());
+        } else {
+            player.setTint(charBodyColor);
+        }
         
         // Criar o texto do nome embaixo do player após a criação
         let displayName = charName;
