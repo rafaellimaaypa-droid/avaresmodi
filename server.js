@@ -625,10 +625,11 @@ io.on('connection', (socket) => {
     console.log(`Nova conexão socket: ${socket.id}`);
 
     socket.on('requestPremiumStore', async () => {
-        if (!premiumSkinsCollection) return;
         try {
-            const skins = await premiumSkinsCollection.find().toArray();
-            socket.emit('premiumStoreData', skins);
+            const skins = premiumSkinsCollection ? await premiumSkinsCollection.find().toArray() : [];
+            const items = db ? await db.collection('premium_items').find().toArray() : [];
+            const allItems = [...skins, ...items];
+            socket.emit('premiumStoreData', allItems);
         } catch (err) {
             console.error("[PREMIUM STORE ERROR]", err);
         }

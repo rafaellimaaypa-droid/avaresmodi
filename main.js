@@ -3012,6 +3012,10 @@ function abrirModalUploadSkinPadrao(scene) {
 }
 
 function abrirModalUploadItemPremium(scene) {
+    if (scene && scene.input && scene.input.keyboard) {
+        scene.input.keyboard.enabled = false;
+    }
+
     const existing = document.getElementById('adminPremiumItemModal');
     if (existing) existing.remove();
 
@@ -3106,7 +3110,7 @@ function abrirModalUploadItemPremium(scene) {
             const data = await res.json();
             if (data.success) {
                 alert(`✅ ${data.message || 'Item cadastrado com sucesso!'}`);
-                modal.remove();
+                fecharModal();
                 carregarItensPremium();
             } else {
                 alert(`❌ Erro: ${data.message || 'Falha ao cadastrar item'}`);
@@ -3380,44 +3384,51 @@ function conectarChatOnline() {
         }
     });
 
-    socket.on('premiumStoreData', (skins) => {
+    socket.on('premiumStoreData', (items) => {
         fecharTodosModaisEPopups(activeScene);
         const modal = document.createElement('div');
         modal.id = 'premiumStoreModal';
-        modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:400px; max-height:80vh; background:#0c0c14; border:2px solid #ffd700; color:#fff; z-index:10001; padding:20px; font-family:monospace; overflow-y:auto; border-radius:8px; box-shadow: 0 0 20px rgba(0,0,0,0.8);';
+        modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:440px; max-height:80vh; background:#0c0c14; border:2px solid #ffd700; color:#fff; z-index:10001; padding:20px; font-family:monospace; overflow-y:auto; border-radius:8px; box-shadow: 0 0 20px rgba(0,0,0,0.8);';
         
         let html = '<div style="text-align:right"><button id="closePremium" style="background:#811;color:#fff;border:none;padding:5px 10px;cursor:pointer;">X</button></div>';
         html += '<h2 style="text-align:center;color:#ffd700;margin-top:0;">💎 LOJA PREMIUM 💎</h2>';
-        html += '<p style="font-size:12px;text-align:center;background:#1b1b2f;padding:10px;border-radius:4px;">Adquira moedas premium para comprar skins exclusivas!<br>Envie seu PIX para a chave: <b>70986804436</b><br>Após o pagamento, envie o comprovante ao Administrador.</p><hr style="border:0;border-top:1px solid #333;margin:15px 0;">';
+        html += '<p style="font-size:12px;text-align:center;background:#1b1b2f;padding:10px;border-radius:4px;">Adquira moedas premium para comprar skins e itens exclusivos!<br>Envie seu PIX para a chave: <b>70986804436</b><br>Após o pagamento, envie o comprovante ao Administrador.</p><hr style="border:0;border-top:1px solid #333;margin:15px 0;">';
         
         html += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">';
-        skins.forEach(skin => {
-            const skinBtnId = `buy_btn_${skin.name.replace(/\s+/g, '_')}`;
-            html += `<div style="background:#151522; padding:10px; border:1px solid #967322; text-align:center;">
-                <img src="${skin.spriteData}" style="width:64px; height:64px; object-fit:none; object-position: top left; image-rendering:pixelated; background:#000; margin-bottom:5px;">
-                <div style="font-size:11px; font-weight:bold; color:#f3e5ab;">${skin.name}</div>
-                <div style="font-size:10px; color:#ffd700; margin:5px 0;">💰 ${skin.price} Premium</div>
-                <button id="${skinBtnId}" style="background:#1b3d1b; color:#fff; border:none; padding:5px; width:100%; cursor:pointer; font-size:10px;">Comprar</button>
-            </div>`;
-        });
+        if (!items || items.length === 0) {
+            html += '<p style="grid-column: span 2; text-align:center; color:#666;">Nenhum item disponível na loja no momento.</p>';
+        } else {
+            items.forEach((item, index) => {
+                const itemBtnId = `buy_btn_${index}_${item.name.replace(/\s+/g, '_')}`;
+                const categoriaTxt = item.category ? ` [${item.category.toUpperCase()}]` : '';
+                html += `<div style="background:#151522; padding:10px; border:1px solid #967322; text-align:center;">
+                    <img src="${item.spriteData}" style="width:64px; height:64px; object-fit:none; object-position: top left; image-rendering:pixelated; background:#000; margin-bottom:5px;">
+                    <div style="font-size:11px; font-weight:bold; color:#f3e5ab;">${item.name}${categoriaTxt}</div>
+                    <div style="font-size:10px; color:#ffd700; margin:5px 0;">💰 ${item.price} Premium</div>
+                    <button id="${itemBtnId}" style="background:#1b3d1b; color:#fff; border:none; padding:5px; width:100%; cursor:pointer; font-size:10px; font-weight:bold;">Comprar</button>
+                </div>`;
+            });
+        }
         html += '</div>';
         
         modal.innerHTML = html;
         document.body.appendChild(modal);
         document.getElementById('closePremium').onclick = () => modal.remove();
 
-        skins.forEach(skin => {
-            const skinBtnId = `buy_btn_${skin.name.replace(/\s+/g, '_')}`;
-            const btn = document.getElementById(skinBtnId);
-            if (btn) {
-                btn.onclick = () => {
-                    if (socket && socket.connected) {
-                        socket.emit('buyPremiumSkin', skin.name);
-                        if (modal) modal.remove();
-                    }
-                };
-            }
-        });
+        if (items) {
+            items.forEach((item, index) => {
+                const itemBtnId = `buy_btn_${index}_${item.name.replace(/\s+/g, '_')}`;
+                const btn = document.getElementById(itemBtnId);
+                if (btn) {
+                    btn.onclick = () => {
+                        if (socket && socket.connected) {
+                            socket.emit('buyPremiumSkin', item.name);
+                            modal.remove();
+                        }
+                    };
+                }
+            });
+        }
     });
 
 
