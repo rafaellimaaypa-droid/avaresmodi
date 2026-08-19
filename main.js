@@ -3266,13 +3266,22 @@ function abrirPerfilJogadorRemoto(scene, data) {
     const btnStyle = { font: 'bold 10px monospace', fill: '#fff', backgroundColor: '#1b1b3d', padding: { x: 8, y: 6 } };
 
     // Botões de Ações Admin
-    const btnGold = scene.add.text(280, 260, '💰 DAR GOLD', btnStyle).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
+    const btnGold = scene.add.text(220, 260, '💰 DAR GOLD', btnStyle).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
     btnGold.on('pointerdown', () => {
         const v = prompt(`Quanto gold deseja dar para ${targetID}?`);
         if (v && !isNaN(v)) callAdminAPI(targetID, 'setGold', parseInt(v));
     });
 
-    const btnWeapon = scene.add.text(400, 260, '⚔️ DAR ARMA', btnStyle).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
+    const btnPremium = scene.add.text(340, 260, '💎 DAR PREMIUM', btnStyle).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
+    btnPremium.on('pointerdown', () => {
+        let amount = prompt(`Digite o saldo exato de Moedas Premium para ${targetID}:`);
+        if (amount !== null && amount.trim() !== '' && !isNaN(amount)) {
+            socket.emit('setPremiumCoins', { targetPlayer: targetID, amount: parseInt(amount) });
+            alert('Moedas Premium atualizadas no servidor!');
+        }
+    });
+
+    const btnWeapon = scene.add.text(460, 260, '⚔️ DAR ARMA', btnStyle).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
     btnWeapon.on('pointerdown', () => {
         const lista = weaponsShopData.map((w, i) => `${i}: ${w.name} (${w.id})`).join('\n');
         const itemID = prompt(`Digite o ID da arma ou escolha o índice:\n${lista}`);
@@ -3286,7 +3295,7 @@ function abrirPerfilJogadorRemoto(scene, data) {
         }
     });
 
-    const btnCloth = scene.add.text(520, 260, '👗 DAR ROUPA', btnStyle).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
+    const btnCloth = scene.add.text(580, 260, '👗 DAR ROUPA', btnStyle).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
     btnCloth.on('pointerdown', () => {
         const lista = clothesShopData.map((c, i) => `${i}: ${c.name} (${c.id})`).join('\n');
         const itemID = prompt(`Digite o ID da roupa ou escolha o índice:\n${lista}`);
@@ -3302,16 +3311,7 @@ function abrirPerfilJogadorRemoto(scene, data) {
 
     const isMestre = currentUser && currentUser.toLowerCase() === 'mestre';
     if (isMestre || adminLevel >= 8) {
-        const btnSetPremium = scene.add.text(400, 310, '💎 SET PREMIUM COINS', { ...btnStyle, backgroundColor: '#005566' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
-        btnSetPremium.on('pointerdown', () => {
-            const v = prompt(`Digite o novo saldo de moedas premium para ${targetID}:`);
-            if (v !== null && !isNaN(v)) {
-                socket.emit('setPremiumCoins', { targetPlayer: targetID, amount: parseInt(v) });
-            }
-        });
-        menuElements.push(btnSetPremium);
-
-        const btnPass = scene.add.text(400, 350, '🔑 TROCAR SENHA', { ...btnStyle, backgroundColor: '#800' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
+        const btnPass = scene.add.text(400, 310, '🔑 TROCAR SENHA', { ...btnStyle, backgroundColor: '#800' }).setOrigin(0.5).setScrollFactor(0).setDepth(10002).setInteractive();
         btnPass.on('pointerdown', () => {
             const p = prompt(`Nova senha para o usuário ${targetID}:`);
             if (p) callAdminAPI(targetID, 'setPass', p);
@@ -3324,7 +3324,7 @@ function abrirPerfilJogadorRemoto(scene, data) {
         adicionarMensagemChat('Sistema', `📋 Usuário "${data.accountUser}" selecionado.`);
     });
     
-    menuElements.push(btnGold, btnWeapon, btnCloth, btnCopiarID);
+    menuElements.push(btnGold, btnPremium, btnWeapon, btnCloth, btnCopiarID);
 
     menuElements.push(bg, panel, title, closeBtn, info, btnCopiarID);
 }
