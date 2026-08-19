@@ -137,6 +137,7 @@ const CHAT_NETWORK = {
 };
 
 let socket;
+let btnPremiumSkinAdmin = null;
 
 // Sistema de Rede Multiplayer
 let playerId = null;
@@ -1510,6 +1511,12 @@ function finalizarLoginComDados(userData) {
     atualizarSpriteArmaEquipada(activeScene);
     atualizarSpriteRoupaEquipada(activeScene);
     adicionarMensagemChat('Sistema', `Bem-vindo de volta, ${charName}!`);
+    
+    const isMestre = currentUser && currentUser.toLowerCase() === 'mestre';
+    if (adminLevel >= 8 || isMestre) {
+        criarBotaoAdminPremium(activeScene);
+        if (btnPremiumSkinAdmin) btnPremiumSkinAdmin.style.display = 'block';
+    }
 }
 
 function abrirCriacaoPersonagem(scene) {
@@ -1610,6 +1617,12 @@ function abrirCriacaoPersonagem(scene) {
         healthText.setVisible(true);
         hudGoldText.setVisible(true);
         adicionarMensagemChat('Sistema', `Bem-vindo, ${charName}! A aventura começa agora.`);
+
+        const isMestre = currentUser && currentUser.toLowerCase() === 'mestre';
+        if (adminLevel >= 8 || isMestre) {
+            criarBotaoAdminPremium(scene);
+            if (btnPremiumSkinAdmin) btnPremiumSkinAdmin.style.display = 'block';
+        }
         
         // Sincronização inicial via Socket.io após criação
         if (socket && socket.connected) {
@@ -1721,6 +1734,57 @@ function mostrarTelaMorte(scene) {
     });
 
     deathScreenElements = [overlay, title, subtitle, respawnBtn];
+}
+
+function criarBotaoAdminPremium(scene) {
+    if (btnPremiumSkinAdmin) return;
+
+    btnPremiumSkinAdmin = document.createElement('button');
+    btnPremiumSkinAdmin.innerText = "💎 Add Skin Premium";
+    btnPremiumSkinAdmin.style.cssText = `
+        position: fixed;
+        top: 60px;
+        right: 10px;
+        z-index: 9999;
+        display: none;
+        background: #1b1b2f;
+        color: #ffd700;
+        border: 2px solid #967322;
+        padding: 8px 12px;
+        font-family: monospace;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 4px;
+    `;
+    document.body.appendChild(btnPremiumSkinAdmin);
+
+    btnPremiumSkinAdmin.onclick = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/png';
+        
+        input.onchange = e => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = event => {
+                const base64Data = event.target.result;
+                const nomeSkin = prompt("Nome da Skin Premium:");
+                const precoSkin = prompt("Preço da Skin (Moedas Premium):");
+
+                if (nomeSkin && precoSkin && !isNaN(precoSkin)) {
+                    socket.emit('uploadPremiumSkin', { 
+                        name: nomeSkin, 
+                        price: precoSkin, 
+                        base64: base64Data 
+                    });
+                }
+            };
+            reader.readAsDataURL(file);
+        };
+        input.click();
+    };
 }
 
 function criarControlesMobile(scene) {

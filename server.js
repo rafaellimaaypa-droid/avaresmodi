@@ -294,6 +294,7 @@ app.post('/api/characters', async (req, res) => {
 
 const mongoUri = "mongodb+srv://rafaellimaaypa_db_user:Avares2026@cluster0.2z21fd6.mongodb.net/?appName=Cluster0";
 let db = null;
+let premiumSkinsCollection = null;
 let worldObjects = [];
 
 // Estado Global de Dominação
@@ -323,6 +324,7 @@ async function startServer() {
     try {
         await client.connect();
         db = client.db("avaris_mmorpg");
+        premiumSkinsCollection = db.collection('premium_skins');
         console.log("[MONGO] Conectado com sucesso!");
 
         // Tenta carregar o mapa. Se falhar, inicia vazio mas não derruba o servidor.
@@ -440,6 +442,31 @@ async function loadClansCache() {
 
 io.on('connection', (socket) => {
     console.log(`Nova conexão socket: ${socket.id}`);
+
+    socket.on('uploadPremiumSkin', async (data) => {
+        const p = players[socket.id];
+        const isMestre = socket.accountUser === 'mestre';
+        const isAdmin = p && (p.adminLevel >= 8 || isMestre);
+
+        if (!isAdmin || !premiumSkinsCollection) return;
+
+        try {
+            await premiumSkinsCollection.insertOne({
+                name: data.name,
+                price: Number(data.price),
+                spriteData: data.base64,
+                uploadedBy: p.name,
+                createdAt: new Date()
+            });
+            socket.emit('chatMessage', { 
+                playerName: 'Sistema', 
+                message: `💎 Skin Premium [${data.name}] enviada com sucesso para a loja!`, 
+                channel: 'SISTEMA' 
+            });
+        } catch (err) {
+            console.error("[PREMIUM UPLOAD ERROR]", err);
+        }
+    });
 
     socket.on('joinGame', async (playerData) => {
         if (Object.keys(cachedClans).length === 0) await loadClansCache();
