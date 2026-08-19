@@ -3665,34 +3665,19 @@ function conectarChatOnline() {
             
             // Sincronização de acessórios para jogadores remotos
             renderizarJogadorCamadas(activeScene, remoteSprite);
-            if (remoteSprite.accessory && remoteSprite.accessory.active && remoteSprite.anims.currentAnim) {
+            if (remoteSprite.accessory && remoteSprite.accessory.active) {
                 remoteSprite.accessory.setPosition(remoteSprite.x, remoteSprite.y);
                 remoteSprite.accessory.setDepth(remoteSprite.y - 0.5);
                 remoteSprite.accessory.setFlipX(remoteSprite.flipX);
-                remoteSprite.accessory.anims.play(remoteSprite.anims.currentAnim.key, true);
-                if (remoteSprite.anims.currentFrame) {
-                    const targetFrame = remoteSprite.anims.currentFrame.textureFrame !== undefined ? remoteSprite.anims.currentFrame.textureFrame : (remoteSprite.anims.currentFrame.index - 1);
-                    aplicarFrameSeguro(remoteSprite.accessory, targetFrame);
-                }
+                remoteSprite.accessory.setVisible(remoteSprite.visible);
+                remoteSprite.accessory.setAlpha(remoteSprite.alpha);
             }
-            if (remoteSprite.wingsLayerSprite && remoteSprite.wingsLayerSprite.active && remoteSprite.anims.currentAnim) {
+            if (remoteSprite.wingsLayerSprite && remoteSprite.wingsLayerSprite.active) {
                 remoteSprite.wingsLayerSprite.setPosition(remoteSprite.x, remoteSprite.y);
                 remoteSprite.wingsLayerSprite.setDepth(remoteSprite.y - 0.5);
                 remoteSprite.wingsLayerSprite.setFlipX(remoteSprite.flipX);
-                const wingAnim = remoteSprite.anims.currentAnim.key.replace(remoteName, `${remoteName}_wingsLayerSprite`);
-                if (activeScene.anims.exists(wingAnim)) {
-                    if (remoteSprite.wingsLayerSprite.anims.currentAnim?.key !== wingAnim) remoteSprite.wingsLayerSprite.anims.play(wingAnim, true);
-                    if (remoteSprite.anims.currentFrame) {
-                        const frameIdx = remoteSprite.anims.getFrameIndex ? remoteSprite.anims.getFrameIndex() : (remoteSprite.anims.currentFrame.index - 1);
-                        const targetFrame = remoteSprite.wingsLayerSprite.anims.currentAnim?.frames[frameIdx]?.frame?.name;
-                        if (targetFrame !== undefined) {
-                            aplicarFrameSeguro(remoteSprite.wingsLayerSprite, targetFrame);
-                        }
-                    }
-                } else if (remoteSprite.anims.currentFrame) {
-                    const curFrame = remoteSprite.anims.currentFrame.textureFrame !== undefined ? remoteSprite.anims.currentFrame.textureFrame : remoteSprite.frame.name;
-                    aplicarFrameSeguro(remoteSprite.wingsLayerSprite, curFrame);
-                }
+                remoteSprite.wingsLayerSprite.setVisible(remoteSprite.visible);
+                remoteSprite.wingsLayerSprite.setAlpha(remoteSprite.alpha);
             }
 
             if (remoteSprite.playerNameText) {
@@ -5217,20 +5202,13 @@ function update() {
         }
     }
 
-    // Sincronização de acessórios (asas, etc) com o frame e animação do player
+    // Sincronização de acessórios (asas, etc)
     if (player.accessory && player.accessory.active) {
         player.accessory.setPosition(player.x, player.y);
         player.accessory.setDepth(player.y - 0.5);
         player.accessory.setFlipX(player.flipX);
-        if (player.anims && player.anims.currentAnim) {
-            if (this.anims.exists(player.anims.currentAnim.key)) {
-                player.accessory.anims.play(player.anims.currentAnim.key, true);
-            }
-            if (player.anims.currentFrame) {
-                const targetFrame = player.anims.currentFrame.textureFrame !== undefined ? player.anims.currentFrame.textureFrame : (player.anims.currentFrame.index - 1);
-                aplicarFrameSeguro(player.accessory, targetFrame);
-            }
-        }
+        player.accessory.setVisible(player.visible);
+        player.accessory.setAlpha(player.alpha);
     }
 
     // Sincronização das camadas de renderização do jogador (asas e roupas)
@@ -5241,25 +5219,6 @@ function update() {
         player.wingsLayerSprite.setFlipX(player.flipX);
         player.wingsLayerSprite.setVisible(player.visible);
         player.wingsLayerSprite.setAlpha(player.alpha);
-
-        if (player.anims && player.anims.currentAnim) {
-            const wingAnim = player.anims.currentAnim.key.replace(charName.toLowerCase(), `${charName.toLowerCase()}_wingsLayerSprite`);
-            if (this.anims.exists(wingAnim)) {
-                if (player.wingsLayerSprite.anims.currentAnim?.key !== wingAnim) {
-                    player.wingsLayerSprite.anims.play(wingAnim, true);
-                }
-                if (player.anims.currentFrame) {
-                    const frameIdx = player.anims.getFrameIndex ? player.anims.getFrameIndex() : (player.anims.currentFrame.index - 1);
-                    const targetFrame = player.wingsLayerSprite.anims.currentAnim?.frames[frameIdx]?.frame?.name;
-                    if (targetFrame !== undefined) {
-                        aplicarFrameSeguro(player.wingsLayerSprite, targetFrame);
-                    }
-                }
-            } else if (player.anims.currentFrame) {
-                const curFrame = player.anims.currentFrame.textureFrame !== undefined ? player.anims.currentFrame.textureFrame : player.frame.name;
-                aplicarFrameSeguro(player.wingsLayerSprite, curFrame);
-            }
-        }
     }
     if (player.clothesLayerSprite && player.clothesLayerSprite.active) {
         player.clothesLayerSprite.setPosition(player.x, player.y);
