@@ -1315,6 +1315,9 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
         
         // Proteção WebGL: Remove a referência da textura do sprite antes de deletá-la da memória
         if (sprite && sprite.active) {
+            if (sprite.anims && sprite.anims.isPlaying) {
+                sprite.stop();
+            }
             sprite.setTexture('player_idle');
         }
         
@@ -1437,6 +1440,8 @@ function finalizarLoginComDados(userData) {
             });
         }
     } else {
+        player.customTextureKey = null;
+        player.customSpriteData = null;
         player.setTexture('player_idle');
         player.anims.play('idle_down', true);
     }
@@ -3008,6 +3013,8 @@ function adicionarOutroJogador(scene, data) {
         aplicarSkinCustomizada(other, data.customSpriteData, targetUsername);
     } else {
         console.warn('[SKIN DEBUG ⚠️ FALLBACK] Avatar remoto sem skin customizada:', targetUsername);
+        other.customTextureKey = null;
+        other.setTexture('player_idle');
         other.setTint(data.bodyColor || 0xffffff);
         other.anims.play('idle_down', true);
         
