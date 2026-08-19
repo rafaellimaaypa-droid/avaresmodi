@@ -1394,6 +1394,8 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
         ['up', 'down', 'left', 'right'].forEach(dir => {
             activeScene.anims.remove(`walk_${dir}_custom_${cleanUser}`);
             activeScene.anims.remove(`idle_${dir}_custom_${cleanUser}`);
+            activeScene.anims.remove(`slash_${dir}_custom_${cleanUser}`);
+            activeScene.anims.remove(`spell_${dir}_custom_${cleanUser}`);
         });
 
         criarAnimacoesLPC(activeScene, uniqueKey, cleanUser);
@@ -1416,35 +1418,64 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
 }
 
 function criarAnimacoesLPC(scene, textureKey, username) {
-    // Mapeamento LPC Standard (13 colunas por linha): 
-    // Caminhada (Walk): Linha 8 (Cima), 9 (Esquerda), 10 (Baixo), 11 (Direita)
+    // Mapeamento LPC Standard (13 colunas por linha)
     const direcoes = [
-        { dir: 'up', row: 8 },
-        { dir: 'left', row: 9 },
-        { dir: 'down', row: 10 },
-        { dir: 'right', row: 11 }
+        { dir: 'up', rowWalk: 8, rowSlash: 12, rowSpell: 0 },
+        { dir: 'left', rowWalk: 9, rowSlash: 13, rowSpell: 1 },
+        { dir: 'down', rowWalk: 10, rowSlash: 14, rowSpell: 2 },
+        { dir: 'right', rowWalk: 11, rowSlash: 15, rowSpell: 3 }
     ];
     
     direcoes.forEach((config) => {
-        const animName = `walk_${config.dir}_custom_${username}`;
-        if (!scene.anims.exists(animName)) {
+        // WALK
+        const walkName = `walk_${config.dir}_custom_${username}`;
+        if (!scene.anims.exists(walkName)) {
             scene.anims.create({
-                key: animName,
+                key: walkName,
                 frames: scene.anims.generateFrameNumbers(textureKey, {
-                    start: config.row * 13, 
-                    end: (config.row * 13) + 8
+                    start: config.rowWalk * 13, 
+                    end: (config.rowWalk * 13) + 8
                 }),
                 frameRate: 12,
                 repeat: -1
             });
         }
         
+        // IDLE
         const idleName = `idle_${config.dir}_custom_${username}`;
         if (!scene.anims.exists(idleName)) {
             scene.anims.create({
                 key: idleName,
-                frames: [{ key: textureKey, frame: config.row * 13 }],
+                frames: [{ key: textureKey, frame: config.rowWalk * 13 }],
                 frameRate: 1
+            });
+        }
+
+        // SLASH (Ataque) - 6 frames
+        const slashName = `slash_${config.dir}_custom_${username}`;
+        if (!scene.anims.exists(slashName)) {
+            scene.anims.create({
+                key: slashName,
+                frames: scene.anims.generateFrameNumbers(textureKey, {
+                    start: config.rowSlash * 13,
+                    end: (config.rowSlash * 13) + 5
+                }),
+                frameRate: 10,
+                repeat: 0
+            });
+        }
+
+        // SPELL (Magia) - 7 frames
+        const spellName = `spell_${config.dir}_custom_${username}`;
+        if (!scene.anims.exists(spellName)) {
+            scene.anims.create({
+                key: spellName,
+                frames: scene.anims.generateFrameNumbers(textureKey, {
+                    start: config.rowSpell * 13,
+                    end: (config.rowSpell * 13) + 6
+                }),
+                frameRate: 10,
+                repeat: 0
             });
         }
     });
