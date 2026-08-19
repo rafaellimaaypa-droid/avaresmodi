@@ -2771,7 +2771,108 @@ function abrirPainelAdmin(scene) {
             }
         });
         mainContent.add(btnListAdmins);
+
+        const btnDefaultSkin = scene.add.text(400, 515, '🎨 CADASTRAR SKIN PADRÃO', { ...btnStyle, backgroundColor: '#1b3d3d' }).setOrigin(0.5).setScrollFactor(0).setDepth(ADMIN_DEPTH + 2).setInteractive();
+        btnDefaultSkin.on('pointerdown', () => {
+            abrirModalUploadSkinPadrao(scene);
+        });
+        mainContent.add(btnDefaultSkin);
     }
+}
+
+function abrirModalUploadSkinPadrao(scene) {
+    const existing = document.getElementById('adminDefaultSkinModal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'adminDefaultSkinModal';
+    modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:380px; background:#0c0c14; border:2px solid #00ffcc; color:#fff; z-index:100002; padding:20px; font-family:monospace; border-radius:8px; box-shadow: 0 0 20px rgba(0,255,204,0.4); text-align:center;';
+
+    modal.innerHTML = `
+        <div style="text-align:right"><button id="closeAdminDefSkin" style="background:#811;color:#fff;border:none;padding:4px 8px;cursor:pointer;">X</button></div>
+        <h3 style="color:#00ffcc;margin-top:0;">🎨 CADASTRAR SKIN PADRÃO</h3>
+        <p style="font-size:11px;color:#aaa;">Exclusivo Admin Nível 8. Essa skin ficará disponível para novos jogadores na criação de personagem.</p>
+        <div style="margin:12px 0;">
+            <input type="text" id="adminDefSkinName" placeholder="Nome da Skin (ex: Guerreiro)" style="width:90%;padding:8px;background:#151522;border:1px solid #3d3d5c;color:#fff;font-family:monospace;">
+        </div>
+        <div style="width:80px; height:80px; margin:10px auto; border:2px dashed #00ffcc; display:flex; align-items:center; justify-content:center; background:#000;">
+            <img id="adminDefSkinPreview" style="display:none; width:64px; height:64px; object-fit:none; object-position: top left; image-rendering:pixelated;">
+            <span id="adminDefSkinPlaceholder" style="font-size:10px; color:#666;">Prévia</span>
+        </div>
+        <input type="file" id="adminDefSkinFileInput" accept="image/png" style="display:none;">
+        <button id="adminDefSkinSelectBtn" style="background:#2a2a40;color:#fff;border:1px solid #00ffcc;padding:8px 12px;cursor:pointer;font-family:monospace;margin-bottom:10px;">📁 Selecionar PNG</button>
+        <br>
+        <button id="adminDefSkinSubmitBtn" style="background:#1b3d1b;color:#fff;border:none;padding:10px 20px;cursor:pointer;font-family:monospace;font-weight:bold;width:95%;">💾 ENVIAR SKIN</button>
+    `;
+
+    document.body.appendChild(modal);
+
+    let selectedBase64 = null;
+    const closeBtn = document.getElementById('closeAdminDefSkin');
+    const nameInput = document.getElementById('adminDefSkinName');
+    const fileInput = document.getElementById('adminDefSkinFileInput');
+    const selectBtn = document.getElementById('adminDefSkinSelectBtn');
+    const previewImg = document.getElementById('adminDefSkinPreview');
+    const placeholder = document.getElementById('adminDefSkinPlaceholder');
+    const submitBtn = document.getElementById('adminDefSkinSubmitBtn');
+
+    closeBtn.onclick = () => modal.remove();
+    selectBtn.onclick = () => fileInput.click();
+
+    fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            selectedBase64 = event.target.result;
+            previewImg.src = selectedBase64;
+            previewImg.style.display = 'block';
+            placeholder.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    };
+
+    submitBtn.onclick = async () => {
+        const skinName = nameInput.value.trim();
+        if (!skinName) {
+            alert('Informe o nome da skin!');
+            return;
+        }
+        if (!selectedBase64) {
+            alert('Selecione uma imagem PNG para a skin!');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Enviando...';
+
+        try {
+            const res = await fetch(`${BASE_URL}/api/admin/upload-default-skin`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    adminUser: currentUser,
+                    name: skinName,
+                    spriteData: selectedBase64
+                })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                alert(`✅ ${data.message || 'Skin cadastrada com sucesso!'}`);
+                modal.remove();
+            } else {
+                alert(`❌ Erro: ${data.message || 'Falha ao salvar skin'}`);
+                submitBtn.disabled = false;
+                submitBtn.innerText = '💾 ENVIAR SKIN';
+            }
+        } catch (err) {
+            console.error(err);
+            alert('❌ Erro de conexão com o servidor.');
+            submitBtn.disabled = false;
+            submitBtn.innerText = '💾 ENVIAR SKIN';
+        }
+    };
 }
 
 function processarMensagemChat(texto) {
