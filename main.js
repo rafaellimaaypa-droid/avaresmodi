@@ -4181,18 +4181,33 @@ function abrirLojaArmas(scene) {
                 itemBox.on('pointerout', () => { itemBox.setFillStyle(0x12121a); itemBox.setStrokeStyle(1, 0x3d3d5c); });
 
                 const comprarItem = async () => {
-                    if (playerGold >= weapon.price) {
-                        if (playerInventory.length >= 16) {
-                            modalText.setText('❌ Inventário cheio!');
-                            return;
-                        }
-                        playerGold -= weapon.price;
-                        atualizarHudGold();
-                        playerInventory.push({ ...weapon });
-                        await salvarEstadoRemoto();
+                    if (playerGold < weapon.price) {
+                        modalText.setText('❌ Ouro insuficiente na mão!');
+                        return;
+                    }
+                    if (playerInventory.length >= 16) {
+                        modalText.setText('❌ Inventário cheio!');
+                        return;
+                    }
+
+                    const prevGold = playerGold;
+                    const prevInventory = JSON.parse(JSON.stringify(playerInventory));
+
+                    playerGold -= weapon.price;
+                    playerInventory.push({ ...weapon });
+
+                    modalText.setText('⏳ Processando compra...');
+                    const res = await salvarEstadoRemoto();
+                    if (res && res.success) {
+                        if (hudGoldText) hudGoldText.setText(`💰 ${playerGold} GOLD`);
+                        if (hudPremiumText) hudPremiumText.setText(`💎 ${playerPremiumCoins} PREMIUM`);
                         modalText.setText(`✅ Você comprou: ${weapon.name}!`);
                     } else {
-                        modalText.setText('❌ Ouro insuficiente na mão!');
+                        playerGold = prevGold;
+                        playerInventory = prevInventory;
+                        if (hudGoldText) hudGoldText.setText(`💰 ${playerGold} GOLD`);
+                        if (hudPremiumText) hudPremiumText.setText(`💎 ${playerPremiumCoins} PREMIUM`);
+                        modalText.setText('❌ Falha na conexão ao salvar compra.');
                     }
                 };
 
@@ -4238,18 +4253,32 @@ function abrirLojaArmas(scene) {
                     }).setOrigin(0.5).setScrollFactor(0).setDepth(2003).setInteractive();
 
                     const venderItem = async () => {
-                        let precoVenda = invItem.price || 2;
-                        playerGold += precoVenda;
-                        atualizarHudGold();
+                        const precoVenda = invItem.price || 2;
+                        const prevGold = playerGold;
+                        const prevInventory = JSON.parse(JSON.stringify(playerInventory));
 
+                        playerGold += precoVenda;
                         if (invItem.qty && invItem.qty > 1) {
                             invItem.qty--;
                         } else {
                             playerInventory.splice(index, 1);
                         }
-                        await salvarEstadoRemoto();
-                        modalText.setText(`✅ Vendeu 1x ${invItem.name} por ${precoVenda} ouros!`);
-                        renderShopUI();
+
+                        modalText.setText('⏳ Processando venda...');
+                        const res = await salvarEstadoRemoto();
+                        if (res && res.success) {
+                            if (hudGoldText) hudGoldText.setText(`💰 ${playerGold} GOLD`);
+                            if (hudPremiumText) hudPremiumText.setText(`💎 ${playerPremiumCoins} PREMIUM`);
+                            modalText.setText(`✅ Vendeu 1x ${invItem.name} por ${precoVenda} ouros!`);
+                            renderShopUI();
+                        } else {
+                            playerGold = prevGold;
+                            playerInventory = prevInventory;
+                            if (hudGoldText) hudGoldText.setText(`💰 ${playerGold} GOLD`);
+                            if (hudPremiumText) hudPremiumText.setText(`💎 ${playerPremiumCoins} PREMIUM`);
+                            modalText.setText('❌ Falha na conexão ao salvar venda.');
+                            renderShopUI();
+                        }
                     };
 
                     sellBtn.on('pointerdown', (pointer, localX, localY, event) => {
