@@ -351,7 +351,7 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
 
             const layerSprite = parentSprite[layerPropName];
             if (layerSprite && layerSprite.active) {
-                if (layerSprite.texture.key !== layerKey) {
+                if (layerSprite.texture.key !== layerKey && currentScene.textures.exists(layerKey)) {
                     layerSprite.setTexture(layerKey);
                 }
                 layerSprite.setScale(parentSprite.scaleX, parentSprite.scaleY);
@@ -383,7 +383,9 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
                         spacing: 0
                     });
                 }
-                atualizarSpriteCamada();
+                if (currentScene.textures.exists(layerKey)) {
+                    atualizarSpriteCamada();
+                }
             } catch (loadErr) {
                 if (parentSprite[layerPropName]) {
                     try { parentSprite[layerPropName].destroy(); } catch (e) {}
@@ -1632,6 +1634,7 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
             if (currentScene.anims.exists(targetAnim)) {
                 sprite.play(targetAnim);
             }
+            renderizarJogadorCamadas(currentScene, sprite);
             console.log(`[SKIN DEBUG] ✅ Nova skin única processada e aplicada para: ${username}`);
         }
     };
