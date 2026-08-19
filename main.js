@@ -1313,14 +1313,22 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     if (activeScene.textures.exists(uniqueKey)) {
         console.log(`[SKIN REPLACE] Limpando skin anterior antes de aplicar a nova para: ${username}`);
         
-        // Proteção WebGL: Remove a referência da textura do sprite antes de deletá-la da memória
+        // 1. Congelar e ocultar o sprite principal para evitar draw calls durante o swap
         if (sprite && sprite.active) {
-            if (sprite.anims && sprite.anims.isPlaying) {
-                sprite.stop();
-            }
+            sprite.anims.stop();
+            sprite.setVisible(false);
+            // 3. Desvincular textura enviando para uma padrão do cache fixo
             sprite.setTexture('player_idle');
         }
+
+        // 4. PROTEÇÃO DO HUD/PERFIL: Se for o jogador local, resetar as imagens de UI
+        if (charName && username === charName.toLowerCase()) {
+            if (profileAvatarImg) {
+                profileAvatarImg.setTexture('player_idle', 0);
+            }
+        }
         
+        // 5. Agora é seguro remover do gerenciador de texturas
         activeScene.textures.remove(uniqueKey);
     }
 
@@ -1366,6 +1374,7 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
         }
 
         if (sprite && sprite.active) {
+            // 6. Reativar visibilidade após o carregamento da nova textura
             sprite.setVisible(true);
             const targetAnim = `idle_down_custom_${username.toLowerCase()}`;
             if (sprite.anims.exists(targetAnim)) {
