@@ -293,6 +293,21 @@ async function carregarItensPremium() {
     }
 }
 
+function aplicarFrameSeguro(targetSprite, frameVal) {
+    if (!targetSprite || !targetSprite.active || !targetSprite.texture) return;
+    try {
+        if (targetSprite.texture.has(frameVal)) {
+            targetSprite.setFrame(frameVal);
+        } else if (typeof frameVal === 'number' && frameVal >= 0 && frameVal < targetSprite.texture.frameTotal) {
+            targetSprite.setFrame(frameVal);
+        } else if (targetSprite.texture.has(0)) {
+            targetSprite.setFrame(0);
+        }
+    } catch (err) {
+        try { targetSprite.setFrame(0); } catch (e) {}
+    }
+}
+
 function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData, depthOffset, frameWidth = 64, frameHeight = 64) {
     if (!scene || !parentSprite || !parentSprite.active) return;
 
@@ -3657,7 +3672,7 @@ function conectarChatOnline() {
                 remoteSprite.accessory.anims.play(remoteSprite.anims.currentAnim.key, true);
                 if (remoteSprite.anims.currentFrame) {
                     const targetFrame = remoteSprite.anims.currentFrame.textureFrame !== undefined ? remoteSprite.anims.currentFrame.textureFrame : (remoteSprite.anims.currentFrame.index - 1);
-                    remoteSprite.accessory.setFrame(targetFrame);
+                    aplicarFrameSeguro(remoteSprite.accessory, targetFrame);
                 }
             }
             if (remoteSprite.wingsLayerSprite && remoteSprite.wingsLayerSprite.active && remoteSprite.anims.currentAnim) {
@@ -3670,11 +3685,13 @@ function conectarChatOnline() {
                     if (remoteSprite.anims.currentFrame) {
                         const frameIdx = remoteSprite.anims.getFrameIndex ? remoteSprite.anims.getFrameIndex() : (remoteSprite.anims.currentFrame.index - 1);
                         const targetFrame = remoteSprite.wingsLayerSprite.anims.currentAnim?.frames[frameIdx]?.frame?.name;
-                        if (targetFrame !== undefined) remoteSprite.wingsLayerSprite.setFrame(targetFrame);
+                        if (targetFrame !== undefined) {
+                            aplicarFrameSeguro(remoteSprite.wingsLayerSprite, targetFrame);
+                        }
                     }
                 } else if (remoteSprite.anims.currentFrame) {
                     const curFrame = remoteSprite.anims.currentFrame.textureFrame !== undefined ? remoteSprite.anims.currentFrame.textureFrame : remoteSprite.frame.name;
-                    remoteSprite.wingsLayerSprite.setFrame(curFrame);
+                    aplicarFrameSeguro(remoteSprite.wingsLayerSprite, curFrame);
                 }
             }
 
@@ -5211,7 +5228,7 @@ function update() {
             }
             if (player.anims.currentFrame) {
                 const targetFrame = player.anims.currentFrame.textureFrame !== undefined ? player.anims.currentFrame.textureFrame : (player.anims.currentFrame.index - 1);
-                player.accessory.setFrame(targetFrame);
+                aplicarFrameSeguro(player.accessory, targetFrame);
             }
         }
     }
@@ -5234,11 +5251,13 @@ function update() {
                 if (player.anims.currentFrame) {
                     const frameIdx = player.anims.getFrameIndex ? player.anims.getFrameIndex() : (player.anims.currentFrame.index - 1);
                     const targetFrame = player.wingsLayerSprite.anims.currentAnim?.frames[frameIdx]?.frame?.name;
-                    if (targetFrame !== undefined) player.wingsLayerSprite.setFrame(targetFrame);
+                    if (targetFrame !== undefined) {
+                        aplicarFrameSeguro(player.wingsLayerSprite, targetFrame);
+                    }
                 }
             } else if (player.anims.currentFrame) {
                 const curFrame = player.anims.currentFrame.textureFrame !== undefined ? player.anims.currentFrame.textureFrame : player.frame.name;
-                player.wingsLayerSprite.setFrame(curFrame);
+                aplicarFrameSeguro(player.wingsLayerSprite, curFrame);
             }
         }
     }
@@ -5258,11 +5277,13 @@ function update() {
                 if (player.anims.currentFrame) {
                     const frameIdx = player.anims.getFrameIndex ? player.anims.getFrameIndex() : (player.anims.currentFrame.index - 1);
                     const targetFrame = player.clothesLayerSprite.anims.currentAnim?.frames[frameIdx]?.frame?.name;
-                    if (targetFrame !== undefined) player.clothesLayerSprite.setFrame(targetFrame);
+                    if (targetFrame !== undefined) {
+                        aplicarFrameSeguro(player.clothesLayerSprite, targetFrame);
+                    }
                 }
             } else if (player.anims.currentFrame) {
                 const curFrame = player.anims.currentFrame.textureFrame !== undefined ? player.anims.currentFrame.textureFrame : player.frame.name;
-                player.clothesLayerSprite.setFrame(curFrame);
+                aplicarFrameSeguro(player.clothesLayerSprite, curFrame);
             }
         }
     }
