@@ -481,7 +481,7 @@ io.on('connection', (socket) => {
                 socket.emit('updatePremiumCoins', newBalance);
                 socket.emit('chatMessage', { 
                     playerName: 'Sistema', 
-                    message: '✅ Compra concluída! A skin foi guardada na sua conta.', 
+                    message: 'Compra concluída! A skin foi guardada na sua conta.', 
                     channel: 'SISTEMA' 
                 });
             } else {

@@ -2926,7 +2926,7 @@ function conectarChatOnline() {
                 btn.onclick = () => {
                     if (socket && socket.connected) {
                         socket.emit('buyPremiumSkin', skin.name);
-                        modal.remove();
+                        if (modal) modal.remove();
                     }
                 };
             }
@@ -3091,6 +3091,9 @@ function conectarChatOnline() {
 
     socket.on('updatePremiumCoins', (newAmount) => {
         playerPremiumCoins = newAmount;
+        if (hudPremiumText) {
+            hudPremiumText.setText(`💎 ${playerPremiumCoins} PREMIUM`);
+        }
         atualizarHudGold();
     });
 
