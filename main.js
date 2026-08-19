@@ -3869,72 +3869,88 @@ function adicionarOutroJogador(scene, data) {
     const currentScene = scene || activeScene || (game && game.scene && game.scene.scenes && game.scene.scenes[0]);
     if (!currentScene || !currentScene.sys || !data || !data.id || (socket && data.id === socket.id) || otherPlayersSprites[data.id]) return;
     
-    const targetUsername = (data.accountUser || data.user || data.name || data.id).toLowerCase();
-    const uniqueKey = 'skin_' + targetUsername + '_sheet';
-    
-    console.log('[SKIN DEBUG] Processando player remoto:', targetUsername, '| Possui customSpriteData?', !!data.customSpriteData);
+    try {
+        if (!currentScene.textures || !currentScene.textures.exists('player_idle')) {
+            return;
+        }
 
-    let other = currentScene.physics.add.sprite(data.x, data.y, 'player_idle');
-    
-    if (data.customSpriteData && data.customSpriteData.length > 100) {
-        aplicarSkinCustomizada(other, data.customSpriteData, targetUsername);
-    } else if (currentScene.textures && currentScene.textures.exists(uniqueKey) && data.hasCustomSkin) {
-        console.log('[SKIN DEBUG ✅] Usando skin customizada do cache para:', targetUsername);
-        other.setTexture(uniqueKey);
-        other.setScale(1.0);
-        other.customTextureKey = uniqueKey;
-        const idleAnim = `idle_down_custom_${targetUsername}`;
-        if (currentScene.anims.exists(idleAnim)) other.play(idleAnim);
-    } else {
-        console.warn('[SKIN DEBUG ⚠️ FALLBACK] Resetando cache: Avatar remoto sem skin customizada:', targetUsername);
+        const targetUsername = (data.accountUser || data.user || data.name || data.id).toLowerCase();
+        const uniqueKey = 'skin_' + targetUsername + '_sheet';
+        
+        let other = currentScene.physics.add.sprite(data.x, data.y, 'player_idle');
+        if (!other || !other.texture) return;
+        
         other.customTextureKey = null;
         other.customSpriteData = null;
-        other.setTexture('player_idle');
         other.setTint(data.bodyColor || 0xffffff);
-        if (currentScene.anims.exists('idle_down')) {
-            other.anims.play('idle_down', true);
-        }
         
-        if (data.hasCustomSkin && socket && socket.connected) {
-            other.setData('requestedSkin', true);
-            socket.emit('requestPlayerSkin', { targetId: data.id });
+        try {
+            if (currentScene.anims && currentScene.anims.exists('idle_down')) {
+                other.anims.play('idle_down', true);
+            }
+        } catch (animErr) {}
+
+        if (currentScene.textures.exists(uniqueKey)) {
+            try {
+                const tex = currentScene.textures.get(uniqueKey);
+                if (tex && tex.key && tex.frames && Object.keys(tex.frames).length > 0) {
+                    other.setTexture(uniqueKey);
+                    other.setScale(1.0);
+                    other.clearTint();
+                    other.customTextureKey = uniqueKey;
+                    const idleAnim = `idle_down_custom_${targetUsername}`;
+                    if (currentScene.anims.exists(idleAnim)) {
+                        other.play(idleAnim);
+                    }
+                }
+            } catch (e) {
+                if (other.active && currentScene.textures.exists('player_idle')) {
+                    other.setTexture('player_idle');
+                }
+                other.customTextureKey = null;
+            }
         }
-    }
 
-    other.customWingsData = data.equippedWings ? data.equippedWings.spriteData : null;
-    other.customClothesData = data.equippedClothes ? data.equippedClothes.spriteData : null;
-    renderizarJogadorCamadas(currentScene, other);
+        other.customWingsData = data.equippedWings ? data.equippedWings.spriteData : null;
+        other.customClothesData = data.equippedClothes ? data.equippedClothes.spriteData : null;
+        
+        try {
+            renderizarJogadorCamadas(currentScene, other);
+        } catch (layerErr) {}
 
-    other.setScale(1.3);
-    other.setDepth(data.y);
-    other.setVisible(true);
-    other.setInteractive();
-    other.setData('playerData', data);
+        other.setScale(1.3);
+        other.setDepth(data.y);
+        other.setVisible(true);
+        other.setInteractive();
+        other.setData('playerData', data);
 
-    other.on('pointerdown', (pointer) => {
-        if (pointer.rightButtonDown() || pointer.button === 2) {
-            abrirMenuInteracaoJogador(currentScene, other.getData('playerData'));
-        }
-    });
-    
-    let displayName = data.name;
-    other.playerNameText = currentScene.add.text(data.x, data.y + 28, displayName, {
-        font: 'bold 12px monospace', fill: '#ffffff', stroke: '#000000', strokeThickness: 3
-    }).setOrigin(0.5).setDepth(data.y + 1);
-
-    // Renderiza Tag de Cargo para Jogadores Remotos
-    if (data.adminLevel > 0 || (data.name && data.name.toLowerCase() === 'mestre')) {
-        let roleName = data.adminRole || (data.name.toLowerCase() === 'mestre' ? 'MESTRE' : 'ADMIN');
-        other.adminTag = currentScene.add.text(data.x, data.y + 40, roleName.toUpperCase(), {
-            font: 'bold 9px monospace', fill: '#ff4444', stroke: '#000000', strokeThickness: 2
+        other.on('pointerdown', (pointer) => {
+            if (pointer.rightButtonDown() || pointer.button === 2) {
+                abrirMenuInteracaoJogador(currentScene, other.getData('playerData'));
+            }
+        });
+        
+        let displayName = data.name;
+        other.playerNameText = currentScene.add.text(data.x, data.y + 28, displayName, {
+            font: 'bold 12px monospace', fill: '#ffffff', stroke: '#000000', strokeThickness: 3
         }).setOrigin(0.5).setDepth(data.y + 1);
-        if (minimap) minimap.ignore(other.adminTag);
-    }
 
-    if (minimap) minimap.ignore([other, other.playerNameText]);
-    
-    otherPlayersSprites[data.id] = other;
-    otherPlayersGroup.add(other);
+        // Renderiza Tag de Cargo para Jogadores Remotos
+        if (data.adminLevel > 0 || (data.name && data.name.toLowerCase() === 'mestre')) {
+            let roleName = data.adminRole || (data.name.toLowerCase() === 'mestre' ? 'MESTRE' : 'ADMIN');
+            other.adminTag = currentScene.add.text(data.x, data.y + 40, roleName.toUpperCase(), {
+                font: 'bold 9px monospace', fill: '#ff4444', stroke: '#000000', strokeThickness: 2
+            }).setOrigin(0.5).setDepth(data.y + 1);
+            if (minimap) minimap.ignore(other.adminTag);
+        }
+
+        if (minimap) minimap.ignore([other, other.playerNameText]);
+        
+        otherPlayersSprites[data.id] = other;
+        otherPlayersGroup.add(other);
+    } catch (err) {
+        // Fallback silencioso anti-crash: ignora o sprite com falha de textura
+    }
 }
 
 function abrirMenuInteracaoJogador(scene, data) {
