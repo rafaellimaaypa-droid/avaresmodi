@@ -392,7 +392,7 @@ function renderizarJogadorCamadas(scene, targetSprite) {
 
     // Camada de asas isolada em try/catch para não interferir em outros módulos
     try {
-        sincronizarCamadaVisual(currentScene, targetSprite, 'wingsLayerSprite', wingsData, -0.5);
+        sincronizarCamadaVisual(currentScene, targetSprite, 'wingsLayerSprite', wingsData, -0.1);
     } catch (wingErr) {
         if (targetSprite.wingsLayerSprite) {
             try { targetSprite.wingsLayerSprite.destroy(); } catch (e) {}
@@ -3701,11 +3701,21 @@ function conectarChatOnline() {
                 remoteSprite.accessory.setAlpha(remoteSprite.alpha);
             }
             if (remoteSprite.wingsLayerSprite && remoteSprite.wingsLayerSprite.active) {
+                const isUp = (playerInfo.anim && playerInfo.anim.includes('up')) || direction === 'up';
                 remoteSprite.wingsLayerSprite.setPosition(remoteSprite.x, remoteSprite.y);
-                remoteSprite.wingsLayerSprite.setDepth(remoteSprite.y - 0.5);
+                remoteSprite.wingsLayerSprite.setDepth(isUp ? remoteSprite.y + 0.1 : remoteSprite.y - 0.1);
                 remoteSprite.wingsLayerSprite.setFlipX(remoteSprite.flipX);
                 remoteSprite.wingsLayerSprite.setVisible(remoteSprite.visible);
                 remoteSprite.wingsLayerSprite.setAlpha(remoteSprite.alpha);
+
+                if (remoteSprite.anims && remoteSprite.anims.currentAnim && remoteName) {
+                    const wingAnim = remoteSprite.anims.currentAnim.key.replace(remoteName, `${remoteName}_wingsLayerSprite`);
+                    if (activeScene.anims.exists(wingAnim)) {
+                        if (remoteSprite.wingsLayerSprite.anims.currentAnim?.key !== wingAnim) {
+                            remoteSprite.wingsLayerSprite.anims.play(wingAnim, true);
+                        }
+                    }
+                }
             }
 
             if (remoteSprite.playerNameText) {
@@ -5250,11 +5260,21 @@ function update() {
                     player.wingsLayerSprite.destroy();
                     player.wingsLayerSprite = null;
                 } else {
+                    const isUp = (player.anims.currentAnim?.key && player.anims.currentAnim.key.includes('up')) || playerFacing === 'up';
                     player.wingsLayerSprite.setPosition(player.x, player.y);
-                    player.wingsLayerSprite.setDepth(player.y - 0.5);
+                    player.wingsLayerSprite.setDepth(isUp ? player.y + 0.1 : player.y - 0.1);
                     player.wingsLayerSprite.setFlipX(player.flipX);
                     player.wingsLayerSprite.setVisible(player.visible);
                     player.wingsLayerSprite.setAlpha(player.alpha);
+
+                    if (player.anims && player.anims.currentAnim && charName) {
+                        const wingAnim = player.anims.currentAnim.key.replace(charName.toLowerCase(), `${charName.toLowerCase()}_wingsLayerSprite`);
+                        if (this.anims.exists(wingAnim)) {
+                            if (player.wingsLayerSprite.anims.currentAnim?.key !== wingAnim) {
+                                player.wingsLayerSprite.anims.play(wingAnim, true);
+                            }
+                        }
+                    }
                 }
             } catch (e) {
                 if (player.wingsLayerSprite) {
