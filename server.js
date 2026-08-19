@@ -73,34 +73,67 @@ app.use('/assets', (req, res, next) => {
 
 app.use(express.static(__dirname));
 
+const SKIN_UPLOAD_PREMIUM_COST = 10;
+
 app.post('/api/upload-sprite', async (req, res) => {
     try {
         const { user, customSpriteData } = req.body;
-        if (!user || !customSpriteData) return res.status(400).json({ message: 'Dados incompletos' });
+        if (!user || !customSpriteData) return res.status(400).json({ success: false, message: 'Dados incompletos' });
         
-        if (db) {
-            // Adiciona ao histórico de sprites (Tarefa 2)
-            await db.collection('contas').updateOne(
-                { user: user.toLowerCase() },
-                { 
-                    $set: { "characters.0.customSpriteData": customSpriteData },
-                    $addToSet: { "spriteHistory": customSpriteData }
-                }
-            );
-            console.log(`[HTTP] Sprite atualizado para: ${user}`);
-            
-            // Sincroniza em tempo real com todos os jogadores via Socket.io
-            io.emit('skinUpdated', { 
-                username: user.toLowerCase(), 
-                skinData: customSpriteData 
-            });
-
-            res.json({ success: true });
-        } else {
-            res.status(503).json({ success: false, message: 'Banco offline' });
+        if (!db) {
+            return res.status(503).json({ success: false, message: 'Banco offline' });
         }
+
+        const account = await db.collection('contas').findOne({ user: user.toLowerCase() });
+        if (!account) {
+            return res.status(404).json({ success: false, message: 'Conta não encontrada' });
+        }
+
+        const currentPremium = (account.characters && account.characters[0])
+            ? (account.characters[0].premiumCoins || 0)
+            : (account.premiumCoins || 0);
+
+        if (currentPremium < SKIN_UPLOAD_PREMIUM_COST) {
+            return res.status(400).json({
+                success: false,
+                message: `Saldo insuficiente! O envio de skin custa ${SKIN_UPLOAD_PREMIUM_COST} Moedas Premium. Saldo atual: ${currentPremium}`
+            });
+        }
+
+        const newPremiumBalance = currentPremium - SKIN_UPLOAD_PREMIUM_COST;
+
+        await db.collection('contas').updateOne(
+            { user: user.toLowerCase() },
+            { 
+                $set: { 
+                    "characters.0.customSpriteData": customSpriteData,
+                    "characters.0.premiumCoins": newPremiumBalance,
+                    "premiumCoins": newPremiumBalance
+                },
+                $addToSet: { "spriteHistory": customSpriteData }
+            }
+        );
+        console.log(`[HTTP] Sprite atualizado para: ${user} | Custo: ${SKIN_UPLOAD_PREMIUM_COST} Premium | Novo Saldo: ${newPremiumBalance}`);
+
+        for (const sid in players) {
+            if (players[sid].accountUser === user.toLowerCase()) {
+                players[sid].premiumCoins = newPremiumBalance;
+                players[sid].customSpriteData = customSpriteData;
+                io.to(sid).emit('updatePremiumCoins', newPremiumBalance);
+                break;
+            }
+        }
+        
+        // Sincroniza em tempo real com todos os jogadores via Socket.io
+        io.emit('skinUpdated', { 
+            playerName: (account.characters && account.characters[0]) ? account.characters[0].name : user,
+            username: user.toLowerCase(), 
+            skinData: customSpriteData 
+        });
+
+        res.json({ success: true, newPremiumCoins: newPremiumBalance });
     } catch (e) {
-        res.status(500).json({ message: e.message });
+        res.status(500).json({ success: false, message: e.message });
     }
 });
 

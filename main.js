@@ -4414,29 +4414,50 @@ function abrirPainelPersonalizacao(scene) {
         if (!isMenuOpen) setMinimapVisible(true);
     };
 
-    const aplicarEFechar = async (base64) => {
-        player.customSpriteData = base64;
-        aplicarSkinCustomizada(player, base64, charName.toLowerCase());
-
-        if (socket && socket.connected) {
-            socket.emit('skinChanged', base64);
+    const aplicarEFechar = async (base64, isExisting = false) => {
+        if (!isExisting && playerPremiumCoins < 10) {
+            alert(`❌ Saldo insuficiente! O envio de nova skin custa 10 Moedas Premium.\nSeu saldo atual: ${playerPremiumCoins} Premium.`);
+            return;
         }
-        
-        // Garante o salvamento imediato da nova skin no banco de dados
-        await salvarEstadoRemoto();
 
-        fetch(`${BASE_URL}/api/upload-sprite`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user: currentUser, customSpriteData: base64, part: 'BODY' })
-        });
+        try {
+            const res = await fetch(`${BASE_URL}/api/upload-sprite`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user: currentUser, customSpriteData: base64, part: 'BODY' })
+            });
 
-        previewImg.src = base64;
-        previewImg.style.display = 'block';
-        placeholder.style.display = 'none';
+            const data = await res.json();
 
-        setTimeout(fechar, 300);
-        adicionarMensagemChat('Sistema', `✅ Skin aplicada com sucesso!`);
+            if (!res.ok || !data.success) {
+                alert(`❌ ${data.message || 'Falha ao processar skin no servidor.'}`);
+                return;
+            }
+
+            if (data.newPremiumCoins !== undefined) {
+                playerPremiumCoins = data.newPremiumCoins;
+                atualizarHudGold();
+            }
+
+            player.customSpriteData = base64;
+            aplicarSkinCustomizada(player, base64, charName.toLowerCase());
+
+            if (socket && socket.connected) {
+                socket.emit('skinChanged', base64);
+            }
+            
+            await salvarEstadoRemoto();
+
+            previewImg.src = base64;
+            previewImg.style.display = 'block';
+            placeholder.style.display = 'none';
+
+            setTimeout(fechar, 300);
+            adicionarMensagemChat('Sistema', `✅ Skin aplicada com sucesso! Saldo Premium: ${playerPremiumCoins}`);
+        } catch (err) {
+            console.error(err);
+            alert('❌ Erro de conexão ao enviar skin para o servidor.');
+        }
     };
 
     const carregarGaleria = async () => {
@@ -4452,7 +4473,7 @@ function abrirPainelPersonalizacao(scene) {
                     // Força a visualização de apenas 1 frame (64x64) recortado para a miniatura
                     img.style.cssText = 'width: 64px; height: 64px; border: 1px solid #967322; cursor: pointer; object-fit: none; object-position: top left; image-rendering: pixelated; background: #000;';
                     img.addEventListener('click', () => {
-                        aplicarEFechar(base64);
+                        aplicarEFechar(base64, true);
                     });
                     gallery.appendChild(img);
                 });
@@ -4479,7 +4500,7 @@ function abrirPainelPersonalizacao(scene) {
         }
 
         const reader = new FileReader();
-        reader.onload = event => aplicarEFechar(event.target.result);
+        reader.onload = event => aplicarEFechar(event.target.result, false);
         reader.readAsDataURL(file);
     };
 }
