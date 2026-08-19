@@ -1365,7 +1365,13 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
             spacing: 0
         });
 
-        criarAnimacoesLPC(activeScene, uniqueKey, username.toLowerCase());
+        const cleanUser = username.toLowerCase();
+        ['up', 'down', 'left', 'right'].forEach(dir => {
+            activeScene.anims.remove(`walk_${dir}_custom_${cleanUser}`);
+            activeScene.anims.remove(`idle_${dir}_custom_${cleanUser}`);
+        });
+
+        criarAnimacoesLPC(activeScene, uniqueKey, cleanUser);
         vincularTextura(uniqueKey);
         sprite.customSpriteData = skinBase64;
 
@@ -1374,10 +1380,9 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
         }
 
         if (sprite && sprite.active) {
-            // 6. Reativar visibilidade após o carregamento da nova textura
             sprite.setVisible(true);
-            const targetAnim = `idle_down_custom_${username.toLowerCase()}`;
-            if (sprite.anims.exists(targetAnim)) {
+            const targetAnim = `idle_down_custom_${cleanUser}`;
+            if (activeScene.anims.exists(targetAnim)) {
                 sprite.play(targetAnim);
             }
             console.log(`[SKIN DEBUG] ✅ Nova skin única processada e aplicada para: ${username}`);
