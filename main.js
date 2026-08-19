@@ -3017,6 +3017,9 @@ function abrirModalUploadItemPremium(scene) {
     if (scene && scene.input && scene.input.keyboard) {
         scene.input.keyboard.enabled = false;
     }
+    if (player && player.body) {
+        player.setVelocity(0);
+    }
 
     const existing = document.getElementById('adminPremiumItemModal');
     if (existing) existing.remove();
@@ -3066,6 +3069,18 @@ function abrirModalUploadItemPremium(scene) {
     const previewImg = document.getElementById('adminPremItemPreview');
     const placeholder = document.getElementById('adminPremItemPlaceholder');
     const submitBtn = document.getElementById('adminPremItemSubmitBtn');
+
+    const inputs = [nameInput, categorySelect, priceInput];
+    inputs.forEach(inputEl => {
+        if (inputEl) {
+            inputEl.addEventListener('focus', () => {
+                if (scene && scene.input && scene.input.keyboard) scene.input.keyboard.enabled = false;
+            });
+            inputEl.addEventListener('keydown', (e) => {
+                e.stopPropagation();
+            });
+        }
+    });
 
     const fecharModal = () => {
         if (scene && scene.input && scene.input.keyboard) {
