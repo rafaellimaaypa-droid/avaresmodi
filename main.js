@@ -2902,11 +2902,17 @@ function abrirPainelAdmin(scene) {
         });
         mainContent.add(btnListAdmins);
 
-        const btnDefaultSkin = scene.add.text(400, 515, '🎨 CADASTRAR SKIN PADRÃO', { ...btnStyle, backgroundColor: '#1b3d3d' }).setOrigin(0.5).setScrollFactor(0).setDepth(ADMIN_DEPTH + 2).setInteractive();
+        const btnDefaultSkin = scene.add.text(400, 480, '🎨 CADASTRAR SKIN PADRÃO', { ...btnStyle, backgroundColor: '#1b3d3d' }).setOrigin(0.5).setScrollFactor(0).setDepth(ADMIN_DEPTH + 2).setInteractive();
         btnDefaultSkin.on('pointerdown', () => {
             abrirModalUploadSkinPadrao(scene);
         });
         mainContent.add(btnDefaultSkin);
+
+        const btnPremiumItem = scene.add.text(400, 515, '💎 CADASTRAR ITEM PREMIUM', { ...btnStyle, backgroundColor: '#3d1b3d' }).setOrigin(0.5).setScrollFactor(0).setDepth(ADMIN_DEPTH + 2).setInteractive();
+        btnPremiumItem.on('pointerdown', () => {
+            abrirModalUploadItemPremium(scene);
+        });
+        mainContent.add(btnPremiumItem);
     }
 }
 
@@ -3001,6 +3007,97 @@ function abrirModalUploadSkinPadrao(scene) {
             alert('❌ Erro de conexão com o servidor.');
             submitBtn.disabled = false;
             submitBtn.innerText = '💾 ENVIAR SKIN';
+        }
+    };
+}
+
+function abrirModalUploadItemPremium(scene) {
+    const existing = document.getElementById('adminPremiumItemModal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'adminPremiumItemModal';
+    modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:380px; max-height:90vh; overflow-y:auto; background:#0c0c14; border:2px solid #ffd700; color:#fff; z-index:100002; padding:20px; font-family:monospace; border-radius:8px; box-shadow: 0 0 20px rgba(255,215,0,0.4); text-align:center;';
+
+    modal.innerHTML = `
+        <div style="text-align:right"><button id="closeAdminPremItem" style="background:#811;color:#fff;border:none;padding:4px 8px;cursor:pointer;">X</button></div>
+        <h3 style="color:#ffd700;margin-top:0;">💎 CADASTRAR ITEM PREMIUM</h3>
+        <div style="margin:8px 0; text-align:left;">
+            <label style="font-size:11px;color:#aaa;">Nome do Item:</label>
+            <input type="text" id="adminPremItemName" placeholder="Ex: Asas de Fogo" style="width:100%;box-sizing:border-box;padding:8px;background:#151522;border:1px solid #3d3d5c;color:#fff;font-family:monospace;margin-top:4px;">
+        </div>
+        <div style="margin:8px 0; text-align:left;">
+            <label style="font-size:11px;color:#aaa;">Categoria:</label>
+            <select id="adminPremItemCategory" style="width:100%;box-sizing:border-box;padding:8px;background:#151522;border:1px solid #3d3d5c;color:#fff;font-family:monospace;margin-top:4px;">
+                <option value="wings">wings (Asas)</option>
+                <option value="clothes">clothes (Roupas)</option>
+                <option value="weapon">weapon (Armas)</option>
+            </select>
+        </div>
+        <div style="margin:8px 0; text-align:left;">
+            <label style="font-size:11px;color:#aaa;">Preço (Moedas Premium):</label>
+            <input type="number" id="adminPremItemPrice" placeholder="Ex: 50" min="0" style="width:100%;box-sizing:border-box;padding:8px;background:#151522;border:1px solid #3d3d5c;color:#fff;font-family:monospace;margin-top:4px;">
+        </div>
+        <div style="margin:8px 0; text-align:left;">
+            <label style="font-size:11px;color:#aaa;">Sprite Data (Base64):</label>
+            <textarea id="adminPremItemSprite" placeholder="data:image/png;base64,..." rows="4" style="width:100%;box-sizing:border-box;padding:8px;background:#151522;border:1px solid #3d3d5c;color:#fff;font-family:monospace;resize:vertical;margin-top:4px;"></textarea>
+        </div>
+        <button id="adminPremItemSubmitBtn" style="background:#1b3d1b;color:#fff;border:none;padding:10px 20px;cursor:pointer;font-family:monospace;font-weight:bold;width:100%;margin-top:10px;">💾 ENVIAR</button>
+    `;
+
+    document.body.appendChild(modal);
+
+    const closeBtn = document.getElementById('closeAdminPremItem');
+    const nameInput = document.getElementById('adminPremItemName');
+    const categorySelect = document.getElementById('adminPremItemCategory');
+    const priceInput = document.getElementById('adminPremItemPrice');
+    const spriteInput = document.getElementById('adminPremItemSprite');
+    const submitBtn = document.getElementById('adminPremItemSubmitBtn');
+
+    closeBtn.onclick = () => modal.remove();
+
+    submitBtn.onclick = async () => {
+        const name = nameInput.value.trim();
+        const category = categorySelect.value;
+        const price = priceInput.value.trim();
+        const spriteData = spriteInput.value.trim();
+
+        if (!name || !price || !spriteData) {
+            alert('Preencha todos os campos!');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Enviando...';
+
+        try {
+            const res = await fetch(`${BASE_URL}/api/admin/upload-premium-item`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    adminUser: currentUser,
+                    name,
+                    category,
+                    price: Number(price),
+                    spriteData
+                })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                alert(`✅ ${data.message || 'Item cadastrado com sucesso!'}`);
+                modal.remove();
+                carregarItensPremium();
+            } else {
+                alert(`❌ Erro: ${data.message || 'Falha ao cadastrar item'}`);
+                submitBtn.disabled = false;
+                submitBtn.innerText = '💾 ENVIAR';
+            }
+        } catch (err) {
+            console.error(err);
+            alert('❌ Erro de conexão com o servidor.');
+            submitBtn.disabled = false;
+            submitBtn.innerText = '💾 ENVIAR';
         }
     };
 }
