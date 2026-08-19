@@ -2940,7 +2940,9 @@ function conectarChatOnline() {
         
         let html = '<div style="text-align:right"><button id="closeWardrobe" style="background:#811;color:#fff;border:none;padding:5px 10px;cursor:pointer;">X</button></div>';
         html += '<h2 style="text-align:center;color:#00e5ff;margin-top:0;">👗 GUARDA-ROUPA VIP 👗</h2>';
-        html += '<p style="font-size:11px;text-align:center;color:#aaa;">Selecione uma de suas skins exclusivas para equipar agora.</p><hr style="border:0;border-top:1px solid #333;margin:15px 0;">';
+        html += '<p style="font-size:11px;text-align:center;color:#aaa;">Selecione uma de suas skins exclusivas para equipar agora.</p>';
+        html += '<div style="text-align:center; margin: 10px 0;"><button id="removeSkinVIPBtn" style="background:#444; color:#fff; border:1px solid #666; padding:8px; cursor:pointer; width:100%; font-weight:bold;">❌ Remover Skin (Usar Padrão)</button></div>';
+        html += '<hr style="border:0;border-top:1px solid #333;margin:15px 0;">';
         
         html += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">';
         if (!skins || skins.length === 0) {
@@ -2961,6 +2963,13 @@ function conectarChatOnline() {
         document.body.appendChild(modal);
         document.getElementById('closeWardrobe').onclick = () => modal.remove();
 
+        document.getElementById('removeSkinVIPBtn').onclick = () => {
+            if (socket && socket.connected) {
+                modal.remove();
+                socket.emit('removeSkinVIP');
+            }
+        };
+
         if (skins) {
             skins.forEach(skin => {
                 const skinBtnId = `equip_btn_${skin.name.replace(/\s+/g, '_')}`;
@@ -2968,8 +2977,8 @@ function conectarChatOnline() {
                 if (btn) {
                     btn.onclick = () => {
                         if (socket && socket.connected) {
-                            socket.emit('equipPremiumSkin', skin.name);
                             modal.remove();
+                            socket.emit('equipPremiumSkin', skin.name);
                         }
                     };
                 }

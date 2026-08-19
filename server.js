@@ -471,12 +471,38 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('equipPremiumSkin', async (skinName) => {
+    socket.on('removeSkinVIP', async () => {
         const p = players[socket.id];
-        if (!p || !db) return;
+        if (!p || !db || !p.accountUser) return;
 
         try {
-            const account = await db.collection('contas').findOne({ "characters.name": p.name });
+            p.customSpriteData = null;
+            await db.collection('contas').updateOne(
+                { user: p.accountUser.toLowerCase() },
+                { $set: { "characters.0.customSpriteData": null } }
+            );
+
+            io.emit('skinUpdated', { 
+                playerName: p.name,
+                skinData: null 
+            });
+
+            socket.emit('chatMessage', { 
+                playerName: 'Sistema', 
+                message: '✨ Skin removida. Voltando ao avatar padrão.', 
+                channel: 'SISTEMA' 
+            });
+        } catch (err) {
+            console.error("[REMOVE SKIN VIP ERROR]", err);
+        }
+    });
+
+    socket.on('equipPremiumSkin', async (skinName) => {
+        const p = players[socket.id];
+        if (!p || !db || !p.accountUser) return;
+
+        try {
+            const account = await db.collection('contas').findOne({ user: p.accountUser.toLowerCase() });
             const char = account?.characters?.[0];
             const skin = char?.ownedPremiumSkins?.find(s => s.name === skinName);
 
@@ -484,26 +510,13 @@ io.on('connection', (socket) => {
                 p.customSpriteData = skin.spriteData;
                 
                 await db.collection('contas').updateOne(
-                    { "characters.name": p.name },
+                    { user: p.accountUser.toLowerCase() },
                     { $set: { "characters.0.customSpriteData": skin.spriteData } }
                 );
 
-                socket.emit('skinUpdated', { 
+                io.emit('skinUpdated', { 
                     playerName: p.name,
                     skinData: skin.spriteData 
-                });
-
-                socket.broadcast.emit('playerMoved', {
-                    id: socket.id,
-                    name: p.name,
-                    x: p.x,
-                    y: p.y,
-                    facing: p.facing,
-                    direction: p.facing,
-                    anim: p.anim,
-                    customSpriteData: p.customSpriteData,
-                    accountUser: p.accountUser,
-                    hasCustomSkin: true
                 });
 
                 socket.emit('chatMessage', { 
