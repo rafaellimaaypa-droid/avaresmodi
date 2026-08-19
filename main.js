@@ -296,16 +296,32 @@ async function carregarItensPremium() {
 function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData, depthOffset, frameWidth = 64, frameHeight = 64) {
     if (!scene || !parentSprite || !parentSprite.active) return;
 
+    const cleanUser = (parentSprite.name || (parentSprite.getData && (parentSprite.getData('playerData')?.name || parentSprite.getData('playerData')?.user)) || charName || 'player').toLowerCase();
+    const layerKey = `layer_${cleanUser}_${layerPropName}_sheet`;
+
     if (!spriteData) {
         if (parentSprite[layerPropName]) {
             parentSprite[layerPropName].destroy();
             parentSprite[layerPropName] = null;
         }
+        if (scene.textures.exists(layerKey)) {
+            scene.textures.remove(layerKey);
+        }
+        parentSprite[layerPropName + '_data'] = null;
         return;
     }
 
-    const cleanUser = (parentSprite.name || (parentSprite.getData && (parentSprite.getData('playerData')?.name || parentSprite.getData('playerData')?.user)) || charName || 'player').toLowerCase();
-    const layerKey = `layer_${cleanUser}_${layerPropName}_sheet`;
+    // Se o spriteData mudou, limpa a textura e o sprite anterior para forçar recriação imediata
+    if (parentSprite[layerPropName + '_data'] !== spriteData) {
+        if (parentSprite[layerPropName]) {
+            parentSprite[layerPropName].destroy();
+            parentSprite[layerPropName] = null;
+        }
+        if (scene.textures.exists(layerKey)) {
+            scene.textures.remove(layerKey);
+        }
+        parentSprite[layerPropName + '_data'] = spriteData;
+    }
 
     const atualizarSpriteCamada = () => {
         if (!scene.textures.exists(layerKey)) return;
@@ -3435,6 +3451,10 @@ function conectarChatOnline() {
                     btn.onclick = async () => {
                         const cat = item.category || 'skin';
                         if (cat === 'wings') {
+                            if (player.wingsLayerSprite) {
+                                player.wingsLayerSprite.destroy();
+                                player.wingsLayerSprite = null;
+                            }
                             playerEquippedWings = item;
                             renderizarJogadorCamadas(activeScene, player);
                             if (socket && socket.connected) {
