@@ -3038,32 +3038,52 @@ function abrirModalUploadItemPremium(scene) {
             <label style="font-size:11px;color:#aaa;">Preço (Moedas Premium):</label>
             <input type="number" id="adminPremItemPrice" placeholder="Ex: 50" min="0" style="width:100%;box-sizing:border-box;padding:8px;background:#151522;border:1px solid #3d3d5c;color:#fff;font-family:monospace;margin-top:4px;">
         </div>
-        <div style="margin:8px 0; text-align:left;">
-            <label style="font-size:11px;color:#aaa;">Sprite Data (Base64):</label>
-            <textarea id="adminPremItemSprite" placeholder="data:image/png;base64,..." rows="4" style="width:100%;box-sizing:border-box;padding:8px;background:#151522;border:1px solid #3d3d5c;color:#fff;font-family:monospace;resize:vertical;margin-top:4px;"></textarea>
+        <div style="width:80px; height:80px; margin:10px auto; border:2px dashed #ffd700; display:flex; align-items:center; justify-content:center; background:#000;">
+            <img id="adminPremItemPreview" style="display:none; width:64px; height:64px; object-fit:none; object-position: top left; image-rendering:pixelated;">
+            <span id="adminPremItemPlaceholder" style="font-size:10px; color:#666;">Prévia</span>
         </div>
-        <button id="adminPremItemSubmitBtn" style="background:#1b3d1b;color:#fff;border:none;padding:10px 20px;cursor:pointer;font-family:monospace;font-weight:bold;width:100%;margin-top:10px;">💾 ENVIAR</button>
+        <input type="file" id="adminPremItemFileInput" accept="image/png" style="display:none;">
+        <button id="adminPremItemSelectBtn" style="background:#2a2a40;color:#fff;border:1px solid #ffd700;padding:8px 12px;cursor:pointer;font-family:monospace;margin-bottom:10px;width:100%;">📁 Selecionar Sprite PNG</button>
+        <br>
+        <button id="adminPremItemSubmitBtn" style="background:#1b3d1b;color:#fff;border:none;padding:10px 20px;cursor:pointer;font-family:monospace;font-weight:bold;width:100%;">💾 ENVIAR ITEM</button>
     `;
 
     document.body.appendChild(modal);
 
+    let selectedBase64 = null;
     const closeBtn = document.getElementById('closeAdminPremItem');
     const nameInput = document.getElementById('adminPremItemName');
     const categorySelect = document.getElementById('adminPremItemCategory');
     const priceInput = document.getElementById('adminPremItemPrice');
-    const spriteInput = document.getElementById('adminPremItemSprite');
+    const fileInput = document.getElementById('adminPremItemFileInput');
+    const selectBtn = document.getElementById('adminPremItemSelectBtn');
+    const previewImg = document.getElementById('adminPremItemPreview');
+    const placeholder = document.getElementById('adminPremItemPlaceholder');
     const submitBtn = document.getElementById('adminPremItemSubmitBtn');
 
     closeBtn.onclick = () => modal.remove();
+    selectBtn.onclick = () => fileInput.click();
+
+    fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            selectedBase64 = event.target.result;
+            previewImg.src = selectedBase64;
+            previewImg.style.display = 'block';
+            placeholder.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    };
 
     submitBtn.onclick = async () => {
         const name = nameInput.value.trim();
         const category = categorySelect.value;
         const price = priceInput.value.trim();
-        const spriteData = spriteInput.value.trim();
 
-        if (!name || !price || !spriteData) {
-            alert('Preencha todos os campos!');
+        if (!name || !price || !selectedBase64) {
+            alert('Preencha todos os campos e selecione a imagem do item!');
             return;
         }
 
@@ -3079,7 +3099,7 @@ function abrirModalUploadItemPremium(scene) {
                     name,
                     category,
                     price: Number(price),
-                    spriteData
+                    spriteData: selectedBase64
                 })
             });
 
@@ -3091,13 +3111,13 @@ function abrirModalUploadItemPremium(scene) {
             } else {
                 alert(`❌ Erro: ${data.message || 'Falha ao cadastrar item'}`);
                 submitBtn.disabled = false;
-                submitBtn.innerText = '💾 ENVIAR';
+                submitBtn.innerText = '💾 ENVIAR ITEM';
             }
         } catch (err) {
             console.error(err);
             alert('❌ Erro de conexão com o servidor.');
             submitBtn.disabled = false;
-            submitBtn.innerText = '💾 ENVIAR';
+            submitBtn.innerText = '💾 ENVIAR ITEM';
         }
     };
 }
