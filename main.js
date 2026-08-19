@@ -1463,7 +1463,7 @@ function finalizarLoginComDados(userData) {
     playerClanTag = (userData.clanTag && userData.clanTag !== "") ? userData.clanTag : null;
     playerClanRole = userData.clanRole || 'Membro';
 
-    if (userData.customSpriteData) {
+    if (userData.customSpriteData && userData.customSpriteData.length > 100) {
         player.customSpriteData = userData.customSpriteData;
         aplicarSkinCustomizada(player, userData.customSpriteData, userData.name.toLowerCase());
             
@@ -1478,7 +1478,9 @@ function finalizarLoginComDados(userData) {
         player.customTextureKey = null;
         player.customSpriteData = null;
         player.setTexture('player_idle');
-        player.anims.play('idle_down', true);
+        if (activeScene.anims.exists('idle_down')) {
+            player.anims.play('idle_down', true);
+        }
     }
     player.setVisible(true);
     charName = userData.name;
@@ -3151,21 +3153,24 @@ function adicionarOutroJogador(scene, data) {
 
     let other = scene.physics.add.sprite(data.x, data.y, 'player_idle');
     
-    if (scene.textures.exists(uniqueKey)) {
+    if (data.customSpriteData && data.customSpriteData.length > 100) {
+        aplicarSkinCustomizada(other, data.customSpriteData, targetUsername);
+    } else if (scene.textures.exists(uniqueKey) && data.hasCustomSkin) {
         console.log('[SKIN DEBUG ✅] Usando skin customizada do cache para:', targetUsername);
         other.setTexture(uniqueKey);
         other.setScale(1.0);
         other.customTextureKey = uniqueKey;
         const idleAnim = `idle_down_custom_${targetUsername}`;
         if (scene.anims.exists(idleAnim)) other.play(idleAnim);
-    } else if (data.customSpriteData) {
-        aplicarSkinCustomizada(other, data.customSpriteData, targetUsername);
     } else {
-        console.warn('[SKIN DEBUG ⚠️ FALLBACK] Avatar remoto sem skin customizada:', targetUsername);
+        console.warn('[SKIN DEBUG ⚠️ FALLBACK] Resetando cache: Avatar remoto sem skin customizada:', targetUsername);
         other.customTextureKey = null;
+        other.customSpriteData = null;
         other.setTexture('player_idle');
         other.setTint(data.bodyColor || 0xffffff);
-        other.anims.play('idle_down', true);
+        if (scene.anims.exists('idle_down')) {
+            other.anims.play('idle_down', true);
+        }
         
         if (data.hasCustomSkin && socket && socket.connected) {
             other.setData('requestedSkin', true);
@@ -4452,7 +4457,7 @@ function update() {
     let animToPlay = isMoving ? `walk_${playerFacing}` : `idle_${playerFacing}`;
     
     // Se estiver usando skin customizada, prioriza animações custom únicas do usuário
-    if (player.customTextureKey && charName) {
+    if (player.customTextureKey && player.customSpriteData && charName) {
         if (player.texture.key !== player.customTextureKey) {
             player.setTexture(player.customTextureKey);
             player.clearTint(); 

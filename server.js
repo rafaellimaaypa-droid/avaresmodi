@@ -142,7 +142,11 @@ app.post('/api/register', async (req, res) => {
             adminRole: isMestre ? 'Dono' : 'Player',
             fixedId: nextId,
             clanTag: null,
-            clanRole: null
+            clanRole: null,
+            customSpriteData: null,
+            ownedPremiumSkins: [],
+            premiumCoins: 0,
+            spriteHistory: []
         };
         await db.collection('contas').insertOne(newAccount);
         console.log(`Novo registro (Mongo): ${user} | ID Fixo: ${nextId}`);
