@@ -348,11 +348,15 @@ function renderizarJogadorCamadas(scene, targetSprite) {
     if (!scene || !targetSprite || !targetSprite.active) return;
 
     const isLocalPlayer = (targetSprite === player);
-    const wingsData = isLocalPlayer ? (playerEquippedWings ? playerEquippedWings.spriteData : null) : targetSprite.customWingsData;
-    const clothesData = isLocalPlayer ? (playerEquippedClothes ? playerEquippedClothes.spriteData : null) : targetSprite.customClothesData;
+    const wingsData = isLocalPlayer 
+        ? (playerEquippedWings ? playerEquippedWings.spriteData : null) 
+        : (targetSprite.customWingsData || (targetSprite.getData && targetSprite.getData('playerData')?.equippedWings?.spriteData) || null);
+    const clothesData = isLocalPlayer 
+        ? (playerEquippedClothes ? playerEquippedClothes.spriteData : null) 
+        : (targetSprite.customClothesData || (targetSprite.getData && targetSprite.getData('playerData')?.equippedClothes?.spriteData) || null);
 
-    // Camada de asas (atrás do corpo: offset -0.1)
-    sincronizarCamadaVisual(scene, targetSprite, 'wingsLayerSprite', wingsData, -0.1);
+    // Camada de asas (estritamente nas costas do corpo: offset -0.5 para ficar atrás do sprite base)
+    sincronizarCamadaVisual(scene, targetSprite, 'wingsLayerSprite', wingsData, -0.5);
     // Camada de roupas (sobre o corpo: offset +0.1)
     sincronizarCamadaVisual(scene, targetSprite, 'clothesLayerSprite', clothesData, 0.1);
 }
@@ -3311,6 +3315,15 @@ function conectarChatOnline() {
         }
     });
 
+    socket.on('playerAccessoriesUpdated', (data) => {
+        const targetSprite = otherPlayersSprites[data.id];
+        if (targetSprite && activeScene) {
+            targetSprite.customWingsData = data.equippedWings ? data.equippedWings.spriteData : null;
+            targetSprite.customClothesData = data.equippedClothes ? data.equippedClothes.spriteData : null;
+            renderizarJogadorCamadas(activeScene, targetSprite);
+        }
+    });
+
     socket.on('skinUpdated', (data) => {
         let targetSprite = null;
         const targetName = data.playerName ? data.playerName.toLowerCase() : "";
@@ -3398,6 +3411,9 @@ function conectarChatOnline() {
                     player.wingsLayerSprite.destroy();
                     player.wingsLayerSprite = null;
                 }
+                if (socket && socket.connected) {
+                    socket.emit('updateAccessories', { equippedWings: null });
+                }
                 modal.remove();
                 await salvarEstadoRemoto();
                 adicionarMensagemChat('Sistema', '🪶 Asas desequipadas.');
@@ -3414,6 +3430,9 @@ function conectarChatOnline() {
                         if (cat === 'wings') {
                             playerEquippedWings = item;
                             renderizarJogadorCamadas(activeScene, player);
+                            if (socket && socket.connected) {
+                                socket.emit('updateAccessories', { equippedWings: item });
+                            }
                             await salvarEstadoRemoto();
                             adicionarMensagemChat('Sistema', `🪶 Asas equipadas: ${item.name}`);
                             modal.remove();
@@ -3421,6 +3440,9 @@ function conectarChatOnline() {
                             playerEquippedClothes = item;
                             atualizarSpriteRoupaEquipada(activeScene);
                             renderizarJogadorCamadas(activeScene, player);
+                            if (socket && socket.connected) {
+                                socket.emit('updateAccessories', { equippedClothes: item });
+                            }
                             await salvarEstadoRemoto();
                             adicionarMensagemChat('Sistema', `👗 Roupa equipada: ${item.name}`);
                             modal.remove();
@@ -3559,6 +3581,12 @@ function conectarChatOnline() {
                 socket.emit('requestPlayerSkin', { targetId: playerInfo.id });
             }
 
+            if (playerInfo.equippedWings !== undefined) {
+                remoteSprite.customWingsData = playerInfo.equippedWings ? playerInfo.equippedWings.spriteData : null;
+            }
+            if (playerInfo.equippedClothes !== undefined) {
+                remoteSprite.customClothesData = playerInfo.equippedClothes ? playerInfo.equippedClothes.spriteData : null;
+            }
             remoteSprite.setData('playerData', playerInfo);
             remoteSprite.setPosition(playerInfo.x, playerInfo.y);
             remoteSprite.setDepth(playerInfo.y);
@@ -3597,7 +3625,7 @@ function conectarChatOnline() {
             renderizarJogadorCamadas(activeScene, remoteSprite);
             if (remoteSprite.accessory && remoteSprite.accessory.active && remoteSprite.anims.currentAnim) {
                 remoteSprite.accessory.setPosition(remoteSprite.x, remoteSprite.y);
-                remoteSprite.accessory.setDepth(remoteSprite.y - 0.1);
+                remoteSprite.accessory.setDepth(remoteSprite.y - 0.5);
                 remoteSprite.accessory.setFlipX(remoteSprite.flipX);
                 remoteSprite.accessory.anims.play(remoteSprite.anims.currentAnim.key, true);
                 if (remoteSprite.anims.currentFrame) {
@@ -3607,7 +3635,7 @@ function conectarChatOnline() {
             }
             if (remoteSprite.wingsLayerSprite && remoteSprite.wingsLayerSprite.active && remoteSprite.anims.currentAnim) {
                 remoteSprite.wingsLayerSprite.setPosition(remoteSprite.x, remoteSprite.y);
-                remoteSprite.wingsLayerSprite.setDepth(remoteSprite.y - 0.1);
+                remoteSprite.wingsLayerSprite.setDepth(remoteSprite.y - 0.5);
                 remoteSprite.wingsLayerSprite.setFlipX(remoteSprite.flipX);
                 const wingAnim = remoteSprite.anims.currentAnim.key.replace(remoteName, `${remoteName}_wingsLayerSprite`);
                 if (activeScene.anims.exists(wingAnim)) {
@@ -3754,6 +3782,10 @@ function adicionarOutroJogador(scene, data) {
             socket.emit('requestPlayerSkin', { targetId: data.id });
         }
     }
+
+    other.customWingsData = data.equippedWings ? data.equippedWings.spriteData : null;
+    other.customClothesData = data.equippedClothes ? data.equippedClothes.spriteData : null;
+    renderizarJogadorCamadas(scene, other);
 
     other.setScale(1.3);
     other.setDepth(data.y);
@@ -5144,7 +5176,7 @@ function update() {
     // Sincronização de acessórios (asas, etc) com o frame e animação do player
     if (player.accessory && player.accessory.active) {
         player.accessory.setPosition(player.x, player.y);
-        player.accessory.setDepth(player.y - 0.1);
+        player.accessory.setDepth(player.y - 0.5);
         player.accessory.setFlipX(player.flipX);
         if (player.anims && player.anims.currentAnim) {
             if (this.anims.exists(player.anims.currentAnim.key)) {
@@ -5161,7 +5193,7 @@ function update() {
     renderizarJogadorCamadas(this, player);
     if (player.wingsLayerSprite && player.wingsLayerSprite.active) {
         player.wingsLayerSprite.setPosition(player.x, player.y);
-        player.wingsLayerSprite.setDepth(player.y - 0.1);
+        player.wingsLayerSprite.setDepth(player.y - 0.5);
         player.wingsLayerSprite.setFlipX(player.flipX);
         player.wingsLayerSprite.setVisible(player.visible);
         player.wingsLayerSprite.setAlpha(player.alpha);

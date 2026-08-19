@@ -943,6 +943,21 @@ io.on('connection', (socket) => {
     });
 
     // Sistema de PvP: Ataque entre jogadores
+    socket.on('updateAccessories', (data) => {
+        if (players[socket.id]) {
+            players[socket.id].equippedWings = data.equippedWings || null;
+            if (data.equippedClothes !== undefined) {
+                players[socket.id].equippedClothes = data.equippedClothes;
+            }
+            socket.broadcast.emit('playerAccessoriesUpdated', {
+                id: socket.id,
+                playerName: players[socket.id].name,
+                equippedWings: players[socket.id].equippedWings,
+                equippedClothes: players[socket.id].equippedClothes
+            });
+        }
+    });
+
     socket.on('skinChanged', (skinBase64) => {
         if (players[socket.id]) {
             players[socket.id].customSpriteData = skinBase64;
@@ -1508,6 +1523,8 @@ io.on('connection', (socket) => {
                 direction: p.facing,
                 anim: p.anim,
                 customSpriteData: p.customSpriteData,
+                equippedWings: p.equippedWings || null,
+                equippedClothes: p.equippedClothes || null,
                 accountUser: p.accountUser,
                 hasCustomSkin: !!p.customSpriteData
             });
