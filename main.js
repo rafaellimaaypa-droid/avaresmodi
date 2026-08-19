@@ -87,6 +87,26 @@ let globalHudScale = parseFloat(localStorage.getItem('avaris_hud_scale')) || 1.0
 let menuElements = [];
 let isMenuOpen = false;
 let modalText = null;
+
+function fecharTodosModaisEPopups(scene) {
+    menuElements.forEach(el => {
+        if (el && typeof el.destroy === 'function') el.destroy();
+    });
+    menuElements = [];
+    isMenuOpen = false;
+
+    const domModals = ['vipWardrobeModal', 'premiumStoreModal', 'customizationModal'];
+    domModals.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            if (id === 'customizationModal') {
+                el.style.display = 'none';
+            } else {
+                el.remove();
+            }
+        }
+    });
+}
 let playerClanTag = null;
 let playerClanRole = 'Membro';
 let playerClanMembers = [];
@@ -2577,8 +2597,7 @@ function abrirPainelAdmin(scene) {
     const isAdminHigh = adminLevel >= 8 || isMestre;
     if (adminLevel <= 0 && !isMestre) return;
     
-    menuElements.forEach(el => el.destroy());
-    menuElements = [];
+    fecharTodosModaisEPopups(scene);
     setMinimapVisible(false);
 
     const ADMIN_DEPTH = 99999;
@@ -2941,6 +2960,7 @@ function conectarChatOnline() {
     });
 
     socket.on('ownedSkinsData', (skins) => {
+        fecharTodosModaisEPopups(activeScene);
         const modal = document.createElement('div');
         modal.id = 'vipWardrobeModal';
         modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:400px; max-height:80vh; background:#0c0c14; border:2px solid #00e5ff; color:#fff; z-index:10001; padding:20px; font-family:monospace; overflow-y:auto; border-radius:8px; box-shadow: 0 0 20px rgba(0,229,255,0.5);';
@@ -3013,7 +3033,9 @@ function conectarChatOnline() {
     });
 
     socket.on('premiumStoreData', (skins) => {
+        fecharTodosModaisEPopups(activeScene);
         const modal = document.createElement('div');
+        modal.id = 'premiumStoreModal';
         modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:400px; max-height:80vh; background:#0c0c14; border:2px solid #ffd700; color:#fff; z-index:10001; padding:20px; font-family:monospace; overflow-y:auto; border-radius:8px; box-shadow: 0 0 20px rgba(0,0,0,0.8);';
         
         let html = '<div style="text-align:right"><button id="closePremium" style="background:#811;color:#fff;border:none;padding:5px 10px;cursor:pointer;">X</button></div>';
@@ -3641,18 +3663,14 @@ function toggleGameMenu(scene) {
 // --- SISTEMA DO BANCO ---
 function abrirBancoModal(scene) {
     if (isPlayerDead) return;
-    if (!isMenuOpen) {
-        isMenuOpen = true;
-        if (editMode) { editMode = false; infoText.setVisible(false); }
-        if (isChatOpen) toggleChat(scene);
-        if (minimap) minimap.setVisible(false);
-        if (btnZoomOut) btnZoomOut.setVisible(false);
-        if (btnZoomIn) btnZoomIn.setVisible(false);
-        if (minimapBorder) minimapBorder.setVisible(false);
-    }
-
-    menuElements.forEach(el => el.destroy());
-    menuElements = [];
+    fecharTodosModaisEPopups(scene);
+    isMenuOpen = true;
+    if (editMode) { editMode = false; infoText.setVisible(false); }
+    if (isChatOpen) toggleChat(scene);
+    if (minimap) minimap.setVisible(false);
+    if (btnZoomOut) btnZoomOut.setVisible(false);
+    if (btnZoomIn) btnZoomIn.setVisible(false);
+    if (minimapBorder) minimapBorder.setVisible(false);
 
     const bgOverlay = scene.add.rectangle(400, 300, 800, 600, 0x000000, 0.75)
         .setScrollFactor(0).setDepth(2000).setInteractive();
@@ -3742,9 +3760,8 @@ function abrirBancoModal(scene) {
 
 function abrirLojaRoupas(scene) {
     if (isPlayerDead) return;
+    fecharTodosModaisEPopups(scene);
     isMenuOpen = true;
-    menuElements.forEach(el => el.destroy());
-    menuElements = [];
     const bg = scene.add.rectangle(400, 300, 800, 600, 0x000000, 0.76).setScrollFactor(0).setDepth(2000).setInteractive();
     const panel = scene.add.image(400, 300, 'menu_panel_bg').setScrollFactor(0).setDepth(2001);
     const title = scene.add.text(400, 92, 'LOJA DE ROUPAS', { font: 'bold 20px monospace', fill: '#f0a8df', stroke: '#000000', strokeThickness: 3 })
@@ -3775,8 +3792,8 @@ function abrirLojaRoupas(scene) {
 
 function abrirInventario(scene) {
     if (isPlayerDead) return;
-    menuElements.forEach(el => el.destroy());
-    menuElements = [];
+    fecharTodosModaisEPopups(scene);
+    isMenuOpen = true;
 
     const bgOverlay = scene.add.rectangle(400, 300, 800, 600, 0x000000, 0.75)
         .setScrollFactor(0).setDepth(2000).setInteractive();
@@ -4381,6 +4398,7 @@ function abrirPerfilConta(scene) {
 
 function abrirPainelPersonalizacao(scene) {
     if (isPlayerDead) return;
+    fecharTodosModaisEPopups(scene);
     const modal = document.getElementById('customizationModal');
     const closeBtn = document.getElementById('closeCustomization');
     const btnSelect = document.getElementById('btnSelectFile');
@@ -4467,6 +4485,7 @@ function abrirPainelPersonalizacao(scene) {
 }
 
 function abrirGuardaRoupaVIP(scene) {
+    fecharTodosModaisEPopups(scene);
     if (socket && socket.connected) {
         socket.emit('requestOwnedSkins');
     } else {
