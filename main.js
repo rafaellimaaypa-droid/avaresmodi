@@ -343,7 +343,7 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
             try {
                 if (!scene.textures.exists(layerKey)) return;
                 const tex = scene.textures.get(layerKey);
-                if (!tex || !tex.key) return;
+                if (!tex || !tex.key || !tex.frames || Object.keys(tex.frames).length === 0) return;
 
                 if (!parentSprite[layerPropName] || !parentSprite[layerPropName].active) {
                     parentSprite[layerPropName] = scene.add.sprite(parentSprite.x, parentSprite.y, layerKey);
@@ -352,14 +352,19 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
 
                 const layerSprite = parentSprite[layerPropName];
                 if (layerSprite && layerSprite.active) {
-                    layerSprite.setTexture(layerKey);
+                    if (layerSprite.texture.key !== layerKey) {
+                        layerSprite.setTexture(layerKey);
+                    }
                     layerSprite.setScale(parentSprite.scaleX, parentSprite.scaleY);
                     layerSprite.setPosition(parentSprite.x, parentSprite.y);
                     layerSprite.setDepth(parentSprite.y + depthOffset);
                     layerSprite.setFlipX(parentSprite.flipX);
                 }
             } catch (err) {
-                // Ignora falha de renderização pontual sem propagar para o WebGL
+                if (parentSprite[layerPropName]) {
+                    try { parentSprite[layerPropName].destroy(); } catch (e) {}
+                    parentSprite[layerPropName] = null;
+                }
             }
         };
 
@@ -5234,35 +5239,59 @@ function update() {
         // Sincronização das camadas de renderização do jogador (asas e roupas)
         renderizarJogadorCamadas(this, player);
         if (player.wingsLayerSprite && player.wingsLayerSprite.active) {
-            player.wingsLayerSprite.setPosition(player.x, player.y);
-            player.wingsLayerSprite.setDepth(player.y - 0.5);
-            player.wingsLayerSprite.setFlipX(player.flipX);
-            player.wingsLayerSprite.setVisible(player.visible);
-            player.wingsLayerSprite.setAlpha(player.alpha);
+            try {
+                if (!this.textures.exists(player.wingsLayerSprite.texture?.key)) {
+                    player.wingsLayerSprite.destroy();
+                    player.wingsLayerSprite = null;
+                } else {
+                    player.wingsLayerSprite.setPosition(player.x, player.y);
+                    player.wingsLayerSprite.setDepth(player.y - 0.5);
+                    player.wingsLayerSprite.setFlipX(player.flipX);
+                    player.wingsLayerSprite.setVisible(player.visible);
+                    player.wingsLayerSprite.setAlpha(player.alpha);
+                }
+            } catch (e) {
+                if (player.wingsLayerSprite) {
+                    try { player.wingsLayerSprite.destroy(); } catch (err) {}
+                    player.wingsLayerSprite = null;
+                }
+            }
         }
         if (player.clothesLayerSprite && player.clothesLayerSprite.active) {
-            player.clothesLayerSprite.setPosition(player.x, player.y);
-            player.clothesLayerSprite.setDepth(player.y + 0.1);
-            player.clothesLayerSprite.setFlipX(player.flipX);
-            player.clothesLayerSprite.setVisible(player.visible);
-            player.clothesLayerSprite.setAlpha(player.alpha);
+            try {
+                if (!this.textures.exists(player.clothesLayerSprite.texture?.key)) {
+                    player.clothesLayerSprite.destroy();
+                    player.clothesLayerSprite = null;
+                } else {
+                    player.clothesLayerSprite.setPosition(player.x, player.y);
+                    player.clothesLayerSprite.setDepth(player.y + 0.1);
+                    player.clothesLayerSprite.setFlipX(player.flipX);
+                    player.clothesLayerSprite.setVisible(player.visible);
+                    player.clothesLayerSprite.setAlpha(player.alpha);
 
-            if (player.anims && player.anims.currentAnim) {
-                const clothAnim = player.anims.currentAnim.key.replace(charName.toLowerCase(), `${charName.toLowerCase()}_clothesLayerSprite`);
-                if (this.anims.exists(clothAnim)) {
-                    if (player.clothesLayerSprite.anims.currentAnim?.key !== clothAnim) {
-                        player.clothesLayerSprite.anims.play(clothAnim, true);
-                    }
-                    if (player.anims.currentFrame) {
-                        const frameIdx = player.anims.getFrameIndex ? player.anims.getFrameIndex() : (player.anims.currentFrame.index - 1);
-                        const targetFrame = player.clothesLayerSprite.anims.currentAnim?.frames[frameIdx]?.frame?.name;
-                        if (targetFrame !== undefined) {
-                            aplicarFrameSeguro(player.clothesLayerSprite, targetFrame);
+                    if (player.anims && player.anims.currentAnim) {
+                        const clothAnim = player.anims.currentAnim.key.replace(charName.toLowerCase(), `${charName.toLowerCase()}_clothesLayerSprite`);
+                        if (this.anims.exists(clothAnim)) {
+                            if (player.clothesLayerSprite.anims.currentAnim?.key !== clothAnim) {
+                                player.clothesLayerSprite.anims.play(clothAnim, true);
+                            }
+                            if (player.anims.currentFrame) {
+                                const frameIdx = player.anims.getFrameIndex ? player.anims.getFrameIndex() : (player.anims.currentFrame.index - 1);
+                                const targetFrame = player.clothesLayerSprite.anims.currentAnim?.frames[frameIdx]?.frame?.name;
+                                if (targetFrame !== undefined) {
+                                    aplicarFrameSeguro(player.clothesLayerSprite, targetFrame);
+                                }
+                            }
+                        } else if (player.anims.currentFrame) {
+                            const curFrame = player.anims.currentFrame.textureFrame !== undefined ? player.anims.currentFrame.textureFrame : player.frame.name;
+                            aplicarFrameSeguro(player.clothesLayerSprite, curFrame);
                         }
                     }
-                } else if (player.anims.currentFrame) {
-                    const curFrame = player.anims.currentFrame.textureFrame !== undefined ? player.anims.currentFrame.textureFrame : player.frame.name;
-                    aplicarFrameSeguro(player.clothesLayerSprite, curFrame);
+                }
+            } catch (e) {
+                if (player.clothesLayerSprite) {
+                    try { player.clothesLayerSprite.destroy(); } catch (err) {}
+                    player.clothesLayerSprite = null;
                 }
             }
         }
