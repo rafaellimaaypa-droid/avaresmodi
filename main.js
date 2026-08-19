@@ -1190,11 +1190,16 @@ function create() {
     keys = this.input.keyboard.addKeys('W,A,S,D');
 
     window.addEventListener('focus', () => {
-        const savedSkin = localStorage.getItem('avaris_custom_skin');
-        if (savedSkin && player && charName && activeScene) {
+        // Validação estrita: utiliza apenas os dados vinculados ao objeto player atual em memória
+        if (isLoggedIn && player && charName && player.customSpriteData && activeScene) {
             const uniqueKey = 'skin_' + charName.toLowerCase() + '_sheet';
             if (!activeScene.textures.exists(uniqueKey)) {
-                aplicarSkinCustomizada(player, savedSkin, charName.toLowerCase());
+                aplicarSkinCustomizada(player, player.customSpriteData, charName.toLowerCase());
+            }
+        } else if (isLoggedIn && player && !player.customSpriteData) {
+            // Se o personagem atual não possui skin, garante que a textura padrão não seja sobrescrita por lixo de cache
+            if (player.texture.key !== 'player_idle' && player.texture.key !== 'player_walk') {
+                player.setTexture('player_idle');
             }
         }
     });
