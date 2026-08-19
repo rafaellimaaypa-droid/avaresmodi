@@ -309,7 +309,8 @@ function aplicarFrameSeguro(targetSprite, frameVal) {
 }
 
 function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData, depthOffset, frameWidth = 64, frameHeight = 64) {
-    if (!scene || !parentSprite || !parentSprite.active) return;
+    const currentScene = scene || parentSprite?.scene || activeScene || (game && game.scene && game.scene.scenes && game.scene.scenes[0]);
+    if (!currentScene || !currentScene.sys || !parentSprite || !parentSprite.active) return;
 
     const cleanUser = (parentSprite.name || (parentSprite.getData && (parentSprite.getData('playerData')?.name || parentSprite.getData('playerData')?.user)) || charName || 'player').toLowerCase();
     const layerKey = `layer_${cleanUser}_${layerPropName}_sheet`;
@@ -319,8 +320,8 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
             parentSprite[layerPropName].destroy();
             parentSprite[layerPropName] = null;
         }
-        if (scene.textures.exists(layerKey)) {
-            scene.textures.remove(layerKey);
+        if (currentScene.textures && currentScene.textures.exists(layerKey)) {
+            currentScene.textures.remove(layerKey);
         }
         parentSprite[layerPropName + '_data'] = null;
         return;
@@ -331,17 +332,17 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
             parentSprite[layerPropName].destroy();
             parentSprite[layerPropName] = null;
         }
-        if (scene.textures.exists(layerKey)) {
-            scene.textures.remove(layerKey);
+        if (currentScene.textures && currentScene.textures.exists(layerKey)) {
+            currentScene.textures.remove(layerKey);
         }
         parentSprite[layerPropName + '_data'] = spriteData;
     }
 
     const atualizarSpriteCamada = () => {
-        if (!scene.textures.exists(layerKey)) return;
+        if (!currentScene.textures || !currentScene.textures.exists(layerKey)) return;
 
         if (!parentSprite[layerPropName] || !parentSprite[layerPropName].active) {
-            parentSprite[layerPropName] = scene.add.sprite(parentSprite.x, parentSprite.y, layerKey);
+            parentSprite[layerPropName] = currentScene.add.sprite(parentSprite.x, parentSprite.y, layerKey);
             if (minimap) minimap.ignore(parentSprite[layerPropName]);
         }
 
@@ -355,21 +356,21 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
         }
     };
 
-    if (scene.textures.exists(layerKey)) {
+    if (currentScene.textures && currentScene.textures.exists(layerKey)) {
         atualizarSpriteCamada();
     } else {
         const img = new Image();
         img.src = spriteData;
         img.onload = () => {
-            if (!scene || !scene.textures) return;
-            if (!scene.textures.exists(layerKey)) {
-                scene.textures.addSpriteSheet(layerKey, img, {
+            if (!currentScene || !currentScene.textures) return;
+            if (!currentScene.textures.exists(layerKey)) {
+                currentScene.textures.addSpriteSheet(layerKey, img, {
                     frameWidth: frameWidth,
                     frameHeight: frameHeight,
                     margin: 0,
                     spacing: 0
                 });
-                criarAnimacoesLPC(scene, layerKey, `${cleanUser}_${layerPropName}`);
+                criarAnimacoesLPC(currentScene, layerKey, `${cleanUser}_${layerPropName}`);
             }
             atualizarSpriteCamada();
         };
@@ -377,7 +378,9 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
 }
 
 function renderizarJogadorCamadas(scene, targetSprite) {
-    if (!scene || !targetSprite || !targetSprite.active) return;
+    if (!targetSprite || !targetSprite.active) return;
+    const currentScene = scene || targetSprite.scene || activeScene || (game && game.scene && game.scene.scenes && game.scene.scenes[0]);
+    if (!currentScene || !currentScene.sys) return;
 
     const isLocalPlayer = (targetSprite === player);
     const wingsData = isLocalPlayer 
@@ -389,7 +392,7 @@ function renderizarJogadorCamadas(scene, targetSprite) {
 
     // Camada de asas isolada em try/catch para não interferir em outros módulos
     try {
-        sincronizarCamadaVisual(scene, targetSprite, 'wingsLayerSprite', wingsData, -0.5);
+        sincronizarCamadaVisual(currentScene, targetSprite, 'wingsLayerSprite', wingsData, -0.5);
     } catch (wingErr) {
         if (targetSprite.wingsLayerSprite) {
             try { targetSprite.wingsLayerSprite.destroy(); } catch (e) {}
@@ -398,7 +401,7 @@ function renderizarJogadorCamadas(scene, targetSprite) {
     }
 
     // Camada de roupas (sobre o corpo: offset +0.1)
-    sincronizarCamadaVisual(scene, targetSprite, 'clothesLayerSprite', clothesData, 0.1);
+    sincronizarCamadaVisual(currentScene, targetSprite, 'clothesLayerSprite', clothesData, 0.1);
 }
 
 function preload() {
@@ -1464,10 +1467,11 @@ async function handleAuth(type) {
 }
 
 function aplicarSkinCustomizada(sprite, skinBase64, username) {
+    const currentScene = activeScene || (sprite && sprite.scene) || (game && game.scene && game.scene.scenes && game.scene.scenes[0]);
     console.log('[SKIN DEBUG] Analisando jogador:', username, '| Possui customSpriteData?', !!skinBase64);
     
-    if (!activeScene || !skinBase64 || skinBase64.length < 100 || !username) {
-        let motivo = !activeScene ? "Cena inativa" : (!skinBase64 ? "Dados base64 vazios" : "Nome de usuário inválido");
+    if (!currentScene || !currentScene.sys || !skinBase64 || skinBase64.length < 100 || !username) {
+        let motivo = !currentScene ? "Cena inativa" : (!skinBase64 ? "Dados base64 vazios" : "Nome de usuário inválido");
         console.warn('[SKIN DEBUG ⚠️ FALLBACK] O avatar caiu no padrão para:', username, 'Motivo:', motivo);
         return;
     }
@@ -1478,10 +1482,10 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     }
 
     const uniqueKey = 'skin_' + username.toLowerCase() + '_sheet';
-    console.log('[SKIN DEBUG] Chave de textura única gerada:', uniqueKey, '| Já existe no cache Phaser?', activeScene.textures.exists(uniqueKey));
+    console.log('[SKIN DEBUG] Chave de textura única gerada:', uniqueKey, '| Já existe no cache Phaser?', currentScene.textures.exists(uniqueKey));
 
     // Limpeza obrigatória de textura antiga se existir no cache para este usuário
-    if (activeScene.textures.exists(uniqueKey)) {
+    if (currentScene.textures.exists(uniqueKey)) {
         console.log(`[SKIN REPLACE] Limpando skin anterior antes de aplicar a nova para: ${username}`);
         
         // 1. Congelar e ocultar o sprite principal para evitar draw calls durante o swap
@@ -1500,11 +1504,11 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
         }
         
         // 5. Agora é seguro remover do gerenciador de texturas
-        activeScene.textures.remove(uniqueKey);
+        currentScene.textures.remove(uniqueKey);
     }
 
     const vincularTextura = (key) => {
-        if (!activeScene || !activeScene.textures.exists(key)) {
+        if (!currentScene || !currentScene.textures || !currentScene.textures.exists(key)) {
             console.warn('[SKIN WARNING] Tentativa de vincular textura inexistente:', key);
             return;
         }
@@ -1527,7 +1531,7 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
         }
     };
 
-    if (activeScene.textures.exists(uniqueKey)) {
+    if (currentScene.textures.exists(uniqueKey)) {
         vincularTextura(uniqueKey);
         return;
     }
@@ -1535,9 +1539,9 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     const img = new Image();
     img.src = skinBase64;
     img.onload = () => {
-        if (!activeScene) return;
+        if (!currentScene || !currentScene.textures || !currentScene.sys) return;
 
-        activeScene.textures.addSpriteSheet(uniqueKey, img, {
+        currentScene.textures.addSpriteSheet(uniqueKey, img, {
             frameWidth: 64,
             frameHeight: 64,
             margin: 0,
@@ -1546,13 +1550,13 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
 
         const cleanUser = username.toLowerCase();
         ['up', 'down', 'left', 'right'].forEach(dir => {
-            activeScene.anims.remove(`walk_${dir}_custom_${cleanUser}`);
-            activeScene.anims.remove(`idle_${dir}_custom_${cleanUser}`);
-            activeScene.anims.remove(`slash_${dir}_custom_${cleanUser}`);
-            activeScene.anims.remove(`spell_${dir}_custom_${cleanUser}`);
+            currentScene.anims.remove(`walk_${dir}_custom_${cleanUser}`);
+            currentScene.anims.remove(`idle_${dir}_custom_${cleanUser}`);
+            currentScene.anims.remove(`slash_${dir}_custom_${cleanUser}`);
+            currentScene.anims.remove(`spell_${dir}_custom_${cleanUser}`);
         });
 
-        criarAnimacoesLPC(activeScene, uniqueKey, cleanUser);
+        criarAnimacoesLPC(currentScene, uniqueKey, cleanUser);
         vincularTextura(uniqueKey);
         sprite.customSpriteData = skinBase64;
 
@@ -1563,7 +1567,7 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
         if (sprite && sprite.active) {
             sprite.setVisible(true);
             const targetAnim = `idle_down_custom_${cleanUser}`;
-            if (activeScene.anims.exists(targetAnim)) {
+            if (currentScene.anims.exists(targetAnim)) {
                 sprite.play(targetAnim);
             }
             console.log(`[SKIN DEBUG] ✅ Nova skin única processada e aplicada para: ${username}`);
@@ -3802,31 +3806,32 @@ function conectarChatOnline() {
 }
 
 function adicionarOutroJogador(scene, data) {
-    if (!scene || !data || !data.id || (socket && data.id === socket.id) || otherPlayersSprites[data.id]) return;
+    const currentScene = scene || activeScene || (game && game.scene && game.scene.scenes && game.scene.scenes[0]);
+    if (!currentScene || !currentScene.sys || !data || !data.id || (socket && data.id === socket.id) || otherPlayersSprites[data.id]) return;
     
     const targetUsername = (data.accountUser || data.user || data.name || data.id).toLowerCase();
     const uniqueKey = 'skin_' + targetUsername + '_sheet';
     
     console.log('[SKIN DEBUG] Processando player remoto:', targetUsername, '| Possui customSpriteData?', !!data.customSpriteData);
 
-    let other = scene.physics.add.sprite(data.x, data.y, 'player_idle');
+    let other = currentScene.physics.add.sprite(data.x, data.y, 'player_idle');
     
     if (data.customSpriteData && data.customSpriteData.length > 100) {
         aplicarSkinCustomizada(other, data.customSpriteData, targetUsername);
-    } else if (scene.textures.exists(uniqueKey) && data.hasCustomSkin) {
+    } else if (currentScene.textures && currentScene.textures.exists(uniqueKey) && data.hasCustomSkin) {
         console.log('[SKIN DEBUG ✅] Usando skin customizada do cache para:', targetUsername);
         other.setTexture(uniqueKey);
         other.setScale(1.0);
         other.customTextureKey = uniqueKey;
         const idleAnim = `idle_down_custom_${targetUsername}`;
-        if (scene.anims.exists(idleAnim)) other.play(idleAnim);
+        if (currentScene.anims.exists(idleAnim)) other.play(idleAnim);
     } else {
         console.warn('[SKIN DEBUG ⚠️ FALLBACK] Resetando cache: Avatar remoto sem skin customizada:', targetUsername);
         other.customTextureKey = null;
         other.customSpriteData = null;
         other.setTexture('player_idle');
         other.setTint(data.bodyColor || 0xffffff);
-        if (scene.anims.exists('idle_down')) {
+        if (currentScene.anims.exists('idle_down')) {
             other.anims.play('idle_down', true);
         }
         
@@ -3838,7 +3843,7 @@ function adicionarOutroJogador(scene, data) {
 
     other.customWingsData = data.equippedWings ? data.equippedWings.spriteData : null;
     other.customClothesData = data.equippedClothes ? data.equippedClothes.spriteData : null;
-    renderizarJogadorCamadas(scene, other);
+    renderizarJogadorCamadas(currentScene, other);
 
     other.setScale(1.3);
     other.setDepth(data.y);
@@ -3848,19 +3853,19 @@ function adicionarOutroJogador(scene, data) {
 
     other.on('pointerdown', (pointer) => {
         if (pointer.rightButtonDown() || pointer.button === 2) {
-            abrirMenuInteracaoJogador(scene, other.getData('playerData'));
+            abrirMenuInteracaoJogador(currentScene, other.getData('playerData'));
         }
     });
     
     let displayName = data.name;
-    other.playerNameText = scene.add.text(data.x, data.y + 28, displayName, {
+    other.playerNameText = currentScene.add.text(data.x, data.y + 28, displayName, {
         font: 'bold 12px monospace', fill: '#ffffff', stroke: '#000000', strokeThickness: 3
     }).setOrigin(0.5).setDepth(data.y + 1);
 
     // Renderiza Tag de Cargo para Jogadores Remotos
     if (data.adminLevel > 0 || (data.name && data.name.toLowerCase() === 'mestre')) {
         let roleName = data.adminRole || (data.name.toLowerCase() === 'mestre' ? 'MESTRE' : 'ADMIN');
-        other.adminTag = scene.add.text(data.x, data.y + 40, roleName.toUpperCase(), {
+        other.adminTag = currentScene.add.text(data.x, data.y + 40, roleName.toUpperCase(), {
             font: 'bold 9px monospace', fill: '#ff4444', stroke: '#000000', strokeThickness: 2
         }).setOrigin(0.5).setDepth(data.y + 1);
         if (minimap) minimap.ignore(other.adminTag);
