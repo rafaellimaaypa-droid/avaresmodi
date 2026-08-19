@@ -459,6 +459,64 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('requestOwnedSkins', async () => {
+        const p = players[socket.id];
+        if (!p || !db) return;
+        try {
+            const account = await db.collection('contas').findOne({ "characters.name": p.name });
+            const ownedSkins = account?.characters?.[0]?.ownedPremiumSkins || [];
+            socket.emit('ownedSkinsData', ownedSkins);
+        } catch (err) {
+            console.error("[OWNED SKINS ERROR]", err);
+        }
+    });
+
+    socket.on('equipPremiumSkin', async (skinName) => {
+        const p = players[socket.id];
+        if (!p || !db) return;
+
+        try {
+            const account = await db.collection('contas').findOne({ "characters.name": p.name });
+            const char = account?.characters?.[0];
+            const skin = char?.ownedPremiumSkins?.find(s => s.name === skinName);
+
+            if (skin) {
+                p.customSpriteData = skin.spriteData;
+                
+                await db.collection('contas').updateOne(
+                    { "characters.name": p.name },
+                    { $set: { "characters.0.customSpriteData": skin.spriteData } }
+                );
+
+                socket.emit('skinUpdated', { 
+                    playerName: p.name,
+                    skinData: skin.spriteData 
+                });
+
+                socket.broadcast.emit('playerMoved', {
+                    id: socket.id,
+                    name: p.name,
+                    x: p.x,
+                    y: p.y,
+                    facing: p.facing,
+                    direction: p.facing,
+                    anim: p.anim,
+                    customSpriteData: p.customSpriteData,
+                    accountUser: p.accountUser,
+                    hasCustomSkin: true
+                });
+
+                socket.emit('chatMessage', { 
+                    playerName: 'Sistema', 
+                    message: `👗 Você equipou a skin: ${skinName}`, 
+                    channel: 'SISTEMA' 
+                });
+            }
+        } catch (err) {
+            console.error("[EQUIP SKIN ERROR]", err);
+        }
+    });
+
     socket.on('buyPremiumSkin', async (skinName) => {
         const p = players[socket.id];
         if (!p || !db || !premiumSkinsCollection) return;

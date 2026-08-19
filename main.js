@@ -2933,6 +2933,50 @@ function conectarChatOnline() {
         }
     });
 
+    socket.on('ownedSkinsData', (skins) => {
+        const modal = document.createElement('div');
+        modal.id = 'vipWardrobeModal';
+        modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:400px; max-height:80vh; background:#0c0c14; border:2px solid #00e5ff; color:#fff; z-index:10001; padding:20px; font-family:monospace; overflow-y:auto; border-radius:8px; box-shadow: 0 0 20px rgba(0,229,255,0.5);';
+        
+        let html = '<div style="text-align:right"><button id="closeWardrobe" style="background:#811;color:#fff;border:none;padding:5px 10px;cursor:pointer;">X</button></div>';
+        html += '<h2 style="text-align:center;color:#00e5ff;margin-top:0;">👗 GUARDA-ROUPA VIP 👗</h2>';
+        html += '<p style="font-size:11px;text-align:center;color:#aaa;">Selecione uma de suas skins exclusivas para equipar agora.</p><hr style="border:0;border-top:1px solid #333;margin:15px 0;">';
+        
+        html += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">';
+        if (!skins || skins.length === 0) {
+            html += '<p style="grid-column: span 2; text-align:center; color:#666;">Você ainda não possui skins premium.</p>';
+        } else {
+            skins.forEach(skin => {
+                const skinBtnId = `equip_btn_${skin.name.replace(/\s+/g, '_')}`;
+                html += `<div style="background:#151522; padding:10px; border:1px solid #00e5ff; text-align:center;">
+                    <img src="${skin.spriteData}" style="width:64px; height:64px; object-fit:none; object-position: top left; image-rendering:pixelated; background:#000; margin-bottom:5px;">
+                    <div style="font-size:11px; font-weight:bold; color:#00e5ff;">${skin.name}</div>
+                    <button id="${skinBtnId}" style="background:#00e5ff; color:#000; border:none; padding:5px; width:100%; cursor:pointer; font-size:10px; font-weight:bold; margin-top:5px;">Equipar</button>
+                </div>`;
+            });
+        }
+        html += '</div>';
+        
+        modal.innerHTML = html;
+        document.body.appendChild(modal);
+        document.getElementById('closeWardrobe').onclick = () => modal.remove();
+
+        if (skins) {
+            skins.forEach(skin => {
+                const skinBtnId = `equip_btn_${skin.name.replace(/\s+/g, '_')}`;
+                const btn = document.getElementById(skinBtnId);
+                if (btn) {
+                    btn.onclick = () => {
+                        if (socket && socket.connected) {
+                            socket.emit('equipPremiumSkin', skin.name);
+                            modal.remove();
+                        }
+                    };
+                }
+            });
+        }
+    });
+
     socket.on('premiumStoreData', (skins) => {
         const modal = document.createElement('div');
         modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:400px; max-height:80vh; background:#0c0c14; border:2px solid #ffd700; color:#fff; z-index:10001; padding:20px; font-family:monospace; overflow-y:auto; border-radius:8px; box-shadow: 0 0 20px rgba(0,0,0,0.8);';
@@ -3491,7 +3535,8 @@ function toggleGameMenu(scene) {
             { name: 'Discord', icon: '💬' },
             { name: 'Amigos', icon: '👥' },
             { name: 'Missão', icon: '📜' },
-            { name: 'Clã', icon: '🏰' }
+            { name: 'Clã', icon: '🏰' },
+            { name: 'Guarda-Roupa VIP', icon: '👗' }
         ];
 
         const itemWidth = 110;
@@ -3540,6 +3585,8 @@ function toggleGameMenu(scene) {
                     abrirPerfilConta(scene);
                 } else if (sys.name === 'Clã') {
                     drawClansWindow(scene);
+                } else if (sys.name === 'Guarda-Roupa VIP') {
+                    abrirGuardaRoupaVIP(scene);
                 } else {
                     modalText.setText(`Sistema de ${sys.name} em desenvolvimento!`);
                 }
@@ -4382,6 +4429,14 @@ function abrirPainelPersonalizacao(scene) {
         reader.onload = event => aplicarEFechar(event.target.result);
         reader.readAsDataURL(file);
     };
+}
+
+function abrirGuardaRoupaVIP(scene) {
+    if (socket && socket.connected) {
+        socket.emit('requestOwnedSkins');
+    } else {
+        adicionarMensagemChat('Sistema', '❌ Erro de conexão com o servidor.');
+    }
 }
 
 function abrirConfiguracoesHUD(scene) {
