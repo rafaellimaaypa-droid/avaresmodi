@@ -3052,7 +3052,13 @@ function conectarChatOnline() {
             remoteSprite.setDepth(playerInfo.y);
             
             const direction = playerInfo.direction || playerInfo.facing || 'down';
-            remoteSprite.setFlipX(direction === 'left');
+            
+            // Correção Moonwalk Remoto: Skins LPC não usam FlipX
+            if (remoteSprite.customTextureKey) {
+                remoteSprite.setFlipX(false);
+            } else {
+                remoteSprite.setFlipX(direction === 'left');
+            }
 
             if (playerInfo.anim && remoteSprite && remoteSprite.anims) {
                 let targetAnim = playerInfo.anim;
@@ -4481,8 +4487,19 @@ function update() {
     let vx = 0;
     let vy = 0;
 
-    if (cursors.left.isDown || keys.A.isDown || mobileMoveLeft) { vx = -SPEED; player.setFlipX(true); isMoving = true; playerFacing = 'left'; }
-    else if (cursors.right.isDown || keys.D.isDown || mobileMoveRight) { vx = SPEED; player.setFlipX(false); isMoving = true; playerFacing = 'right'; }
+    if (cursors.left.isDown || keys.A.isDown || mobileMoveLeft) { 
+        vx = -SPEED; 
+        // Correção Moonwalk Local: Se tem skin customizada (LPC), não usa FlipX
+        player.setFlipX(player.customTextureKey ? false : true); 
+        isMoving = true; 
+        playerFacing = 'left'; 
+    }
+    else if (cursors.right.isDown || keys.D.isDown || mobileMoveRight) { 
+        vx = SPEED; 
+        player.setFlipX(false); 
+        isMoving = true; 
+        playerFacing = 'right'; 
+    }
 
     if (cursors.up.isDown || keys.W.isDown || mobileMoveUp) { vy = -SPEED; isMoving = true; playerFacing = 'up'; }
     else if (cursors.down.isDown || keys.S.isDown || mobileMoveDown) { vy = SPEED; isMoving = true; playerFacing = 'down'; }
