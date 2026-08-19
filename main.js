@@ -1512,8 +1512,8 @@ function finalizarLoginComDados(userData) {
     atualizarSpriteRoupaEquipada(activeScene);
     adicionarMensagemChat('Sistema', `Bem-vindo de volta, ${charName}!`);
     
-    const isMestre = currentUser && currentUser.toLowerCase() === 'mestre';
-    if (adminLevel >= 8 || isMestre) {
+    const isAdminPremium = (currentUser && currentUser.toLowerCase() === 'mestre') || adminLevel >= 8;
+    if (isAdminPremium) {
         criarBotaoAdminPremium(activeScene);
         if (btnPremiumSkinAdmin) btnPremiumSkinAdmin.style.display = 'block';
     }
@@ -1618,8 +1618,8 @@ function abrirCriacaoPersonagem(scene) {
         hudGoldText.setVisible(true);
         adicionarMensagemChat('Sistema', `Bem-vindo, ${charName}! A aventura começa agora.`);
 
-        const isMestre = currentUser && currentUser.toLowerCase() === 'mestre';
-        if (adminLevel >= 8 || isMestre) {
+        const isAdminPremium = (currentUser && currentUser.toLowerCase() === 'mestre') || adminLevel >= 8;
+        if (isAdminPremium) {
             criarBotaoAdminPremium(scene);
             if (btnPremiumSkinAdmin) btnPremiumSkinAdmin.style.display = 'block';
         }
