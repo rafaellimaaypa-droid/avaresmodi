@@ -304,7 +304,7 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
         return;
     }
 
-    const cleanUser = (parentSprite.name || (parentSprite.getData && parentSprite.getData('playerData')?.name) || 'player').toLowerCase();
+    const cleanUser = (parentSprite.name || (parentSprite.getData && (parentSprite.getData('playerData')?.name || parentSprite.getData('playerData')?.user)) || charName || 'player').toLowerCase();
     const layerKey = `layer_${cleanUser}_${layerPropName}_sheet`;
 
     const atualizarSpriteCamada = () => {
@@ -319,7 +319,7 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
         layerSprite.setTexture(layerKey);
         layerSprite.setScale(parentSprite.scaleX, parentSprite.scaleY);
         layerSprite.setPosition(parentSprite.x, parentSprite.y);
-        layerSprite.setDepth(parentSprite.depth + depthOffset);
+        layerSprite.setDepth(parentSprite.y + depthOffset);
         layerSprite.setFlipX(parentSprite.flipX);
     };
 
@@ -1799,7 +1799,7 @@ function abrirCriacaoPersonagem(scene) {
             const res = await fetch(`${BASE_URL}/api/characters`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user: currentUser || user, charData: newCharData })
+                body: JSON.stringify({ user: currentUser || charName, charData: newCharData })
             });
             const resData = await res.json();
             if (resData.charId) {
@@ -3316,7 +3316,14 @@ function conectarChatOnline() {
     });
 
     socket.on('playerAccessoriesUpdated', (data) => {
-        const targetSprite = otherPlayersSprites[data.id];
+        let targetSprite = otherPlayersSprites[data.id];
+        if (!targetSprite && (data.playerName || data.user)) {
+            const targetName = (data.playerName || data.user || "").toLowerCase();
+            targetSprite = Object.values(otherPlayersSprites).find(s => {
+                const pData = s.getData('playerData');
+                return pData && ((pData.name && pData.name.toLowerCase() === targetName) || (pData.user && pData.user.toLowerCase() === targetName));
+            });
+        }
         if (targetSprite && activeScene) {
             targetSprite.customWingsData = data.equippedWings ? data.equippedWings.spriteData : null;
             targetSprite.customClothesData = data.equippedClothes ? data.equippedClothes.spriteData : null;
@@ -3751,7 +3758,7 @@ function conectarChatOnline() {
 function adicionarOutroJogador(scene, data) {
     if (!scene || !data || !data.id || otherPlayersSprites[data.id]) return;
     
-    const targetUsername = (data.accountUser || data.name || data.id).toLowerCase();
+    const targetUsername = (data.accountUser || data.user || data.name || data.id).toLowerCase();
     const uniqueKey = 'skin_' + targetUsername + '_sheet';
     
     console.log('[SKIN DEBUG] Processando player remoto:', targetUsername, '| Possui customSpriteData?', !!data.customSpriteData);
