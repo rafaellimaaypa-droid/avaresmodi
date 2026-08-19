@@ -2905,11 +2905,12 @@ function conectarChatOnline() {
         
         html += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">';
         skins.forEach(skin => {
+            const skinBtnId = `buy_btn_${skin.name.replace(/\s+/g, '_')}`;
             html += `<div style="background:#151522; padding:10px; border:1px solid #967322; text-align:center;">
                 <img src="${skin.spriteData}" style="width:64px; height:64px; object-fit:none; object-position: top left; image-rendering:pixelated; background:#000; margin-bottom:5px;">
                 <div style="font-size:11px; font-weight:bold; color:#f3e5ab;">${skin.name}</div>
                 <div style="font-size:10px; color:#ffd700; margin:5px 0;">💰 ${skin.price} Premium</div>
-                <button onclick="alert(\'Sistema de compra na próxima atualização!\')" style="background:#1b3d1b; color:#fff; border:none; padding:5px; width:100%; cursor:pointer; font-size:10px;">Comprar</button>
+                <button id="${skinBtnId}" style="background:#1b3d1b; color:#fff; border:none; padding:5px; width:100%; cursor:pointer; font-size:10px;">Comprar</button>
             </div>`;
         });
         html += '</div>';
@@ -2917,6 +2918,19 @@ function conectarChatOnline() {
         modal.innerHTML = html;
         document.body.appendChild(modal);
         document.getElementById('closePremium').onclick = () => modal.remove();
+
+        skins.forEach(skin => {
+            const skinBtnId = `buy_btn_${skin.name.replace(/\s+/g, '_')}`;
+            const btn = document.getElementById(skinBtnId);
+            if (btn) {
+                btn.onclick = () => {
+                    if (socket && socket.connected) {
+                        socket.emit('buyPremiumSkin', skin.name);
+                        modal.remove();
+                    }
+                };
+            }
+        });
     });
 
 

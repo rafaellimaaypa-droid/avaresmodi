@@ -455,6 +455,47 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('buyPremiumSkin', async (skinName) => {
+        const p = players[socket.id];
+        if (!p || !db || !premiumSkinsCollection) return;
+
+        try {
+            const skin = await premiumSkinsCollection.findOne({ name: skinName });
+            if (!skin) return;
+
+            const account = await db.collection('contas').findOne({ "characters.name": p.name });
+            const premiumCoins = (account && account.characters[0]) ? (account.characters[0].premiumCoins || 0) : 0;
+
+            if (premiumCoins >= skin.price) {
+                const newBalance = premiumCoins - skin.price;
+
+                await db.collection('contas').updateOne(
+                    { "characters.name": p.name },
+                    { 
+                        $set: { "characters.0.premiumCoins": newBalance },
+                        $push: { "characters.0.ownedPremiumSkins": skin }
+                    }
+                );
+
+                p.premiumCoins = newBalance;
+                socket.emit('updatePremiumCoins', newBalance);
+                socket.emit('chatMessage', { 
+                    playerName: 'Sistema', 
+                    message: '✅ Compra concluída! A skin foi guardada na sua conta.', 
+                    channel: 'SISTEMA' 
+                });
+            } else {
+                socket.emit('chatMessage', { 
+                    playerName: 'Sistema', 
+                    message: '❌ Saldo de moedas premium insuficiente.', 
+                    channel: 'SISTEMA' 
+                });
+            }
+        } catch (err) {
+            console.error("[BUY PREMIUM ERROR]", err);
+        }
+    });
+
     socket.on('uploadPremiumSkin', async (data) => {
         const p = players[socket.id];
         const isMestre = socket.accountUser === 'mestre';
