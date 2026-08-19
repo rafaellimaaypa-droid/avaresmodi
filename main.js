@@ -309,93 +309,70 @@ function aplicarFrameSeguro(targetSprite, frameVal) {
 }
 
 function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData, depthOffset, frameWidth = 64, frameHeight = 64) {
-    try {
-        if (!scene || !parentSprite || !parentSprite.active || !scene.textures || !scene.sys || !scene.sys.game) return;
+    if (!scene || !parentSprite || !parentSprite.active) return;
 
-        const cleanUser = (parentSprite.name || (parentSprite.getData && (parentSprite.getData('playerData')?.name || parentSprite.getData('playerData')?.user)) || charName || 'player').toLowerCase();
-        const layerKey = `layer_${cleanUser}_${layerPropName}_sheet`;
+    const cleanUser = (parentSprite.name || (parentSprite.getData && (parentSprite.getData('playerData')?.name || parentSprite.getData('playerData')?.user)) || charName || 'player').toLowerCase();
+    const layerKey = `layer_${cleanUser}_${layerPropName}_sheet`;
 
-        if (!spriteData) {
-            if (parentSprite[layerPropName]) {
-                try { parentSprite[layerPropName].destroy(); } catch (e) {}
-                parentSprite[layerPropName] = null;
-            }
-            if (scene.textures.exists(layerKey)) {
-                try { scene.textures.remove(layerKey); } catch (e) {}
-            }
-            parentSprite[layerPropName + '_data'] = null;
-            return;
+    if (!spriteData) {
+        if (parentSprite[layerPropName]) {
+            parentSprite[layerPropName].destroy();
+            parentSprite[layerPropName] = null;
         }
-
-        // Se o spriteData mudou, limpa a textura e o sprite anterior para forçar recriação imediata
-        if (parentSprite[layerPropName + '_data'] !== spriteData) {
-            if (parentSprite[layerPropName]) {
-                try { parentSprite[layerPropName].destroy(); } catch (e) {}
-                parentSprite[layerPropName] = null;
-            }
-            if (scene.textures.exists(layerKey)) {
-                try { scene.textures.remove(layerKey); } catch (e) {}
-            }
-            parentSprite[layerPropName + '_data'] = spriteData;
-        }
-
-        const atualizarSpriteCamada = () => {
-            try {
-                if (!scene.textures.exists(layerKey)) return;
-                const tex = scene.textures.get(layerKey);
-                if (!tex || !tex.key || !tex.frames || Object.keys(tex.frames).length === 0) return;
-
-                if (!parentSprite[layerPropName] || !parentSprite[layerPropName].active) {
-                    parentSprite[layerPropName] = scene.add.sprite(parentSprite.x, parentSprite.y, layerKey);
-                    if (minimap) minimap.ignore(parentSprite[layerPropName]);
-                }
-
-                const layerSprite = parentSprite[layerPropName];
-                if (layerSprite && layerSprite.active) {
-                    if (layerSprite.texture.key !== layerKey) {
-                        layerSprite.setTexture(layerKey);
-                    }
-                    layerSprite.setScale(parentSprite.scaleX, parentSprite.scaleY);
-                    layerSprite.setPosition(parentSprite.x, parentSprite.y);
-                    layerSprite.setDepth(parentSprite.y + depthOffset);
-                    layerSprite.setFlipX(parentSprite.flipX);
-                }
-            } catch (err) {
-                if (parentSprite[layerPropName]) {
-                    try { parentSprite[layerPropName].destroy(); } catch (e) {}
-                    parentSprite[layerPropName] = null;
-                }
-            }
-        };
-
         if (scene.textures.exists(layerKey)) {
-            atualizarSpriteCamada();
-        } else {
-            const img = new Image();
-            img.src = spriteData;
-            img.onload = () => {
-                try {
-                    if (!scene || !scene.textures || !scene.sys || !scene.sys.game) return;
-                    if (!scene.textures.exists(layerKey)) {
-                        scene.textures.addSpriteSheet(layerKey, img, {
-                            frameWidth: frameWidth,
-                            frameHeight: frameHeight,
-                            margin: 0,
-                            spacing: 0
-                        });
-                        criarAnimacoesLPC(scene, layerKey, `${cleanUser}_${layerPropName}`);
-                    }
-                    atualizarSpriteCamada();
-                } catch (loadErr) {
-                    // Falha silenciosa de decodificação de imagem
-                }
-            };
-            img.onerror = () => {
-                // Erro de carregamento da imagem ignorado silenciosamente
-            };
+            scene.textures.remove(layerKey);
         }
-    } catch (e) {
-        // Proteção global contra travamento
+        parentSprite[layerPropName + '_data'] = null;
+        return;
+    }
+
+    if (parentSprite[layerPropName + '_data'] !== spriteData) {
+        if (parentSprite[layerPropName]) {
+            parentSprite[layerPropName].destroy();
+            parentSprite[layerPropName] = null;
+        }
+        if (scene.textures.exists(layerKey)) {
+            scene.textures.remove(layerKey);
+        }
+        parentSprite[layerPropName + '_data'] = spriteData;
+    }
+
+    const atualizarSpriteCamada = () => {
+        if (!scene.textures.exists(layerKey)) return;
+
+        if (!parentSprite[layerPropName] || !parentSprite[layerPropName].active) {
+            parentSprite[layerPropName] = scene.add.sprite(parentSprite.x, parentSprite.y, layerKey);
+            if (minimap) minimap.ignore(parentSprite[layerPropName]);
+        }
+
+        const layerSprite = parentSprite[layerPropName];
+        if (layerSprite && layerSprite.active) {
+            layerSprite.setTexture(layerKey);
+            layerSprite.setScale(parentSprite.scaleX, parentSprite.scaleY);
+            layerSprite.setPosition(parentSprite.x, parentSprite.y);
+            layerSprite.setDepth(parentSprite.y + depthOffset);
+            layerSprite.setFlipX(parentSprite.flipX);
+        }
+    };
+
+    if (scene.textures.exists(layerKey)) {
+        atualizarSpriteCamada();
+    } else {
+        const img = new Image();
+        img.src = spriteData;
+        img.onload = () => {
+            if (!scene || !scene.textures) return;
+            if (!scene.textures.exists(layerKey)) {
+                scene.textures.addSpriteSheet(layerKey, img, {
+                    frameWidth: frameWidth,
+                    frameHeight: frameHeight,
+                    margin: 0,
+                    spacing: 0
+                });
+                criarAnimacoesLPC(scene, layerKey, `${cleanUser}_${layerPropName}`);
+            }
+            atualizarSpriteCamada();
+        };
     }
 }
 
@@ -410,8 +387,16 @@ function renderizarJogadorCamadas(scene, targetSprite) {
         ? (playerEquippedClothes ? playerEquippedClothes.spriteData : null) 
         : (targetSprite.customClothesData || (targetSprite.getData && targetSprite.getData('playerData')?.equippedClothes?.spriteData) || null);
 
-    // Camada de asas (estritamente nas costas do corpo: offset -0.5 para ficar atrás do sprite base)
-    sincronizarCamadaVisual(scene, targetSprite, 'wingsLayerSprite', wingsData, -0.5);
+    // Camada de asas isolada em try/catch para não interferir em outros módulos
+    try {
+        sincronizarCamadaVisual(scene, targetSprite, 'wingsLayerSprite', wingsData, -0.5);
+    } catch (wingErr) {
+        if (targetSprite.wingsLayerSprite) {
+            try { targetSprite.wingsLayerSprite.destroy(); } catch (e) {}
+            targetSprite.wingsLayerSprite = null;
+        }
+    }
+
     // Camada de roupas (sobre o corpo: offset +0.1)
     sincronizarCamadaVisual(scene, targetSprite, 'clothesLayerSprite', clothesData, 0.1);
 }
