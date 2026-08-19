@@ -3754,17 +3754,19 @@ function conectarChatOnline() {
             }
             
             // Sincronização de acessórios para jogadores remotos
-            renderizarJogadorCamadas(activeScene, remoteSprite);
-            if (remoteSprite.accessory && remoteSprite.accessory.active) {
-                remoteSprite.accessory.setPosition(remoteSprite.x, remoteSprite.y);
-                remoteSprite.accessory.setDepth(remoteSprite.y - 0.5);
-                remoteSprite.accessory.setFlipX(remoteSprite.flipX);
-                remoteSprite.accessory.setVisible(remoteSprite.visible);
-                remoteSprite.accessory.setAlpha(remoteSprite.alpha);
-            }
-            if (remoteSprite.wingsLayerSprite && remoteSprite.wingsLayerSprite.active) {
-                atualizarDirecaoEProfundidadeAsa(remoteSprite, remoteSprite.wingsLayerSprite, direction);
-            }
+            try {
+                renderizarJogadorCamadas(activeScene, remoteSprite);
+                if (remoteSprite.accessory && remoteSprite.accessory.active) {
+                    remoteSprite.accessory.setPosition(remoteSprite.x, remoteSprite.y);
+                    remoteSprite.accessory.setDepth(remoteSprite.y - 0.5);
+                    remoteSprite.accessory.setFlipX(remoteSprite.flipX);
+                    remoteSprite.accessory.setVisible(remoteSprite.visible);
+                    remoteSprite.accessory.setAlpha(remoteSprite.alpha);
+                }
+                if (remoteSprite.wingsLayerSprite && remoteSprite.wingsLayerSprite.active) {
+                    atualizarDirecaoEProfundidadeAsa(remoteSprite, remoteSprite.wingsLayerSprite, direction);
+                }
+            } catch (accErr) {}
 
             if (remoteSprite.playerNameText) {
                 remoteSprite.playerNameText.setPosition(playerInfo.x, playerInfo.y + 28);
