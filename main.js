@@ -1530,6 +1530,7 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
             sprite.clearTint();
             sprite.customTextureKey = key;
             sprite.setData('skinBase64', skinBase64);
+            sprite.setVisible(true);
         }
         
         if (sprite === player && profileAvatarImg && profileAvatarImg.active) {
@@ -3308,8 +3309,9 @@ function conectarChatOnline() {
     });
 
     socket.on('currentPlayers', (remotePlayers) => {
+        if (!remotePlayers) return;
         Object.keys(remotePlayers).forEach((id) => {
-            if (id !== socket.id && !otherPlayersSprites[id]) {
+            if (id !== socket.id && !otherPlayersSprites[id] && activeScene) {
                 adicionarOutroJogador(activeScene, remotePlayers[id]);
             }
         });
@@ -3317,7 +3319,7 @@ function conectarChatOnline() {
 
     socket.on('newPlayer', (playerInfo) => {
         console.log("📢 Novo jogador detectado:", playerInfo.name);
-        if (playerInfo.id !== socket.id && !otherPlayersSprites[playerInfo.id]) {
+        if (playerInfo && playerInfo.id !== socket.id && !otherPlayersSprites[playerInfo.id] && activeScene) {
             adicionarOutroJogador(activeScene, playerInfo);
         }
     });
@@ -3623,8 +3625,14 @@ function conectarChatOnline() {
     });
 
     socket.on('playerMoved', (playerInfo) => {
+        if (!playerInfo || (socket && playerInfo.id === socket.id)) return;
         let remoteSprite = otherPlayersSprites[playerInfo.id];
+        if (!remoteSprite && activeScene) {
+            adicionarOutroJogador(activeScene, playerInfo);
+            remoteSprite = otherPlayersSprites[playerInfo.id];
+        }
         if (remoteSprite) {
+            remoteSprite.setVisible(true);
             const targetName = (playerInfo.name || "").toLowerCase();
             const textureKey = 'skin_' + targetName + '_sheet';
 
@@ -3802,7 +3810,7 @@ function conectarChatOnline() {
 }
 
 function adicionarOutroJogador(scene, data) {
-    if (!scene || !data || !data.id || otherPlayersSprites[data.id]) return;
+    if (!scene || !data || !data.id || (socket && data.id === socket.id) || otherPlayersSprites[data.id]) return;
     
     const targetUsername = (data.accountUser || data.user || data.name || data.id).toLowerCase();
     const uniqueKey = 'skin_' + targetUsername + '_sheet';
@@ -3842,6 +3850,7 @@ function adicionarOutroJogador(scene, data) {
 
     other.setScale(1.3);
     other.setDepth(data.y);
+    other.setVisible(true);
     other.setInteractive();
     other.setData('playerData', data);
 
