@@ -602,6 +602,17 @@ function create() {
         font: 'bold 11px monospace', fill: '#f0a8df', backgroundColor: '#0c0c14ee', padding: { x: 6, y: 3 }, stroke: '#5b2452', strokeThickness: 2
     }).setOrigin(0.5);
 
+    // NPC Mercador Premium
+    const premiumNPC = this.physics.add.sprite(400, 350, 'banker_npc').setImmovable(true).setScale(1.35).setTint(0xffd700);
+    premiumNPC.body.allowGravity = false;
+    premiumNPC.setDepth(premiumNPC.y);
+    this.add.text(400, 315, '💎 Mercador Premium', {
+        font: 'bold 11px monospace', fill: '#FFD700', backgroundColor: '#0c0c14ee', padding: { x: 6, y: 3 }, stroke: '#000', strokeThickness: 2
+    }).setOrigin(0.5);
+    premiumNPC.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+        if (socket && socket.connected) socket.emit('requestPremiumStore');
+    });
+
     // --- MONSTROS CONCENTRADOS NO CENTRO DO MAPA (LONGE DO SPAWN 400,450) ---
     const ogreSpawnLocations = [
         { x: 1500, y: 1100, texture: 'ogre_script', name: 'Ogro', hp: 50, gold: 50 },
@@ -1744,7 +1755,8 @@ function criarBotaoAdminPremium(scene) {
     btnPremiumSkinAdmin.style.cssText = `
         position: fixed;
         top: 60px;
-        right: 10px;
+        left: 50%;
+        transform: translateX(-50%);
         z-index: 9999;
         display: none;
         background: #1b1b2f;
@@ -2868,6 +2880,30 @@ function conectarChatOnline() {
         if (confirm(`🏰 CONVITE DE CLÃ\n\nO jogador ${data.leaderName} convidou você para o clã [${data.clanTag}].\n\nDeseja aceitar?`)) {
             socket.emit('aceitarConviteClan', { clanTag: data.clanTag });
         }
+    });
+
+    socket.on('premiumStoreData', (skins) => {
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:400px; max-height:80vh; background:#0c0c14; border:2px solid #ffd700; color:#fff; z-index:10001; padding:20px; font-family:monospace; overflow-y:auto; border-radius:8px; box-shadow: 0 0 20px rgba(0,0,0,0.8);';
+        
+        let html = '<div style="text-align:right"><button id="closePremium" style="background:#811;color:#fff;border:none;padding:5px 10px;cursor:pointer;">X</button></div>';
+        html += '<h2 style="text-align:center;color:#ffd700;margin-top:0;">💎 LOJA PREMIUM 💎</h2>';
+        html += '<p style="font-size:12px;text-align:center;background:#1b1b2f;padding:10px;border-radius:4px;">Adquira moedas premium para comprar skins exclusivas!<br>Envie seu PIX para a chave: <b>70986804436</b><br>Após o pagamento, envie o comprovante ao Administrador.</p><hr style="border:0;border-top:1px solid #333;margin:15px 0;">';
+        
+        html += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">';
+        skins.forEach(skin => {
+            html += `<div style="background:#151522; padding:10px; border:1px solid #967322; text-align:center;">
+                <img src="${skin.spriteData}" style="width:64px; height:64px; object-fit:none; object-position: top left; image-rendering:pixelated; background:#000; margin-bottom:5px;">
+                <div style="font-size:11px; font-weight:bold; color:#f3e5ab;">${skin.name}</div>
+                <div style="font-size:10px; color:#ffd700; margin:5px 0;">💰 ${skin.price} Premium</div>
+                <button onclick="alert(\'Sistema de compra na próxima atualização!\')" style="background:#1b3d1b; color:#fff; border:none; padding:5px; width:100%; cursor:pointer; font-size:10px;">Comprar</button>
+            </div>`;
+        });
+        html += '</div>';
+        
+        modal.innerHTML = html;
+        document.body.appendChild(modal);
+        document.getElementById('closePremium').onclick = () => modal.remove();
     });
 
 

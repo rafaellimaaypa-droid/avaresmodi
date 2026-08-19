@@ -443,6 +443,16 @@ async function loadClansCache() {
 io.on('connection', (socket) => {
     console.log(`Nova conexão socket: ${socket.id}`);
 
+    socket.on('requestPremiumStore', async () => {
+        if (!premiumSkinsCollection) return;
+        try {
+            const skins = await premiumSkinsCollection.find().toArray();
+            socket.emit('premiumStoreData', skins);
+        } catch (err) {
+            console.error("[PREMIUM STORE ERROR]", err);
+        }
+    });
+
     socket.on('uploadPremiumSkin', async (data) => {
         const p = players[socket.id];
         const isMestre = socket.accountUser === 'mestre';
