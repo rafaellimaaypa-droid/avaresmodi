@@ -393,12 +393,25 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
                 }
             }
         };
+        img.onerror = () => {
+            if (parentSprite[layerPropName]) {
+                try { parentSprite[layerPropName].destroy(); } catch (e) {}
+                parentSprite[layerPropName] = null;
+            }
+        };
     }
 }
 
 function atualizarDirecaoEProfundidadeAsa(targetSprite, wingSprite, fallbackFacing = 'down') {
     if (!targetSprite || !wingSprite || !wingSprite.active || !wingSprite.texture) return;
     try {
+        const currentScene = targetSprite.scene || activeScene || (game && game.scene && game.scene.scenes && game.scene.scenes[0]);
+        if (!currentScene || !currentScene.textures || !currentScene.textures.exists(wingSprite.texture.key)) {
+            try { wingSprite.destroy(); } catch (e) {}
+            targetSprite.wingsLayerSprite = null;
+            return;
+        }
+
         const animKey = targetSprite.anims?.currentAnim?.key || '';
         let dir = fallbackFacing;
         if (animKey.includes('up')) dir = 'up';
@@ -428,9 +441,14 @@ function atualizarDirecaoEProfundidadeAsa(targetSprite, wingSprite, fallbackFaci
         wingSprite.setAlpha(targetSprite.alpha);
     } catch (e) {
         try {
-            aplicarFrameSeguro(wingSprite, 0);
-            wingSprite.setDepth(targetSprite.y - 0.1);
-        } catch (err) {}
+            if (wingSprite && wingSprite.active) {
+                aplicarFrameSeguro(wingSprite, 0);
+                wingSprite.setDepth(targetSprite.y - 0.1);
+            }
+        } catch (err) {
+            try { wingSprite.destroy(); } catch (destroyErr) {}
+            targetSprite.wingsLayerSprite = null;
+        }
     }
 }
 
