@@ -3025,8 +3025,9 @@ function abrirPainelAdmin(scene) {
     if (adminLevel >= 8 || isMestre) {
         createAdminSection(340, "--- FERRAMENTAS DE DESENVOLVEDOR ---");
         
-        const btnEditor = scene.add.text(400, 380, editMode ? '❌ DESATIVAR EDITOR' : '⚒️ ATIVAR EDITOR DE OBJETOS', { ...btnStyle, backgroundColor: editMode ? '#881111' : '#1b3d1b' }).setOrigin(0.5).setScrollFactor(0).setDepth(ADMIN_DEPTH + 2).setInteractive();
-        btnEditor.on('pointerdown', () => {
+        const btnEditor = scene.add.text(400, 365, editMode ? '❌ DESATIVAR EDITOR' : '⚒️ ATIVAR EDITOR DE OBJETOS', { ...btnStyle, backgroundColor: editMode ? '#881111' : '#1b3d1b' }).setOrigin(0.5).setScrollFactor(0).setDepth(ADMIN_DEPTH + 2).setInteractive();
+        btnEditor.on('pointerdown', (pointer, localX, localY, event) => {
+            if (event) event.stopPropagation();
             editMode = !editMode;
             if (editMode) editMinimized = false;
             infoText.setVisible(editMode);
@@ -3041,8 +3042,9 @@ function abrirPainelAdmin(scene) {
         });
         mainContent.add(btnEditor);
 
-        const btnTeam = scene.add.text(400, 435, '🛡️ DEFINIR CARGO ADM', { ...btnStyle, backgroundColor: '#444' }).setOrigin(0.5).setScrollFactor(0).setDepth(ADMIN_DEPTH + 2).setInteractive();
-        btnTeam.on('pointerdown', () => {
+        const btnTeam = scene.add.text(400, 400, '🛡️ DEFINIR CARGO ADM', { ...btnStyle, backgroundColor: '#444' }).setOrigin(0.5).setScrollFactor(0).setDepth(ADMIN_DEPTH + 2).setInteractive();
+        btnTeam.on('pointerdown', (pointer, localX, localY, event) => {
+            if (event) event.stopPropagation();
             const t = prompt("Usuário:");
             const lvl = prompt("Nível (1-8):");
             const role = prompt("Cargo (Moderador/Desenvolvedor/Dono):");
@@ -3050,8 +3052,9 @@ function abrirPainelAdmin(scene) {
         });
         mainContent.add(btnTeam);
 
-        const btnListAdmins = scene.add.text(400, 475, '📋 LISTAR EQUIPE ADM', { ...btnStyle, backgroundColor: '#1b1b2f' }).setOrigin(0.5).setScrollFactor(0).setDepth(ADMIN_DEPTH + 2).setInteractive();
-        btnListAdmins.on('pointerdown', async () => {
+        const btnListAdmins = scene.add.text(400, 435, '📋 LISTAR EQUIPE ADM', { ...btnStyle, backgroundColor: '#1b1b2f' }).setOrigin(0.5).setScrollFactor(0).setDepth(ADMIN_DEPTH + 2).setInteractive();
+        btnListAdmins.on('pointerdown', async (pointer, localX, localY, event) => {
+            if (event) event.stopPropagation();
             try {
                 const res = await fetch(`${BASE_URL}/api/admin/action`, {
                     method: 'POST',
@@ -3075,14 +3078,16 @@ function abrirPainelAdmin(scene) {
         });
         mainContent.add(btnListAdmins);
 
-        const btnDefaultSkin = scene.add.text(400, 480, '🎨 CADASTRAR SKIN PADRÃO', { ...btnStyle, backgroundColor: '#1b3d3d' }).setOrigin(0.5).setScrollFactor(0).setDepth(ADMIN_DEPTH + 2).setInteractive();
-        btnDefaultSkin.on('pointerdown', () => {
+        const btnDefaultSkin = scene.add.text(400, 470, '🎨 CADASTRAR SKIN PADRÃO', { ...btnStyle, backgroundColor: '#1b3d3d' }).setOrigin(0.5).setScrollFactor(0).setDepth(ADMIN_DEPTH + 2).setInteractive();
+        btnDefaultSkin.on('pointerdown', (pointer, localX, localY, event) => {
+            if (event) event.stopPropagation();
             abrirModalUploadSkinPadrao(scene);
         });
         mainContent.add(btnDefaultSkin);
 
-        const btnPremiumItem = scene.add.text(400, 515, '💎 CADASTRAR ITEM PREMIUM', { ...btnStyle, backgroundColor: '#3d1b3d' }).setOrigin(0.5).setScrollFactor(0).setDepth(ADMIN_DEPTH + 2).setInteractive();
-        btnPremiumItem.on('pointerdown', () => {
+        const btnPremiumItem = scene.add.text(400, 505, '💎 CADASTRAR ITEM PREMIUM', { ...btnStyle, backgroundColor: '#3d1b3d' }).setOrigin(0.5).setScrollFactor(0).setDepth(ADMIN_DEPTH + 2).setInteractive();
+        btnPremiumItem.on('pointerdown', (pointer, localX, localY, event) => {
+            if (event) event.stopPropagation();
             abrirModalUploadItemPremium(scene);
         });
         mainContent.add(btnPremiumItem);
@@ -3218,14 +3223,14 @@ function abrirModalUploadItemPremium(scene) {
             <label style="font-size:11px;color:#aaa;">Preço (Moedas Premium):</label>
             <input type="number" id="adminPremItemPrice" placeholder="Ex: 50" min="0" style="width:100%;box-sizing:border-box;padding:8px;background:#151522;border:1px solid #3d3d5c;color:#fff;font-family:monospace;margin-top:4px;">
         </div>
-        <div style="width:80px; height:80px; margin:10px auto; border:2px dashed #ffd700; display:flex; align-items:center; justify-content:center; background:#000;">
-            <img id="adminPremItemPreview" style="display:none; width:64px; height:64px; object-fit:none; object-position: top left; image-rendering:pixelated;">
+        <div style="width:80px; height:80px; margin:10px auto; border:2px dashed #ffd700; display:flex; align-items:center; justify-content:center; background:#000; overflow:hidden;">
+            <img id="adminPremItemPreview" style="display:none; max-width:64px; max-height:64px; object-fit:contain; image-rendering:pixelated;">
             <span id="adminPremItemPlaceholder" style="font-size:10px; color:#666;">Prévia</span>
         </div>
         <input type="file" id="adminPremItemFileInput" accept="image/png" style="display:none;">
-        <button id="adminPremItemSelectBtn" style="background:#2a2a40;color:#fff;border:1px solid #ffd700;padding:8px 12px;cursor:pointer;font-family:monospace;margin-bottom:10px;width:100%;">📁 Selecionar Sprite PNG</button>
+        <button id="adminPremItemSelectBtn" type="button" style="background:#2a2a40;color:#fff;border:1px solid #ffd700;padding:8px 12px;cursor:pointer;font-family:monospace;margin-bottom:10px;width:100%;">📁 Selecionar Sprite PNG</button>
         <br>
-        <button id="adminPremItemSubmitBtn" style="background:#1b3d1b;color:#fff;border:none;padding:10px 20px;cursor:pointer;font-family:monospace;font-weight:bold;width:100%;">💾 ENVIAR ITEM</button>
+        <button id="adminPremItemSubmitBtn" type="button" style="background:#1b3d1b;color:#fff;border:none;padding:10px 20px;cursor:pointer;font-family:monospace;font-weight:bold;width:100%;">💾 ENVIAR ITEM</button>
     `;
 
     document.body.appendChild(modal);
@@ -3261,17 +3266,24 @@ function abrirModalUploadItemPremium(scene) {
     };
 
     closeBtn.onclick = fecharModal;
-    selectBtn.onclick = () => fileInput.click();
+    selectBtn.onclick = (e) => {
+        if (e) e.stopPropagation();
+        fileInput.click();
+    };
 
     fileInput.onchange = (e) => {
-        const file = e.target.files[0];
+        const file = e.target.files && e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (event) => {
             selectedBase64 = event.target.result;
-            previewImg.src = selectedBase64;
-            previewImg.style.display = 'block';
-            placeholder.style.display = 'none';
+            if (previewImg) {
+                previewImg.src = selectedBase64;
+                previewImg.style.display = 'block';
+            }
+            if (placeholder) {
+                placeholder.style.display = 'none';
+            }
         };
         reader.readAsDataURL(file);
     };
