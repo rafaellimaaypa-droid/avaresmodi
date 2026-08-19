@@ -1358,13 +1358,20 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     }
 
     const vincularTextura = (key) => {
-        sprite.setTexture(key);
-        sprite.setScale(1.0);
-        sprite.clearTint();
-        sprite.customTextureKey = key;
-        sprite.setData('skinBase64', skinBase64);
+        if (!activeScene || !activeScene.textures.exists(key)) {
+            console.warn('[SKIN WARNING] Tentativa de vincular textura inexistente:', key);
+            return;
+        }
+
+        if (sprite && sprite.active) {
+            sprite.setTexture(key);
+            sprite.setScale(1.0);
+            sprite.clearTint();
+            sprite.customTextureKey = key;
+            sprite.setData('skinBase64', skinBase64);
+        }
         
-        if (sprite === player && profileAvatarImg) {
+        if (sprite === player && profileAvatarImg && profileAvatarImg.active) {
             // No padrão LPC 13 colunas, Linha 10 (baixo) frame 0 é o índice 130
             profileAvatarImg.setTexture(key, 130);
             profileAvatarImg.setScale(0.85);
@@ -4332,9 +4339,9 @@ function abrirPerfilConta(scene) {
 
     const avatarBox = scene.add.rectangle(230, 240, 140, 180, 0x12121a).setScrollFactor(0).setDepth(2002).setStrokeStyle(2, 0x967322);
     
-    let texParaExibir = player.customTextureKey || 'player_idle';
+    let texParaExibir = (player.customTextureKey && scene.textures.exists(player.customTextureKey)) ? player.customTextureKey : 'player_idle';
     // Se for skin customizada, usa o frame 130 (frontal LPC), senão usa o frame 0
-    const startFrame = player.customTextureKey ? 130 : 0;
+    const startFrame = (texParaExibir !== 'player_idle') ? 130 : 0;
     const avatarImg = scene.add.sprite(230, 230, texParaExibir, startFrame).setScrollFactor(0).setDepth(2003);
     
     if (player.customTextureKey) {
@@ -4593,7 +4600,7 @@ function update() {
     let animToPlay = isMoving ? `walk_${playerFacing}` : `idle_${playerFacing}`;
     
     // Se estiver usando skin customizada, prioriza animações custom únicas do usuário
-    if (player.customTextureKey && player.customSpriteData && charName) {
+    if (player.customTextureKey && player.customSpriteData && charName && this.textures.exists(player.customTextureKey)) {
         if (player.texture.key !== player.customTextureKey) {
             player.setTexture(player.customTextureKey);
             player.clearTint(); 
