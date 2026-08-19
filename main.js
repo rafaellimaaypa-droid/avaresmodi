@@ -3912,6 +3912,8 @@ function adicionarOutroJogador(scene, data) {
                 }
                 other.customTextureKey = null;
             }
+        } else if (data.customSpriteData && data.customSpriteData.length > 100) {
+            aplicarSkinCustomizada(other, data.customSpriteData, targetUsername);
         }
 
         other.customWingsData = data.equippedWings ? data.equippedWings.spriteData : null;
