@@ -1548,56 +1548,73 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     const uniqueKey = 'skin_' + username.toLowerCase() + '_sheet';
     console.log('[SKIN DEBUG] Chave de textura única gerada:', uniqueKey, '| Já existe no cache Phaser?', currentScene.textures.exists(uniqueKey));
 
-    // Limpeza obrigatória de textura antiga se existir no cache para este usuário
-    if (currentScene.textures.exists(uniqueKey)) {
-        console.log(`[SKIN REPLACE] Limpando skin anterior antes de aplicar a nova para: ${username}`);
-        
-        // 1. Congelar e ocultar o sprite principal para evitar draw calls durante o swap
-        if (sprite && sprite.active) {
-            sprite.anims.stop();
-            sprite.setVisible(false);
-            // 3. Desvincular textura enviando para uma padrão do cache fixo
-            sprite.setTexture('player_idle');
-        }
-
-        // 4. PROTEÇÃO DO HUD/PERFIL: Se for o jogador local, resetar as imagens de UI
-        if (charName && username === charName.toLowerCase()) {
-            if (profileAvatarImg) {
-                profileAvatarImg.setTexture('player_idle', 0);
-            }
-        }
-        
-        // 5. Agora é seguro remover do gerenciador de texturas
-        currentScene.textures.remove(uniqueKey);
-    }
-
     const vincularTextura = (key) => {
-        if (!currentScene || !currentScene.textures || !currentScene.textures.exists(key)) {
-            console.warn('[SKIN WARNING] Tentativa de vincular textura inexistente:', key);
-            return;
-        }
+        try {
+            if (!currentScene || !currentScene.textures || !currentScene.textures.exists(key)) {
+                console.warn('[SKIN WARNING] Tentativa de vincular textura inexistente:', key);
+                if (sprite && sprite.active && sprite.texture.key !== 'player_idle') {
+                    sprite.setTexture('player_idle');
+                    sprite.customTextureKey = null;
+                }
+                return;
+            }
 
-        if (sprite && sprite.active) {
-            sprite.setTexture(key);
-            sprite.setScale(1.0);
-            sprite.clearTint();
-            sprite.customTextureKey = key;
-            sprite.setData('skinBase64', skinBase64);
-            sprite.setVisible(true);
-        }
-        
-        if (sprite === player && profileAvatarImg && profileAvatarImg.active) {
-            // No padrão LPC 13 colunas, Linha 10 (baixo) frame 0 é o índice 130
-            profileAvatarImg.setTexture(key, 130);
-            profileAvatarImg.setScale(0.85);
-            profileAvatarImg.clearTint();
-            console.log('[SKIN DEBUG] HUD e Perfil atualizados com skin customizada.');
+            const tex = currentScene.textures.get(key);
+            if (!tex || !tex.key || !tex.frames || Object.keys(tex.frames).length === 0) {
+                if (sprite && sprite.active && sprite.texture.key !== 'player_idle') {
+                    sprite.setTexture('player_idle');
+                    sprite.customTextureKey = null;
+                }
+                return;
+            }
+
+            if (sprite && sprite.active) {
+                sprite.setTexture(key);
+                sprite.setScale(1.0);
+                sprite.clearTint();
+                sprite.customTextureKey = key;
+                sprite.setData('skinBase64', skinBase64);
+                sprite.setVisible(true);
+            }
+            
+            if (sprite === player && profileAvatarImg && profileAvatarImg.active) {
+                // No padrão LPC 13 colunas, Linha 10 (baixo) frame 0 é o índice 130
+                profileAvatarImg.setTexture(key, 130);
+                profileAvatarImg.setScale(0.85);
+                profileAvatarImg.clearTint();
+                console.log('[SKIN DEBUG] HUD e Perfil atualizados com skin customizada.');
+            }
+        } catch (err) {
+            console.error('[SKIN ERROR] Erro ao vincular textura:', err);
+            if (sprite && sprite.active) {
+                sprite.setTexture('player_idle');
+                sprite.customTextureKey = null;
+            }
         }
     };
 
     if (currentScene.textures.exists(uniqueKey)) {
-        vincularTextura(uniqueKey);
-        return;
+        const existingTex = currentScene.textures.get(uniqueKey);
+        if (existingTex && existingTex.key && existingTex.frames && Object.keys(existingTex.frames).length > 0) {
+            vincularTextura(uniqueKey);
+            sprite.customSpriteData = skinBase64;
+            if (sprite && sprite.active) {
+                sprite.setVisible(true);
+                const cleanUser = username.toLowerCase();
+                const targetAnim = `idle_down_custom_${cleanUser}`;
+                if (currentScene.anims.exists(targetAnim)) {
+                    sprite.play(targetAnim);
+                }
+                renderizarJogadorCamadas(currentScene, sprite);
+            }
+            return;
+        }
+    }
+
+    // Enquanto a nova imagem é decodificada, garante fallback seguro no sprite
+    if (sprite && sprite.active && sprite.texture.key !== 'player_idle') {
+        sprite.setTexture('player_idle');
+        sprite.customTextureKey = null;
     }
 
     const img = new Image();
@@ -1605,37 +1622,59 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     img.onload = () => {
         if (!currentScene || !currentScene.textures || !currentScene.sys) return;
 
-        currentScene.textures.addSpriteSheet(uniqueKey, img, {
-            frameWidth: 64,
-            frameHeight: 64,
-            margin: 0,
-            spacing: 0
-        });
-
-        const cleanUser = username.toLowerCase();
-        ['up', 'down', 'left', 'right'].forEach(dir => {
-            currentScene.anims.remove(`walk_${dir}_custom_${cleanUser}`);
-            currentScene.anims.remove(`idle_${dir}_custom_${cleanUser}`);
-            currentScene.anims.remove(`slash_${dir}_custom_${cleanUser}`);
-            currentScene.anims.remove(`spell_${dir}_custom_${cleanUser}`);
-        });
-
-        criarAnimacoesLPC(currentScene, uniqueKey, cleanUser);
-        vincularTextura(uniqueKey);
-        sprite.customSpriteData = skinBase64;
-
-        if (sprite === player) {
-            localStorage.setItem('avaris_custom_skin', skinBase64);
-        }
-
-        if (sprite && sprite.active) {
-            sprite.setVisible(true);
-            const targetAnim = `idle_down_custom_${cleanUser}`;
-            if (currentScene.anims.exists(targetAnim)) {
-                sprite.play(targetAnim);
+        try {
+            if (currentScene.textures.exists(uniqueKey)) {
+                vincularTextura(uniqueKey);
+                sprite.customSpriteData = skinBase64;
+                return;
             }
-            renderizarJogadorCamadas(currentScene, sprite);
-            console.log(`[SKIN DEBUG] ✅ Nova skin única processada e aplicada para: ${username}`);
+
+            currentScene.textures.addSpriteSheet(uniqueKey, img, {
+                frameWidth: 64,
+                frameHeight: 64,
+                margin: 0,
+                spacing: 0
+            });
+
+            const cleanUser = username.toLowerCase();
+            ['up', 'down', 'left', 'right'].forEach(dir => {
+                currentScene.anims.remove(`walk_${dir}_custom_${cleanUser}`);
+                currentScene.anims.remove(`idle_${dir}_custom_${cleanUser}`);
+                currentScene.anims.remove(`slash_${dir}_custom_${cleanUser}`);
+                currentScene.anims.remove(`spell_${dir}_custom_${cleanUser}`);
+            });
+
+            criarAnimacoesLPC(currentScene, uniqueKey, cleanUser);
+
+            if (currentScene.textures.exists(uniqueKey)) {
+                vincularTextura(uniqueKey);
+                sprite.customSpriteData = skinBase64;
+
+                if (sprite === player) {
+                    localStorage.setItem('avaris_custom_skin', skinBase64);
+                }
+
+                if (sprite && sprite.active) {
+                    sprite.setVisible(true);
+                    const cleanUser = username.toLowerCase();
+                    const targetAnim = `idle_down_custom_${cleanUser}`;
+                    if (currentScene.anims.exists(targetAnim)) {
+                        sprite.play(targetAnim);
+                    }
+                    renderizarJogadorCamadas(currentScene, sprite);
+                    console.log(`[SKIN DEBUG] ✅ Nova skin única processada e aplicada para: ${username}`);
+                }
+            }
+        } catch (loadErr) {
+            console.error('[SKIN ERROR] Falha ao registrar spritesheet:', loadErr);
+            if (sprite && sprite.active) {
+                sprite.setTexture('player_idle');
+                sprite.customTextureKey = null;
+                sprite.customSpriteData = null;
+                if (currentScene.anims && currentScene.anims.exists('idle_down')) {
+                    sprite.play('idle_down', true);
+                }
+            }
         }
     };
 }
