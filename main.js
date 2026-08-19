@@ -3065,7 +3065,14 @@ function abrirModalUploadItemPremium(scene) {
     const placeholder = document.getElementById('adminPremItemPlaceholder');
     const submitBtn = document.getElementById('adminPremItemSubmitBtn');
 
-    closeBtn.onclick = () => modal.remove();
+    const fecharModal = () => {
+        if (scene && scene.input && scene.input.keyboard) {
+            scene.input.keyboard.enabled = true;
+        }
+        modal.remove();
+    };
+
+    closeBtn.onclick = fecharModal;
     selectBtn.onclick = () => fileInput.click();
 
     fileInput.onchange = (e) => {
