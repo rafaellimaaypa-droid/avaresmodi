@@ -360,6 +360,44 @@ app.post('/api/clans/join', async (req, res) => {
     } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
+app.post('/api/save', async (req, res) => {
+    try {
+        if (!db) {
+            return res.status(503).json({ success: false, message: 'Banco offline' });
+        }
+        const { user, charData } = req.body;
+        if (!user) return res.status(400).json({ success: false, message: 'Usuário não informado' });
+
+        const account = await db.collection('contas').findOne({ 
+            $or: [
+                { user: new RegExp('^' + user + '$', 'i') },
+                { "characters.name": new RegExp('^' + user + '$', 'i') }
+            ] 
+        });
+        if (!account) return res.status(404).json({ success: false, message: 'Conta não encontrada' });
+
+        const existingChar = (account.characters && account.characters[0]) ? account.characters[0] : {};
+        const mergedChar = {
+            ...existingChar,
+            ...charData,
+            inventory: Array.isArray(charData.inventory) ? charData.inventory : (existingChar.inventory || []),
+            equippedWeapon: charData.equippedWeapon !== undefined ? charData.equippedWeapon : (existingChar.equippedWeapon || null),
+            equippedItem: charData.equippedItem !== undefined ? charData.equippedItem : (charData.equippedWeapon || existingChar.equippedItem || null),
+            equippedClothes: charData.equippedClothes !== undefined ? charData.equippedClothes : (existingChar.equippedClothes || null)
+        };
+
+        await db.collection('contas').updateOne(
+            { _id: account._id },
+            { $set: { characters: [mergedChar] } }
+        );
+
+        res.json({ success: true, message: 'Progresso salvo com sucesso' });
+    } catch (e) {
+        console.error('Erro na rota /api/save:', e);
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
 app.post('/api/characters', async (req, res) => {
     try {
         if (!db) {
@@ -753,7 +791,10 @@ io.on('connection', (socket) => {
                 gold: 1000,
                 health: 100,
                 maxHp: 100,
-                inventory: []
+                inventory: [],
+                equippedWeapon: null,
+                equippedItem: null,
+                equippedClothes: null
             };
         }
 
@@ -781,6 +822,10 @@ io.on('connection', (socket) => {
             }
         }
 
+        const savedInventory = Array.isArray(dbChar.inventory) ? dbChar.inventory : [];
+        const savedEquippedWeapon = dbChar.equippedWeapon || dbChar.equippedItem || null;
+        const savedEquippedClothes = dbChar.equippedClothes || null;
+
         // Reconstrói o playerData baseado no Banco de Dados
         const fullPlayerData = { 
             ...playerData,
@@ -789,9 +834,10 @@ io.on('connection', (socket) => {
             premiumCoins: dbChar.premiumCoins || 0,
             health: dbChar.health,
             maxHp: dbChar.maxHp || 100,
-            inventory: dbChar.inventory || [],
-            equippedWeapon: dbChar.equippedWeapon || null,
-            equippedClothes: dbChar.equippedClothes || null,
+            inventory: savedInventory,
+            equippedWeapon: savedEquippedWeapon,
+            equippedItem: savedEquippedWeapon,
+            equippedClothes: savedEquippedClothes,
             customSpriteData: dbChar.customSpriteData || null,
             id: socket.id,
             accountUser: accountUser,
@@ -1274,7 +1320,7 @@ io.on('connection', (socket) => {
         io.emit('removeMapObject', objId);
     });
 
-   socket.on('saveProgress', async (data, callback) => {
+    socket.on('saveProgress', async (data, callback) => {
         // Tenta identificar o usuário por múltiplas fontes (socket, payload accountUser ou char name)
         const user = socket.accountUser || data.accountUser || data.name || null;
         
@@ -1299,10 +1345,9 @@ io.on('connection', (socket) => {
                 ]
             });
             if (account) {
-                // A MÁGICA: Se a conta não tem personagem (array vazio), cria um na hora!
                 let char = {};
                 if (account.characters && account.characters.length > 0) {
-                    char = account.characters[0];
+                    char = { ...account.characters[0] };
                 } else {
                     char = {
                         name: data.name || user,
@@ -1318,12 +1363,19 @@ io.on('connection', (socket) => {
                 char.premiumCoins = typeof data.premiumCoins === 'number' ? data.premiumCoins : (char.premiumCoins || 0);
                 char.health = typeof data.hp === 'number' ? data.hp : (char.health || 100);
                 char.maxHp = data.maxHp || char.maxHp || 100;
-                char.inventory = Array.isArray(data.inventory) ? data.inventory : (char.inventory || []);
-                char.equippedWeapon = data.equippedWeapon || char.equippedWeapon || null;
-                char.equippedClothes = data.equippedClothes || char.equippedClothes || null;
+                
+                // Persistência robusta de inventário e equipamentos
+                if (Array.isArray(data.inventory)) {
+                    char.inventory = data.inventory.map(item => ({ ...item }));
+                } else if (!Array.isArray(char.inventory)) {
+                    char.inventory = [];
+                }
+
+                char.equippedWeapon = data.equippedWeapon !== undefined ? (data.equippedWeapon ? { ...data.equippedWeapon } : null) : (char.equippedWeapon || null);
+                char.equippedItem = data.equippedItem !== undefined ? (data.equippedItem ? { ...data.equippedItem } : null) : (char.equippedWeapon || null);
+                char.equippedClothes = data.equippedClothes !== undefined ? (data.equippedClothes ? { ...data.equippedClothes } : null) : (char.equippedClothes || null);
                 char.bank = typeof data.bank === 'number' ? data.bank : (char.bank || 0);
-                // Persistência da skin customizada no MongoDB
-                char.customSpriteData = data.customSpriteData || char.customSpriteData || null;
+                char.customSpriteData = data.customSpriteData !== undefined ? data.customSpriteData : (char.customSpriteData || null);
         
                 // Validação de clã antes de salvar
                 if (data.clanTag) {
@@ -1347,17 +1399,18 @@ io.on('connection', (socket) => {
                     players[socket.id].maxHp = char.maxHp;
                     players[socket.id].inventory = char.inventory;
                     players[socket.id].equippedWeapon = char.equippedWeapon;
+                    players[socket.id].equippedItem = char.equippedItem;
                     players[socket.id].equippedClothes = char.equippedClothes;
                     players[socket.id].bank = char.bank;
                 }
 
                 const result = await db.collection('contas').updateOne(
-                    { user: new RegExp('^' + user + '$', 'i') }, 
+                    { user: account.user }, 
                     { $set: { characters: [char] } }
                 );
 
                 if (result.acknowledged) {
-                    console.log(`[DB SAVE SUCCESS] ${user} - Gold: ${char.gold}`);
+                    console.log(`[DB SAVE SUCCESS] ${user} - Gold: ${char.gold} | Items: ${char.inventory.length} | EqWeapon: ${char.equippedWeapon ? char.equippedWeapon.id : 'none'}`);
                     if (callback) callback({ success: true });
                 } else {
                     throw new Error('Update not acknowledged');
