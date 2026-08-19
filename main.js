@@ -1521,8 +1521,8 @@ function finalizarLoginComDados(userData) {
     playerBankGold = userData.bank !== undefined ? userData.bank : 500;
     playerHealth = (userData.health !== undefined && userData.health !== null) ? userData.health : 100;
     playerMaxHealth = userData.maxHp || 100;
-    playerInventory = userData.inventory || [];
-    playerEquippedWeapon = userData.equippedWeapon || null;
+    playerInventory = Array.isArray(userData.inventory) ? userData.inventory.map(item => ({ ...item })) : [];
+    playerEquippedWeapon = userData.equippedWeapon || userData.equippedItem || null;
     playerEquippedClothes = userData.equippedClothes || null;
     playerClanTag = (userData.clanTag && userData.clanTag !== "") ? userData.clanTag : null;
     playerClanRole = userData.clanRole || 'Membro';
@@ -2146,9 +2146,10 @@ function salvarEstadoRemoto() {
             gold: playerGold,
             premiumCoins: playerPremiumCoins,
             bank: playerBankGold,
-            inventory: playerInventory,
-            equippedWeapon: playerEquippedWeapon,
-            equippedClothes: playerEquippedClothes,
+            inventory: JSON.parse(JSON.stringify(playerInventory)),
+            equippedWeapon: playerEquippedWeapon ? { ...playerEquippedWeapon } : null,
+            equippedItem: playerEquippedWeapon ? { ...playerEquippedWeapon } : null,
+            equippedClothes: playerEquippedClothes ? { ...playerEquippedClothes } : null,
             clanTag: playerClanTag,
             customSpriteData: player.customSpriteData
         };
@@ -4011,21 +4012,29 @@ function abrirInventario(scene) {
                     return;
                 }
                 if (itemData.type === 'clothing') {
-                    const tempClothes = playerEquippedClothes;
-                    playerEquippedClothes = itemData;
-                    if (tempClothes) playerInventory[i] = tempClothes;
-                    else playerInventory.splice(i, 1);
+                    const tempClothes = playerEquippedClothes ? { ...playerEquippedClothes } : null;
+                    const itemToEquip = { ...itemData };
+                    
+                    if (tempClothes) {
+                        playerInventory[i] = tempClothes;
+                    } else {
+                        playerInventory.splice(i, 1);
+                    }
+                    playerEquippedClothes = itemToEquip;
                     atualizarSpriteRoupaEquipada(scene);
+                    salvarEstadoRemoto();
                     abrirInventario(scene);
                     return;
                 }
-                let temp = playerEquippedWeapon;
-                playerEquippedWeapon = itemData;
-                if (temp) {
-                    playerInventory[i] = temp;
+                const tempWeapon = playerEquippedWeapon ? { ...playerEquippedWeapon } : null;
+                const itemToEquip = { ...itemData };
+
+                if (tempWeapon) {
+                    playerInventory[i] = tempWeapon;
                 } else {
                     playerInventory.splice(i, 1);
                 }
+                playerEquippedWeapon = itemToEquip;
                 atualizarSpriteArmaEquipada(scene);
                 salvarEstadoRemoto();
                 abrirInventario(scene);
@@ -4068,11 +4077,13 @@ function abrirInventario(scene) {
                 goldDisplay.setText('❌ Inventário cheio!');
                 return;
             }
-            playerInventory.push(playerEquippedWeapon);
-            playerEquippedWeapon = null;
-            atualizarSpriteArmaEquipada(scene);
-            salvarEstadoRemoto();
-            abrirInventario(scene);
+            if (playerEquippedWeapon) {
+                playerInventory.push({ ...playerEquippedWeapon });
+                playerEquippedWeapon = null;
+                atualizarSpriteArmaEquipada(scene);
+                salvarEstadoRemoto();
+                abrirInventario(scene);
+            }
         });
 
         menuElements.push(eqIcon, eqText);
