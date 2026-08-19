@@ -317,11 +317,11 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
 
     if (!spriteData) {
         if (parentSprite[layerPropName]) {
-            parentSprite[layerPropName].destroy();
+            try { parentSprite[layerPropName].destroy(); } catch (e) {}
             parentSprite[layerPropName] = null;
         }
         if (currentScene.textures && currentScene.textures.exists(layerKey)) {
-            currentScene.textures.remove(layerKey);
+            try { currentScene.textures.remove(layerKey); } catch (e) {}
         }
         parentSprite[layerPropName + '_data'] = null;
         return;
@@ -329,30 +329,41 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
 
     if (parentSprite[layerPropName + '_data'] !== spriteData) {
         if (parentSprite[layerPropName]) {
-            parentSprite[layerPropName].destroy();
+            try { parentSprite[layerPropName].destroy(); } catch (e) {}
             parentSprite[layerPropName] = null;
         }
         if (currentScene.textures && currentScene.textures.exists(layerKey)) {
-            currentScene.textures.remove(layerKey);
+            try { currentScene.textures.remove(layerKey); } catch (e) {}
         }
         parentSprite[layerPropName + '_data'] = spriteData;
     }
 
     const atualizarSpriteCamada = () => {
-        if (!currentScene.textures || !currentScene.textures.exists(layerKey)) return;
+        try {
+            if (!currentScene.textures || !currentScene.textures.exists(layerKey)) return;
+            const tex = currentScene.textures.get(layerKey);
+            if (!tex || !tex.key || !tex.frames || Object.keys(tex.frames).length === 0) return;
 
-        if (!parentSprite[layerPropName] || !parentSprite[layerPropName].active) {
-            parentSprite[layerPropName] = currentScene.add.sprite(parentSprite.x, parentSprite.y, layerKey);
-            if (minimap) minimap.ignore(parentSprite[layerPropName]);
-        }
+            if (!parentSprite[layerPropName] || !parentSprite[layerPropName].active) {
+                parentSprite[layerPropName] = currentScene.add.sprite(parentSprite.x, parentSprite.y, layerKey);
+                if (minimap) minimap.ignore(parentSprite[layerPropName]);
+            }
 
-        const layerSprite = parentSprite[layerPropName];
-        if (layerSprite && layerSprite.active) {
-            layerSprite.setTexture(layerKey);
-            layerSprite.setScale(parentSprite.scaleX, parentSprite.scaleY);
-            layerSprite.setPosition(parentSprite.x, parentSprite.y);
-            layerSprite.setDepth(parentSprite.y + depthOffset);
-            layerSprite.setFlipX(parentSprite.flipX);
+            const layerSprite = parentSprite[layerPropName];
+            if (layerSprite && layerSprite.active) {
+                if (layerSprite.texture.key !== layerKey) {
+                    layerSprite.setTexture(layerKey);
+                }
+                layerSprite.setScale(parentSprite.scaleX, parentSprite.scaleY);
+                layerSprite.setPosition(parentSprite.x, parentSprite.y);
+                layerSprite.setVisible(parentSprite.visible);
+                layerSprite.setAlpha(parentSprite.alpha);
+            }
+        } catch (err) {
+            if (parentSprite[layerPropName]) {
+                try { parentSprite[layerPropName].destroy(); } catch (e) {}
+                parentSprite[layerPropName] = null;
+            }
         }
     };
 
@@ -362,18 +373,62 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
         const img = new Image();
         img.src = spriteData;
         img.onload = () => {
-            if (!currentScene || !currentScene.textures) return;
-            if (!currentScene.textures.exists(layerKey)) {
-                currentScene.textures.addSpriteSheet(layerKey, img, {
-                    frameWidth: frameWidth,
-                    frameHeight: frameHeight,
-                    margin: 0,
-                    spacing: 0
-                });
-                criarAnimacoesLPC(currentScene, layerKey, `${cleanUser}_${layerPropName}`);
+            try {
+                if (!currentScene || !currentScene.textures || !currentScene.sys) return;
+                if (!currentScene.textures.exists(layerKey)) {
+                    currentScene.textures.addSpriteSheet(layerKey, img, {
+                        frameWidth: frameWidth,
+                        frameHeight: frameHeight,
+                        margin: 0,
+                        spacing: 0
+                    });
+                }
+                atualizarSpriteCamada();
+            } catch (loadErr) {
+                if (parentSprite[layerPropName]) {
+                    try { parentSprite[layerPropName].destroy(); } catch (e) {}
+                    parentSprite[layerPropName] = null;
+                }
             }
-            atualizarSpriteCamada();
         };
+    }
+}
+
+function atualizarDirecaoEProfundidadeAsa(targetSprite, wingSprite, fallbackFacing = 'down') {
+    if (!targetSprite || !wingSprite || !wingSprite.active || !wingSprite.texture) return;
+    try {
+        const animKey = targetSprite.anims?.currentAnim?.key || '';
+        let dir = fallbackFacing;
+        if (animKey.includes('up')) dir = 'up';
+        else if (animKey.includes('left')) dir = 'left';
+        else if (animKey.includes('right')) dir = 'right';
+        else if (animKey.includes('down')) dir = 'down';
+
+        let targetFrame = 130;
+        let isUp = false;
+
+        if (dir === 'up') {
+            targetFrame = 104;
+            isUp = true;
+        } else if (dir === 'left') {
+            targetFrame = 117;
+        } else if (dir === 'right') {
+            targetFrame = 143;
+        } else {
+            targetFrame = 130;
+        }
+
+        aplicarFrameSeguro(wingSprite, targetFrame);
+        wingSprite.setPosition(targetSprite.x, targetSprite.y);
+        wingSprite.setDepth(isUp ? targetSprite.y + 0.1 : targetSprite.y - 0.1);
+        wingSprite.setFlipX(false);
+        wingSprite.setVisible(targetSprite.visible);
+        wingSprite.setAlpha(targetSprite.alpha);
+    } catch (e) {
+        try {
+            aplicarFrameSeguro(wingSprite, 0);
+            wingSprite.setDepth(targetSprite.y - 0.1);
+        } catch (err) {}
     }
 }
 
@@ -390,7 +445,7 @@ function renderizarJogadorCamadas(scene, targetSprite) {
         ? (playerEquippedClothes ? playerEquippedClothes.spriteData : null) 
         : (targetSprite.customClothesData || (targetSprite.getData && targetSprite.getData('playerData')?.equippedClothes?.spriteData) || null);
 
-    // Camada de asas isolada em try/catch para não interferir em outros módulos
+    // Camada de asas isolada em try/catch para segurança do WebGL
     try {
         sincronizarCamadaVisual(currentScene, targetSprite, 'wingsLayerSprite', wingsData, -0.1);
     } catch (wingErr) {
@@ -401,7 +456,14 @@ function renderizarJogadorCamadas(scene, targetSprite) {
     }
 
     // Camada de roupas (sobre o corpo: offset +0.1)
-    sincronizarCamadaVisual(currentScene, targetSprite, 'clothesLayerSprite', clothesData, 0.1);
+    try {
+        sincronizarCamadaVisual(currentScene, targetSprite, 'clothesLayerSprite', clothesData, 0.1);
+    } catch (clothErr) {
+        if (targetSprite.clothesLayerSprite) {
+            try { targetSprite.clothesLayerSprite.destroy(); } catch (e) {}
+            targetSprite.clothesLayerSprite = null;
+        }
+    }
 }
 
 function preload() {
@@ -3701,21 +3763,7 @@ function conectarChatOnline() {
                 remoteSprite.accessory.setAlpha(remoteSprite.alpha);
             }
             if (remoteSprite.wingsLayerSprite && remoteSprite.wingsLayerSprite.active) {
-                const isUp = (playerInfo.anim && playerInfo.anim.includes('up')) || direction === 'up';
-                remoteSprite.wingsLayerSprite.setPosition(remoteSprite.x, remoteSprite.y);
-                remoteSprite.wingsLayerSprite.setDepth(isUp ? remoteSprite.y + 0.1 : remoteSprite.y - 0.1);
-                remoteSprite.wingsLayerSprite.setFlipX(remoteSprite.flipX);
-                remoteSprite.wingsLayerSprite.setVisible(remoteSprite.visible);
-                remoteSprite.wingsLayerSprite.setAlpha(remoteSprite.alpha);
-
-                if (remoteSprite.anims && remoteSprite.anims.currentAnim && remoteName) {
-                    const wingAnim = remoteSprite.anims.currentAnim.key.replace(remoteName, `${remoteName}_wingsLayerSprite`);
-                    if (activeScene.anims.exists(wingAnim)) {
-                        if (remoteSprite.wingsLayerSprite.anims.currentAnim?.key !== wingAnim) {
-                            remoteSprite.wingsLayerSprite.anims.play(wingAnim, true);
-                        }
-                    }
-                }
+                atualizarDirecaoEProfundidadeAsa(remoteSprite, remoteSprite.wingsLayerSprite, direction);
             }
 
             if (remoteSprite.playerNameText) {
@@ -5260,21 +5308,7 @@ function update() {
                     player.wingsLayerSprite.destroy();
                     player.wingsLayerSprite = null;
                 } else {
-                    const isUp = (player.anims.currentAnim?.key && player.anims.currentAnim.key.includes('up')) || playerFacing === 'up';
-                    player.wingsLayerSprite.setPosition(player.x, player.y);
-                    player.wingsLayerSprite.setDepth(isUp ? player.y + 0.1 : player.y - 0.1);
-                    player.wingsLayerSprite.setFlipX(player.flipX);
-                    player.wingsLayerSprite.setVisible(player.visible);
-                    player.wingsLayerSprite.setAlpha(player.alpha);
-
-                    if (player.anims && player.anims.currentAnim && charName) {
-                        const wingAnim = player.anims.currentAnim.key.replace(charName.toLowerCase(), `${charName.toLowerCase()}_wingsLayerSprite`);
-                        if (this.anims.exists(wingAnim)) {
-                            if (player.wingsLayerSprite.anims.currentAnim?.key !== wingAnim) {
-                                player.wingsLayerSprite.anims.play(wingAnim, true);
-                            }
-                        }
-                    }
+                    atualizarDirecaoEProfundidadeAsa(player, player.wingsLayerSprite, playerFacing);
                 }
             } catch (e) {
                 if (player.wingsLayerSprite) {
