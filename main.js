@@ -2963,12 +2963,24 @@ function conectarChatOnline() {
         document.body.appendChild(modal);
         document.getElementById('closeWardrobe').onclick = () => modal.remove();
 
-        document.getElementById('removeSkinVIPBtn').onclick = () => {
-            if (socket && socket.connected) {
-                modal.remove();
-                socket.emit('removeSkinVIP');
-            }
-        };
+        let isProcessingVipAction = false;
+
+        const removeBtn = document.getElementById('removeSkinVIPBtn');
+        if (removeBtn) {
+            removeBtn.onclick = () => {
+                if (isProcessingVipAction) return;
+                isProcessingVipAction = true;
+                removeBtn.disabled = true;
+                removeBtn.innerText = 'Processando...';
+
+                if (socket && socket.connected) {
+                    modal.remove();
+                    socket.emit('removeSkinVIP');
+                } else {
+                    modal.remove();
+                }
+            };
+        }
 
         if (skins) {
             skins.forEach(skin => {
@@ -2976,9 +2988,16 @@ function conectarChatOnline() {
                 const btn = document.getElementById(skinBtnId);
                 if (btn) {
                     btn.onclick = () => {
+                        if (isProcessingVipAction) return;
+                        isProcessingVipAction = true;
+                        btn.disabled = true;
+                        btn.innerText = 'Equipando...';
+
                         if (socket && socket.connected) {
                             modal.remove();
                             socket.emit('equipPremiumSkin', skin.name);
+                        } else {
+                            modal.remove();
                         }
                     };
                 }
