@@ -708,23 +708,26 @@ io.on('connection', (socket) => {
 
     socket.on('buyPremiumSkin', async (skinName) => {
         const p = players[socket.id];
-        if (!p || !db || !premiumSkinsCollection) return;
+        if (!p || !db) return;
 
         try {
-            const skin = await premiumSkinsCollection.findOne({ name: skinName });
-            if (!skin) return;
+            let item = premiumSkinsCollection ? await premiumSkinsCollection.findOne({ name: skinName }) : null;
+            if (!item) {
+                item = await db.collection('premium_items').findOne({ name: skinName });
+            }
+            if (!item) return;
 
             const account = await db.collection('contas').findOne({ "characters.name": p.name });
             const premiumCoins = (account && account.characters[0]) ? (account.characters[0].premiumCoins || 0) : 0;
 
-            if (premiumCoins >= skin.price) {
-                const newBalance = premiumCoins - skin.price;
+            if (premiumCoins >= item.price) {
+                const newBalance = premiumCoins - item.price;
 
                 await db.collection('contas').updateOne(
                     { "characters.name": p.name },
                     { 
                         $set: { "characters.0.premiumCoins": newBalance },
-                        $push: { "characters.0.ownedPremiumSkins": skin }
+                        $push: { "characters.0.ownedPremiumSkins": item }
                     }
                 );
 
@@ -732,7 +735,7 @@ io.on('connection', (socket) => {
                 socket.emit('updatePremiumCoins', newBalance);
                 socket.emit('chatMessage', { 
                     playerName: 'Sistema', 
-                    message: 'Compra concluída! A skin foi guardada na sua conta.', 
+                    message: `✅ Compra de [${item.name}] concluída com sucesso! Verifique seu Guarda-Roupa VIP.`, 
                     channel: 'SISTEMA' 
                 });
             } else {
@@ -882,6 +885,7 @@ io.on('connection', (socket) => {
         const savedInventory = Array.isArray(dbChar.inventory) ? dbChar.inventory : [];
         const savedEquippedWeapon = dbChar.equippedWeapon || dbChar.equippedItem || null;
         const savedEquippedClothes = dbChar.equippedClothes || null;
+        const savedEquippedWings = dbChar.equippedWings || null;
 
         // Reconstrói o playerData baseado no Banco de Dados
         const fullPlayerData = { 
@@ -895,6 +899,7 @@ io.on('connection', (socket) => {
             equippedWeapon: savedEquippedWeapon,
             equippedItem: savedEquippedWeapon,
             equippedClothes: savedEquippedClothes,
+            equippedWings: savedEquippedWings,
             customSpriteData: dbChar.customSpriteData || null,
             id: socket.id,
             accountUser: accountUser,
@@ -1431,6 +1436,7 @@ io.on('connection', (socket) => {
                 char.equippedWeapon = data.equippedWeapon !== undefined ? (data.equippedWeapon ? { ...data.equippedWeapon } : null) : (char.equippedWeapon || null);
                 char.equippedItem = data.equippedItem !== undefined ? (data.equippedItem ? { ...data.equippedItem } : null) : (char.equippedWeapon || null);
                 char.equippedClothes = data.equippedClothes !== undefined ? (data.equippedClothes ? { ...data.equippedClothes } : null) : (char.equippedClothes || null);
+                char.equippedWings = data.equippedWings !== undefined ? (data.equippedWings ? { ...data.equippedWings } : null) : (char.equippedWings || null);
                 char.bank = typeof data.bank === 'number' ? data.bank : (char.bank || 0);
                 char.customSpriteData = data.customSpriteData !== undefined ? data.customSpriteData : (char.customSpriteData || null);
         

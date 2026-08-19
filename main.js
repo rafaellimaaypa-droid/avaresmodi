@@ -1605,6 +1605,7 @@ function finalizarLoginComDados(userData) {
     playerInventory = Array.isArray(userData.inventory) ? userData.inventory.map(item => ({ ...item })) : [];
     playerEquippedWeapon = userData.equippedWeapon || userData.equippedItem || null;
     playerEquippedClothes = userData.equippedClothes || null;
+    playerEquippedWings = userData.equippedWings || null;
     playerClanTag = (userData.clanTag && userData.clanTag !== "") ? userData.clanTag : null;
     playerClanRole = userData.clanRole || 'Membro';
 
@@ -2231,6 +2232,7 @@ function salvarEstadoRemoto() {
             equippedWeapon: playerEquippedWeapon ? { ...playerEquippedWeapon } : null,
             equippedItem: playerEquippedWeapon ? { ...playerEquippedWeapon } : null,
             equippedClothes: playerEquippedClothes ? { ...playerEquippedClothes } : null,
+            equippedWings: playerEquippedWings ? { ...playerEquippedWings } : null,
             clanTag: playerClanTag,
             customSpriteData: player.customSpriteData
         };
@@ -3322,24 +3324,38 @@ function conectarChatOnline() {
         fecharTodosModaisEPopups(activeScene);
         const modal = document.createElement('div');
         modal.id = 'vipWardrobeModal';
-        modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:400px; max-height:80vh; background:#0c0c14; border:2px solid #00e5ff; color:#fff; z-index:10001; padding:20px; font-family:monospace; overflow-y:auto; border-radius:8px; box-shadow: 0 0 20px rgba(0,229,255,0.5);';
+        modal.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:440px; max-height:85vh; background:#0c0c14; border:2px solid #00e5ff; color:#fff; z-index:10001; padding:20px; font-family:monospace; overflow-y:auto; border-radius:8px; box-shadow: 0 0 20px rgba(0,229,255,0.5);';
         
         let html = '<div style="text-align:right"><button id="closeWardrobe" style="background:#811;color:#fff;border:none;padding:5px 10px;cursor:pointer;">X</button></div>';
         html += '<h2 style="text-align:center;color:#00e5ff;margin-top:0;">👗 GUARDA-ROUPA VIP 👗</h2>';
-        html += '<p style="font-size:11px;text-align:center;color:#aaa;">Selecione uma de suas skins exclusivas para equipar agora.</p>';
-        html += '<div style="text-align:center; margin: 10px 0;"><button id="removeSkinVIPBtn" style="background:#444; color:#fff; border:1px solid #666; padding:8px; cursor:pointer; width:100%; font-weight:bold;">❌ Remover Skin (Usar Padrão)</button></div>';
+        html += '<p style="font-size:11px;text-align:center;color:#aaa;">Equipe skins base ou sobreponha asas e acessórios em camadas.</p>';
+        html += '<div style="display:flex; gap:10px; margin: 10px 0;">';
+        html += '<button id="removeSkinVIPBtn" style="background:#444; color:#fff; border:1px solid #666; padding:6px; cursor:pointer; flex:1; font-size:10px; font-weight:bold;">❌ Resetar Skin Base</button>';
+        html += '<button id="removeWingsVIPBtn" style="background:#444; color:#fff; border:1px solid #666; padding:6px; cursor:pointer; flex:1; font-size:10px; font-weight:bold;">🪶 Desequipar Asas</button>';
+        html += '</div>';
         html += '<hr style="border:0;border-top:1px solid #333;margin:15px 0;">';
         
         html += '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">';
         if (!skins || skins.length === 0) {
-            html += '<p style="grid-column: span 2; text-align:center; color:#666;">Você ainda não possui skins premium.</p>';
+            html += '<p style="grid-column: span 2; text-align:center; color:#666;">Você ainda não possui skins ou itens premium.</p>';
         } else {
-            skins.forEach(skin => {
-                const skinBtnId = `equip_btn_${skin.name.replace(/\s+/g, '_')}`;
-                html += `<div style="background:#151522; padding:10px; border:1px solid #00e5ff; text-align:center;">
-                    <img src="${skin.spriteData}" style="width:64px; height:64px; object-fit:none; object-position: top left; image-rendering:pixelated; background:#000; margin-bottom:5px;">
-                    <div style="font-size:11px; font-weight:bold; color:#00e5ff;">${skin.name}</div>
-                    <button id="${skinBtnId}" style="background:#00e5ff; color:#000; border:none; padding:5px; width:100%; cursor:pointer; font-size:10px; font-weight:bold; margin-top:5px;">Equipar</button>
+            skins.forEach((item, index) => {
+                const itemBtnId = `equip_btn_${index}_${item.name.replace(/\s+/g, '_')}`;
+                const cat = item.category || 'skin';
+                let catLabel = 'Skin Base';
+                if (cat === 'wings') catLabel = '🪶 Asas';
+                else if (cat === 'clothes') catLabel = '👗 Roupa';
+                else if (cat === 'weapon') catLabel = '⚔️ Arma';
+
+                const isEquipped = (cat === 'wings' && playerEquippedWings && playerEquippedWings.name === item.name);
+
+                html += `<div style="background:#151522; padding:10px; border:1px solid ${isEquipped ? '#ffd700' : '#00e5ff'}; text-align:center;">
+                    <img src="${item.spriteData}" style="width:64px; height:64px; object-fit:none; object-position: top left; image-rendering:pixelated; background:#000; margin-bottom:5px;">
+                    <div style="font-size:11px; font-weight:bold; color:#00e5ff;">${item.name}</div>
+                    <div style="font-size:9px; color:#aaa; margin:3px 0;">[${catLabel}]</div>
+                    <button id="${itemBtnId}" style="background:${isEquipped ? '#ffd700' : '#00e5ff'}; color:#000; border:none; padding:5px; width:100%; cursor:pointer; font-size:10px; font-weight:bold; margin-top:5px;">
+                        ${isEquipped ? 'Equipado' : 'Equipar'}
+                    </button>
                 </div>`;
             });
         }
@@ -3349,41 +3365,55 @@ function conectarChatOnline() {
         document.body.appendChild(modal);
         document.getElementById('closeWardrobe').onclick = () => modal.remove();
 
-        let isProcessingVipAction = false;
-
         const removeBtn = document.getElementById('removeSkinVIPBtn');
         if (removeBtn) {
             removeBtn.onclick = () => {
-                if (isProcessingVipAction) return;
-                isProcessingVipAction = true;
-                removeBtn.disabled = true;
-                removeBtn.innerText = 'Processando...';
-
+                modal.remove();
                 if (socket && socket.connected) {
-                    modal.remove();
                     socket.emit('removeSkinVIP');
-                } else {
-                    modal.remove();
                 }
             };
         }
 
-        if (skins) {
-            skins.forEach(skin => {
-                const skinBtnId = `equip_btn_${skin.name.replace(/\s+/g, '_')}`;
-                const btn = document.getElementById(skinBtnId);
-                if (btn) {
-                    btn.onclick = () => {
-                        if (isProcessingVipAction) return;
-                        isProcessingVipAction = true;
-                        btn.disabled = true;
-                        btn.innerText = 'Equipando...';
+        const removeWingsBtn = document.getElementById('removeWingsVIPBtn');
+        if (removeWingsBtn) {
+            removeWingsBtn.onclick = async () => {
+                playerEquippedWings = null;
+                if (player.wingsLayerSprite) {
+                    player.wingsLayerSprite.destroy();
+                    player.wingsLayerSprite = null;
+                }
+                modal.remove();
+                await salvarEstadoRemoto();
+                adicionarMensagemChat('Sistema', '🪶 Asas desequipadas.');
+            };
+        }
 
-                        if (socket && socket.connected) {
+        if (skins) {
+            skins.forEach((item, index) => {
+                const itemBtnId = `equip_btn_${index}_${item.name.replace(/\s+/g, '_')}`;
+                const btn = document.getElementById(itemBtnId);
+                if (btn) {
+                    btn.onclick = async () => {
+                        const cat = item.category || 'skin';
+                        if (cat === 'wings') {
+                            playerEquippedWings = item;
+                            renderizarJogadorCamadas(activeScene, player);
+                            await salvarEstadoRemoto();
+                            adicionarMensagemChat('Sistema', `🪶 Asas equipadas: ${item.name}`);
                             modal.remove();
-                            socket.emit('equipPremiumSkin', skin.name);
+                        } else if (cat === 'clothes') {
+                            playerEquippedClothes = item;
+                            atualizarSpriteRoupaEquipada(activeScene);
+                            renderizarJogadorCamadas(activeScene, player);
+                            await salvarEstadoRemoto();
+                            adicionarMensagemChat('Sistema', `👗 Roupa equipada: ${item.name}`);
+                            modal.remove();
                         } else {
-                            modal.remove();
+                            if (socket && socket.connected) {
+                                modal.remove();
+                                socket.emit('equipPremiumSkin', item.name);
+                            }
                         }
                     };
                 }
