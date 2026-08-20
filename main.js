@@ -490,6 +490,7 @@ function renderizarJogadorCamadas(scene, targetSprite) {
 
 function preload() {
     this.load.image('base_tiles', 'assets/[Base]BaseChip_pipo.png');
+    this.load.image('[Base]BaseChip_pipo', 'assets/[Base]BaseChip_pipo.png');
     this.load.tilemapTiledJSON('mapa_mundo', 'assets/mapa_mundo.tmj');
 
     this.load.image('chao', 'assets/chao.png');
@@ -682,12 +683,19 @@ function create() {
             if (defaultTS) tilesetList.push(defaultTS);
         }
 
-        const criarCamadaPorNome = (nomeCamada, depth, hasCollision = false) => {
-            const layerObj = map.layers ? map.layers.find(l => l && l.name && l.name.toLowerCase() === nomeCamada.toLowerCase()) : null;
-            if (!layerObj) return null;
+        const tilesetToUse = tilesetList.length === 1 ? tilesetList[0] : tilesetList;
 
-            const realName = layerObj.name;
-            const layer = map.createLayer(realName, tilesetList, 0, 0);
+        const criarCamadaPorNome = (nomeCamada, depth, hasCollision = false) => {
+            let layer = null;
+            try {
+                layer = map.createLayer(nomeCamada, tilesetToUse, 0, 0);
+            } catch (e) {
+                const layerObj = map.layers ? map.layers.find(l => l && l.name && l.name.toLowerCase() === nomeCamada.toLowerCase()) : null;
+                if (layerObj) {
+                    layer = map.createLayer(layerObj.name, tilesetToUse, 0, 0);
+                }
+            }
+
             if (layer) {
                 layer.setDepth(depth);
                 if (hasCollision) {
@@ -704,7 +712,7 @@ function create() {
         const mapWidth = map.widthInPixels || 3200;
         const mapHeight = map.heightInPixels || 2400;
         this.physics.world.setBounds(0, 0, mapWidth, mapHeight);
-        console.log(`[TILEMAP] Mapa Tiled carregado (${mapWidth}x${mapHeight}) com camadas por nome: chao, objetos, muros.`);
+        console.log(`[TILEMAP] Mapa Tiled carregado (${mapWidth}x${mapHeight}) com camadas: chao, objetos e muros.`);
     } catch (mapErr) {
         console.warn('[TILEMAP] Fallback para chão padrão:', mapErr);
         this.physics.world.setBounds(0, 0, 3200, 2400);
