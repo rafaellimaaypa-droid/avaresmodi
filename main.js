@@ -1588,7 +1588,11 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
             }
 
             if (sprite && sprite.active) {
+                if (sprite.anims) {
+                    sprite.anims.stop();
+                }
                 sprite.setTexture(key);
+                sprite.setFrame(0);
                 sprite.setScale(1.0);
                 sprite.clearTint();
                 sprite.customTextureKey = key;
@@ -1625,12 +1629,16 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
                 sprite.setVisible(true);
                 const targetAnim = `idle_down_custom_${cleanUser}`;
                 if (currentScene.anims.exists(targetAnim)) {
-                    sprite.play(targetAnim);
+                    sprite.play(targetAnim, true);
                 }
                 renderizarJogadorCamadas(currentScene, sprite);
             }
             return;
         } else {
+            if (sprite && sprite.active && sprite.anims) {
+                sprite.anims.stop();
+                sprite.setFrame(0);
+            }
             currentScene.textures.remove(uniqueKey);
         }
     }
@@ -1683,7 +1691,7 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
                     const cleanUser = username.toLowerCase();
                     const targetAnim = `idle_down_custom_${cleanUser}`;
                     if (currentScene.anims.exists(targetAnim)) {
-                        sprite.play(targetAnim);
+                        sprite.play(targetAnim, true);
                     }
                     renderizarJogadorCamadas(currentScene, sprite);
                     console.log(`[SKIN DEBUG] ✅ Nova skin única processada e aplicada para: ${username}`);
