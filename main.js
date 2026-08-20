@@ -1555,15 +1555,19 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     
     if (!currentScene || !currentScene.sys || !username) return;
 
+    // Desvincula imediatamente o sprite de qualquer textura anterior antes de manipular o cache
+    if (sprite && sprite.active) {
+        if (sprite.anims) sprite.anims.stop();
+        sprite.setTexture('player_idle');
+        sprite.setFrame(0);
+        if (sprite.accessory) {
+            sprite.accessory.destroy();
+            sprite.accessory = null;
+        }
+    }
+
     if (!skinBase64 || skinBase64.length < 100) {
         if (sprite && sprite.active) {
-            if (sprite.anims) sprite.anims.stop();
-            if (sprite.accessory) {
-                sprite.accessory.destroy();
-                sprite.accessory = null;
-            }
-            sprite.setTexture('player_idle');
-            sprite.setFrame(0);
             sprite.customTextureKey = null;
             sprite.customSpriteData = null;
             sprite.setData('skinBase64', null);
@@ -1586,11 +1590,6 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
             renderizarJogadorCamadas(currentScene, sprite);
         }
         return;
-    }
-
-    if (sprite.accessory) {
-        sprite.accessory.destroy();
-        sprite.accessory = null;
     }
 
     const uniqueKey = 'skin_' + username.toLowerCase() + '_sheet';
