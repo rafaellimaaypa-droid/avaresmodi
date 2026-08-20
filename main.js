@@ -20,7 +20,7 @@ const config = {
 
 let game;
 let gameStarted = false;
-let map, tileset, chaoLayer, objetosLayer, murosLayer;
+let map, tileset, chaoLayer, objetosLayer, murosLayer, portaoLayer, portalsList = [];
 let player, cursors, keys, mapObjects, obstacles, monsterObstacles, arrows, groundItems, ogres;
 let editMode = false;
 let editMinimized = false;
@@ -491,7 +491,7 @@ function renderizarJogadorCamadas(scene, targetSprite) {
 function preload() {
     this.load.image('base_tiles', 'assets/[Base]BaseChip_pipo.png');
     this.load.image('[Base]BaseChip_pipo', 'assets/[Base]BaseChip_pipo.png');
-    this.load.tilemapTiledJSON('mapa_mundo', 'assets/mapa_mundo.tmj');
+    this.load.tilemapTiledJSON('mapa_mundo', 'assets/mapa_mundo.json');
 
     this.load.image('chao', 'assets/chao.png');
     this.load.spritesheet('player_idle', 'assets/player_idle.png', { frameWidth: 32, frameHeight: 32 });
@@ -667,50 +667,85 @@ function create() {
     this.cameras.main.setAlpha(0);
 
     try {
-        map = this.make.tilemap({ key: 'mapa_mundo' });
+        const rawMapData = (this.cache.tilemap.get('mapa_mundo') && this.cache.tilemap.get('mapa_mundo').data) 
+            ? this.cache.tilemap.get('mapa_mundo').data 
+            : (this.cache.json.get('mapa_mundo') || this.cache.tilemap.get('mapa_mundo'));
 
-        const tilesetList = [];
-        if (map.tilesets && Array.isArray(map.tilesets)) {
-            map.tilesets.forEach(ts => {
-                if (ts && ts.name) {
-                    const loaded = map.addTilesetImage(ts.name, 'base_tiles') || map.addTilesetImage(ts.name, '[Base]BaseChip_pipo');
-                    if (loaded) tilesetList.push(loaded);
+        const width = (rawMapData && rawMapData.width) ? rawMapData.width : 100;
+        const height = (rawMapData && rawMapData.height) ? rawMapData.height : 75;
+        const tileWidth = (rawMapData && rawMapData.tilewidth) ? rawMapData.tilewidth : 32;
+        const tileHeight = (rawMapData && rawMapData.tileheight) ? rawMapData.tileheight : 32;
+
+        map = this.make.tilemap({ tileWidth: tileWidth, tileHeight: tileHeight, width: width, height: height });
+        tileset = map.addTilesetImage('base_tiles', 'base_tiles', tileWidth, tileHeight) || map.addTilesetImage('[Base]BaseChip_pipo', '[Base]BaseChip_pipo', tileWidth, tileHeight);
+
+        chaoLayer = map.createBlankLayer('chao', tileset, 0, 0);
+        objetosLayer = map.createBlankLayer('objetos', tileset, 0, 0);
+        murosLayer = map.createBlankLayer('muros', tileset, 0, 0);
+        portaoLayer = map.createBlankLayer('portao', tileset, 0, 0);
+
+        const layersMap = {
+            'chao': chaoLayer,
+            'objetos': objetosLayer,
+            'muros': murosLayer,
+            'portao': portaoLayer
+        };
+
+        portalsList = [];
+        if (rawMapData && Array.isArray(rawMapData.layers)) {
+            rawMapData.layers.forEach(layerData => {
+                if (layerData.name === 'portais' && Array.isArray(layerData.objects)) {
+                    layerData.objects.forEach(obj => {
+                        let destino = null;
+                        if (Array.isArray(obj.properties)) {
+                            const destProp = obj.properties.find(p => p.name === 'destino');
+                            if (destProp) destino = destProp.value;
+                        } else if (obj.properties && obj.properties.destino) {
+                            destino = obj.properties.destino;
+                        }
+                        portalsList.push({
+                            x: obj.x,
+                            y: obj.y,
+                            width: obj.width || 32,
+                            height: obj.height || 32,
+                            destino: destino
+                        });
+                    });
+                }
+                const layerInst = layersMap[layerData.name];
+                if (layerInst && Array.isArray(layerData.data)) {
+                    const lWidth = layerData.width || width;
+                    layerData.data.forEach((gid, index) => {
+                        if (gid > 0) {
+                            const tx = index % lWidth;
+                            const ty = Math.floor(index / lWidth);
+                            layerInst.putTileAt(gid - 1, tx, ty);
+                        }
+                    });
                 }
             });
         }
-        if (tilesetList.length === 0) {
-            const defaultTS1 = map.addTilesetImage('[Base]BaseChip_pipo', 'base_tiles') || map.addTilesetImage('[Base]BaseChip_pipo', '[Base]BaseChip_pipo');
-            const defaultTS2 = map.addTilesetImage('BaseChip_pipo', 'base_tiles');
-            if (defaultTS1) tilesetList.push(defaultTS1);
-            if (defaultTS2) tilesetList.push(defaultTS2);
-        }
 
-        const tilesetToUse = tilesetList.length === 1 ? tilesetList[0] : tilesetList;
-
-        chaoLayer = map.createLayer('chao', tilesetToUse, 0, 0);
-        if (chaoLayer) {
-            chaoLayer.setDepth(-10);
-        }
-
-        objetosLayer = map.createLayer('objetos', tilesetToUse, 0, 0);
-        if (objetosLayer) {
-            objetosLayer.setDepth(-5);
-        }
-
-        murosLayer = map.createLayer('muros', tilesetToUse, 0, 0);
+        if (chaoLayer) chaoLayer.setDepth(-10);
+        if (objetosLayer) objetosLayer.setDepth(-5);
         if (murosLayer) {
             murosLayer.setDepth(-1);
             murosLayer.setCollisionByExclusion([-1]);
         }
+        if (portaoLayer) {
+            portaoLayer.setDepth(5000);
+            portaoLayer.setCollisionByExclusion([-1]);
+        }
 
-        const mapWidth = map.widthInPixels || 3200;
-        const mapHeight = map.heightInPixels || 2400;
+        const mapWidth = width * tileWidth;
+        const mapHeight = height * tileHeight;
         this.physics.world.setBounds(0, 0, mapWidth, mapHeight);
-        console.log(`[TILEMAP] Mapa Tiled carregado (${mapWidth}x${mapHeight}) com camadas estritas: chao, objetos e muros.`);
+        this.add.tileSprite(mapWidth / 2, mapHeight / 2, mapWidth, mapHeight, 'chao').setDepth(-11);
+        console.log(`[TILEMAP] Mapa e camadas carregados manualmente (${mapWidth}x${mapHeight}).`);
     } catch (mapErr) {
         console.warn('[TILEMAP] Fallback para chão padrão:', mapErr);
         this.physics.world.setBounds(0, 0, 3200, 2400);
-        this.add.tileSprite(1600, 1200, 3200, 2400, 'chao');
+        this.add.tileSprite(1600, 1200, 3200, 2400, 'chao').setDepth(-11);
     }
 
     mapObjects = this.add.group();
@@ -854,52 +889,6 @@ function create() {
     // --- CRIAR CONTROLES MOBILE ---
     criarControlesMobile(this);
 
-    // --- NPCS (BANCO E FERREIRO) COM Y-SORTING INICIALIZADO ---
-    bankNPC = this.physics.add.sprite(200, 300, 'banker_npc').setImmovable(true).setScale(1.35);
-    bankNPC.body.allowGravity = false;
-    bankNPC.setDepth(bankNPC.y);
-    npcBank = bankNPC;
-
-    let npcBankLabel = this.add.text(200, 265, '🏦 Banco', {
-        font: 'bold 11px monospace',
-        fill: '#418be8',
-        backgroundColor: '#0c0c14ee',
-        padding: { x: 6, y: 3 },
-        stroke: '#1b1b2f',
-        strokeThickness: 2
-    }).setOrigin(0.5);
-
-    blacksmithNPC = this.physics.add.sprite(950, 300, 'blacksmith_npc').setImmovable(true).setScale(1.35);
-    blacksmithNPC.body.allowGravity = false;
-    blacksmithNPC.setDepth(blacksmithNPC.y);
-    npcMerchant = blacksmithNPC;
-
-    let npcLabel = this.add.text(950, 265, '⚔️ Ferreiro', {
-        font: 'bold 11px monospace',
-        fill: '#ffd700',
-        backgroundColor: '#0c0c14ee',
-        padding: { x: 6, y: 3 },
-        stroke: '#967322',
-        strokeThickness: 2
-    }).setOrigin(0.5);
-
-    clothingNPC = this.physics.add.sprite(580, 300, 'tailor_npc').setImmovable(true).setScale(1.35);
-    clothingNPC.body.allowGravity = false;
-    clothingNPC.setDepth(clothingNPC.y);
-    this.add.text(580, 265, 'Loja de Roupas', {
-        font: 'bold 11px monospace', fill: '#f0a8df', backgroundColor: '#0c0c14ee', padding: { x: 6, y: 3 }, stroke: '#5b2452', strokeThickness: 2
-    }).setOrigin(0.5);
-
-    // NPC Mercador Premium
-    const premiumNPC = this.physics.add.sprite(400, 350, 'banker_npc').setImmovable(true).setScale(1.35).setTint(0xffd700);
-    premiumNPC.body.allowGravity = false;
-    premiumNPC.setDepth(premiumNPC.y);
-    this.add.text(400, 315, '💎 Mercador Premium', {
-        font: 'bold 11px monospace', fill: '#FFD700', backgroundColor: '#0c0c14ee', padding: { x: 6, y: 3 }, stroke: '#000', strokeThickness: 2
-    }).setOrigin(0.5);
-    premiumNPC.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
-        if (socket && socket.connected) socket.emit('requestPremiumStore');
-    });
 
     // --- MONSTROS CONCENTRADOS NO CENTRO DO MAPA (LONGE DO SPAWN 400,450) ---
     const ogreSpawnLocations = [
@@ -937,9 +926,6 @@ function create() {
     // --- SISTEMA DE COLISÕES ---
     this.physics.add.collider(ogres, obstacles);
     this.physics.add.collider(ogres, monsterObstacles);
-    this.physics.add.collider(ogres, bankNPC);
-    this.physics.add.collider(ogres, blacksmithNPC);
-    this.physics.add.collider(ogres, clothingNPC);
 
     criarPainelChatNativo(this);
     // conectarChatOnline será chamado dentro do fluxo de login/create para evitar conexões prematuras
@@ -1230,16 +1216,6 @@ function create() {
         }
     });
 
-    try {
-        const savedMap = localStorage.getItem('meu_jogo_mapa');
-        if (savedMap) {
-            carregarMapaSalvo(this);
-        } else {
-            criarMapaInicial(this);
-        }
-    } catch (e) {
-        criarMapaInicial(this);
-    }
 
     // --- JOGADOR COM Y-SORTING INICIAL (Spawn Padrão) ---
     if (this.playerSprite) {
@@ -1264,10 +1240,13 @@ function create() {
         this.physics.add.collider(arrows, murosLayer, (arrow) => arrow.destroy());
     }
 
+    if (portaoLayer) {
+        this.physics.add.collider(player, portaoLayer);
+        this.physics.add.collider(ogres, portaoLayer);
+        this.physics.add.collider(arrows, portaoLayer, (arrow) => arrow.destroy());
+    }
+
     this.physics.add.collider(player, monsterObstacles);
-    this.physics.add.collider(player, blacksmithNPC);
-    this.physics.add.collider(player, bankNPC);
-    this.physics.add.collider(player, clothingNPC);
 
     // --- COLISÕES DOS OGROS COM JOGADOR E FLECHAS ---
     this.physics.add.collider(player, ogres, (playerObj, ogre) => {
@@ -1468,7 +1447,7 @@ function create() {
     });
 
     minimap.ignore([
-        ...minimapUiElements, btnMenuToggle, btnChatToggle, npcLabel, npcBankLabel,
+        ...minimapUiElements, btnMenuToggle, btnChatToggle,
         hudGroup, profileAvatarBg, profileAvatarImg, healthBarBg, healthBarFill, healthText, hudGoldText,
         manaBarFill, ...hotbarElements, ...chatElements, ...mobileElements,
         this.hotbarContainer, this.btnAdminToggle
@@ -1484,11 +1463,6 @@ function create() {
             if (!activeScene.textures.exists(uniqueKey)) {
                 aplicarSkinCustomizada(player, player.customSpriteData, charName.toLowerCase());
             }
-        } else if (isLoggedIn && player && !player.customSpriteData) {
-            // Se o personagem atual não possui skin, garante que a textura padrão não seja sobrescrita por lixo de cache
-            if (player.texture.key !== 'player_idle' && player.texture.key !== 'player_walk') {
-                player.setTexture('player_idle');
-            }
         }
     });
 
@@ -1502,8 +1476,6 @@ function create() {
     atualizarSpriteArmaEquipada(this);
     atualizarTextoEditor();
     carregarItensPremium();
-
-    drawCastle(this);
 
     // Esconde HUDs iniciais
     setMinimapVisible(false);
@@ -1624,29 +1596,12 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     }
 
     if (!skinBase64 || skinBase64.length < 100) {
-        if (sprite && sprite.active) {
-            sprite.customTextureKey = null;
-            sprite.customSpriteData = null;
-            sprite.setData('skinBase64', null);
-
-            if (sprite === player) {
-                sprite.setTint(charBodyColor);
-                if (currentScene.anims && currentScene.anims.exists('idle_down')) {
-                    sprite.play('idle_down', true);
-                }
-                if (profileAvatarImg && profileAvatarImg.active) {
-                    profileAvatarImg.setTexture('player_idle', 0);
-                    profileAvatarImg.setScale(1.5);
-                    profileAvatarImg.clearTint();
-                }
-            } else {
-                if (currentScene.anims && currentScene.anims.exists('idle_down')) {
-                    sprite.play('idle_down', true);
-                }
-            }
-            renderizarJogadorCamadas(currentScene, sprite);
+        const savedSkin = localStorage.getItem('avaris_custom_skin') || (sprite && sprite.initialSkinData);
+        if (savedSkin && savedSkin.length > 100) {
+            skinBase64 = savedSkin;
+        } else {
+            return;
         }
-        return;
     }
 
     const uniqueKey = 'skin_' + username.toLowerCase() + '_sheet';
@@ -1876,9 +1831,10 @@ function finalizarLoginComDados(userData) {
     playerClanRole = userData.clanRole || 'Membro';
     player.initialSkinData = userData.initialSkinData || userData.creationSkin || (selectedDefaultSkin || null);
 
-    if (userData.customSpriteData && userData.customSpriteData.length > 100) {
-        player.customSpriteData = userData.customSpriteData;
-        aplicarSkinCustomizada(player, userData.customSpriteData, userData.name.toLowerCase());
+    const skinParaAplicar = userData.customSpriteData || userData.initialSkinData || localStorage.getItem('avaris_custom_skin');
+    if (skinParaAplicar && skinParaAplicar.length > 100) {
+        player.customSpriteData = skinParaAplicar;
+        aplicarSkinCustomizada(player, skinParaAplicar, userData.name.toLowerCase());
             
         if (socket && socket.connected) {
             socket.emit('playerMovement', {
@@ -1886,13 +1842,6 @@ function finalizarLoginComDados(userData) {
                 x: player.x,
                 y: player.y
             });
-        }
-    } else {
-        player.customTextureKey = null;
-        player.customSpriteData = null;
-        player.setTexture('player_idle');
-        if (activeScene.anims.exists('idle_down')) {
-            player.anims.play('idle_down', true);
         }
     }
     player.setVisible(true);
@@ -1973,42 +1922,27 @@ function abrirCriacaoPersonagem(scene) {
         if (n) { charName = n.substring(0, 12); inputNameTxt.setText(charName); }
     });
 
-    const cores = [0xffffff, 0xffd700, 0x5b7db6, 0xb81414, 0x3f8655, 0x6d432d, 0x1b1b2f];
-    
-    const criarSeletor = (y, label, targetVar) => {
-        const txtLabel = scene.add.text(250, y, label, { font: 'bold 12px monospace', fill: '#ffffff' }).setScrollFactor(0).setDepth(5002);
-        charElements.push(txtLabel);
-        cores.forEach((cor, i) => {
-            let c = scene.add.rectangle(380 + (i * 35), y + 6, 25, 25, cor).setScrollFactor(0).setDepth(5002).setStrokeStyle(1, 0xffffff).setInteractive();
-            c.on('pointerdown', () => {
-                if (label.includes('CABELO')) charHairColor = cor;
-                if (label.includes('CORPO')) charBodyColor = cor;
-                if (label.includes('ROUPA')) charClothColor = cor;
-                preview.setTint(charBodyColor);
-            });
-            charElements.push(c);
-        });
-    };
-
-    criarSeletor(280, 'COR CABELO:', 'charHairColor');
-    criarSeletor(315, 'COR CORPO:', 'charBodyColor');
-    criarSeletor(350, 'COR ROUPA:', 'charClothColor');
-
     const renderSkinsPadrao = async () => {
         try {
             const res = await fetch(`${BASE_URL}/api/default-skins`);
             const data = await res.json();
             console.log('[DEFAULT SKINS] Retorno da API:', data);
 
-            const labelSkin = scene.add.text(250, 390, 'SKIN INICIAL:', { font: 'bold 12px monospace', fill: '#ffffff' }).setScrollFactor(0).setDepth(5002);
+            const labelSkin = scene.add.text(250, 330, 'SKIN INICIAL:', { font: 'bold 12px monospace', fill: '#ffffff' }).setScrollFactor(0).setDepth(5002);
             charElements.push(labelSkin);
 
             const skinsList = (data && data.success && Array.isArray(data.skins)) ? data.skins : [];
-            const opcoes = [{ name: 'Padrão', spriteData: null }, ...skinsList];
+            
+            if (skinsList.length > 0) {
+                if (!selectedDefaultSkin) {
+                    selectedDefaultSkin = skinsList[0].spriteData;
+                }
+                aplicarSkinCustomizada(preview, selectedDefaultSkin, 'preview_temp');
+            }
 
-            opcoes.forEach((sk, idx) => {
+            skinsList.forEach((sk, idx) => {
                 const posX = 380 + (idx * 90);
-                const btnSkin = scene.add.text(posX, 390, `[ ${sk.name} ]`, {
+                const btnSkin = scene.add.text(posX, 330, `[ ${sk.name} ]`, {
                     font: 'bold 10px monospace',
                     fill: (selectedDefaultSkin === sk.spriteData) ? '#ffd700' : '#00ffcc',
                     backgroundColor: '#1b1b2f',
@@ -2018,11 +1952,7 @@ function abrirCriacaoPersonagem(scene) {
                 btnSkin.on('pointerdown', () => {
                     selectedDefaultSkin = sk.spriteData;
                     if (sk.spriteData) {
-                        preview.clearTint();
                         aplicarSkinCustomizada(preview, sk.spriteData, 'preview_temp');
-                    } else {
-                        preview.setTexture('player_idle', 0);
-                        preview.setTint(charBodyColor);
                     }
                 });
 
@@ -2046,17 +1976,18 @@ function abrirCriacaoPersonagem(scene) {
     const btnJogar = scene.add.text(400, 520, ' [ JOGAR AGORA ] ', { font: 'bold 20px monospace', fill: '#ffffff', backgroundColor: '#1b3d1b', padding: { x: 40, y: 15 } }).setOrigin(0.5).setScrollFactor(0).setDepth(5002).setInteractive();
     btnJogar.on('pointerdown', async () => {
         if (!charName) { alert("Escolha um nome!"); return; }
+        if (!selectedDefaultSkin) { alert("Selecione uma skin inicial!"); return; }
 
         const newCharData = {
             name: charName,
-            bodyColor: charBodyColor,
+            bodyColor: 0xffffff,
             x: 400,
             y: 450,
             gold: 1000,
             bank: 500,
             health: 100,
-            initialSkinData: selectedDefaultSkin || null,
-            customSpriteData: selectedDefaultSkin || null
+            initialSkinData: selectedDefaultSkin,
+            customSpriteData: selectedDefaultSkin
         };
 
         try {
@@ -2417,22 +2348,6 @@ function coletarItemProximo(scene) {
 // --- SISTEMA DE INTERAÇÃO GERAL ---
 function checarInteracaoGeral(scene) {
     if (isPlayerDead) return;
-    let distanciaFerreiro = Phaser.Math.Distance.Between(player.x, player.y, blacksmithNPC.x, blacksmithNPC.y);
-    let distanciaBanco = Phaser.Math.Distance.Between(player.x, player.y, bankNPC.x, bankNPC.y);
-    let distanciaRoupas = Phaser.Math.Distance.Between(player.x, player.y, clothingNPC.x, clothingNPC.y);
-
-    if (distanciaFerreiro < 75) {
-        abrirLojaArmas(scene);
-        return;
-    }
-    if (distanciaBanco < 75) {
-        abrirBancoModal(scene);
-        return;
-    }
-    if (distanciaRoupas < 75) {
-        abrirLojaRoupas(scene);
-        return;
-    }
 }
 
 // --- ADICIONAR ITEM AO INVENTÁRIO ---
@@ -2676,10 +2591,6 @@ function atacarComEspada(scene) {
         }
     });
 
-    let distanciaNPC = Phaser.Math.Distance.Between(player.x, player.y, blacksmithNPC.x, blacksmithNPC.y);
-    if (distanciaNPC < 60) {
-        mostrarBalaoFala(scene, blacksmithNPC, 'Ai! Cuidado onde aponta essa arma!');
-    }
 }
 
 function atirarFlecha(scene, pointer) {
@@ -4388,17 +4299,16 @@ function toggleGameMenu(scene) {
         const sistemas = [
             { name: 'Inventário', icon: '🎒' },
             { name: 'Personalizar', icon: '🎨' },
-            { name: 'Shop', icon: '💰' },
+            { name: 'Ferreiro', icon: '⚔️' },
             { name: 'Banco', icon: '🏦' },
-            { name: 'Casa', icon: '🏠' },
+            { name: 'Loja Roupas', icon: '👗' },
+            { name: 'Mercador Premium', icon: '💎' },
+            { name: 'Guarda-Roupa VIP', icon: '👑' },
+            { name: 'Clã', icon: '🏰' },
             { name: 'Configuração', icon: '⚙️' },
             { name: 'Perfil Conta', icon: '👤' },
-            { name: 'Mensagens', icon: '✉️' },
-            { name: 'Discord', icon: '💬' },
             { name: 'Amigos', icon: '👥' },
-            { name: 'Missão', icon: '📜' },
-            { name: 'Clã', icon: '🏰' },
-            { name: 'Guarda-Roupa VIP', icon: '👗' }
+            { name: 'Missão', icon: '📜' }
         ];
 
         const itemWidth = 110;
@@ -4435,10 +4345,18 @@ function toggleGameMenu(scene) {
                     abrirInventario(scene);
                 } else if (sys.name === 'Personalizar') {
                     abrirPainelPersonalizacao(scene);
-                } else if (sys.name === 'Shop') {
+                } else if (sys.name === 'Ferreiro' || sys.name === 'Shop') {
                     abrirLojaArmas(scene);
                 } else if (sys.name === 'Banco') {
                     abrirBancoModal(scene);
+                } else if (sys.name === 'Loja Roupas') {
+                    abrirLojaRoupas(scene);
+                } else if (sys.name === 'Mercador Premium') {
+                    if (socket && socket.connected) {
+                        socket.emit('requestPremiumStore');
+                    } else {
+                        adicionarMensagemChat('Sistema', '❌ Sem conexão com o servidor.');
+                    }
                 } else if (sys.name === 'Placares') {
                     drawRankingWindow(scene);
                 } else if (sys.name === 'Configuração') {
@@ -4951,38 +4869,6 @@ function abrirLojaArmas(scene) {
 }
 
 
-function drawCastle(scene) {
-    if (!scene || !obstacles) return;
-    const cx = 2500;
-    const cy = 500;
-    
-    // Criar Paredes (Obstáculos Sólidos)
-    const wallColor = 0x444444;
-    const walls = [
-        { x: cx, y: cy - 110, w: 240, h: 20 }, // Topo
-        { x: cx - 110, y: cy, w: 20, h: 220 }, // Esquerda
-        { x: cx + 110, y: cy, w: 20, h: 220 }, // Direita
-        { x: cx - 70, y: cy + 110, w: 100, h: 20 }, // Baixo Esq
-        { x: cx + 70, y: cy + 110, w: 100, h: 20 }  // Baixo Dir
-    ];
-
-    walls.forEach(w => {
-        let wall = scene.add.rectangle(w.x, w.y, w.w, w.h, wallColor).setDepth(w.y);
-        scene.physics.add.existing(wall, true);
-        if (obstacles) obstacles.add(wall);
-    });
-
-    // Porta Destrutível
-    castle.door = scene.add.rectangle(cx, cy + 110, 60, 20, 0x5d4037).setDepth(cy + 111);
-    scene.physics.add.existing(castle.door, true);
-    castle.doorHpText = scene.add.text(cx, cy + 130, 'PORTA: 500/500', { font: 'bold 10px monospace', fill: '#ff4444' }).setOrigin(0.5);
-
-    // Bandeira de Dominação Interna
-    castle.flag = scene.add.rectangle(cx, cy - 20, 32, 24, 0xaaaaaa).setDepth(cy - 19);
-    castle.flagText = scene.add.text(cx, cy - 20, 'LIVRE', { font: 'bold 10px Arial', fill: '#000' }).setOrigin(0.5).setDepth(cy - 18);
-    
-    if (minimap) minimap.ignore([castle.door, castle.doorHpText, castle.flag, castle.flagText]);
-}
 
 function drawRankingWindow(scene) {
     if (isPlayerDead) return;
@@ -5480,6 +5366,37 @@ function update() {
 
     player.setVelocity(vx, vy);
 
+    // Verificação de colisão com retângulos da camada 'portais'
+    if (portalsList && portalsList.length > 0 && player && !isPlayerDead && !player.teleportCooldown) {
+        const playerRect = new Phaser.Geom.Rectangle(player.x - 10, player.y - 12, 20, 24);
+        portalsList.forEach(portal => {
+            const portalRect = new Phaser.Geom.Rectangle(portal.x, portal.y, portal.width, portal.height);
+            if (Phaser.Geom.Intersects.RectangleToRectangle(playerRect, portalRect)) {
+                if (portal.destino) {
+                    let targetX = null;
+                    let targetY = null;
+                    if (typeof portal.destino === 'string') {
+                        const parts = portal.destino.split(',').map(p => parseFloat(p.trim()));
+                        if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                            targetX = parts[0];
+                            targetY = parts[1];
+                        }
+                    } else if (typeof portal.destino === 'object') {
+                        targetX = portal.destino.x;
+                        targetY = portal.destino.y;
+                    }
+
+                    if (targetX !== null && targetY !== null) {
+                        player.setPosition(targetX, targetY);
+                        player.body.reset(targetX, targetY);
+                        player.teleportCooldown = true;
+                        adicionarMensagemChat('Sistema', '🌌 Você entrou no portal!');
+                        setTimeout(() => { if (player) player.teleportCooldown = false; }, 1500);
+                    }
+                }
+            }
+        });
+    }
 
     let animToPlay = isMoving ? `walk_${playerFacing}` : `idle_${playerFacing}`;
     
@@ -5496,14 +5413,8 @@ function update() {
             criarAnimacoesLPC(this, player.customTextureKey, charName.toLowerCase());
         }
         animToPlay = customAnim;
-    } else {
-        // Se não for skin custom, garante que use a animação padrão e a textura padrão
-        if (player.texture.key !== 'player_idle' && player.texture.key !== 'player_walk') {
-            player.setTexture('player_idle');
-        }
-        if (!this.anims.exists(animToPlay)) {
-            animToPlay = isMoving ? 'walk' : 'idle'; 
-        }
+    } else if (player.customSpriteData) {
+        aplicarSkinCustomizada(player, player.customSpriteData, charName.toLowerCase());
     }
     
     if (player && player.anims) {
@@ -5683,10 +5594,6 @@ function adicionarObjeto(scene, x, y, key, angle = 0, scaleX = 1, scaleY = 1, em
     return obj;
 }
 
-function criarMapaInicial(scene) {
-    adicionarObjeto(scene, 300, 300, 'TREE 1 - DAY');
-}
-
 function salvarMapa() {
     const data = [];
     monsterObstacles.children.iterate(obj => {
@@ -5708,10 +5615,8 @@ function carregarMapaSalvo(scene) {
 
             const data = JSON.parse(savedData);
             data.forEach(d => adicionarObjeto(scene, d.x, d.y, d.key, d.angle, d.scaleX, d.scaleY));
-        } else {
-            criarMapaInicial(scene);
         }
     } catch (e) {
-        criarMapaInicial(scene);
+        console.error('Erro ao carregar mapa salvo:', e);
     }
 }
