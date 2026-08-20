@@ -1780,6 +1780,7 @@ function finalizarLoginComDados(userData) {
     playerEquippedWings = userData.equippedWings || null;
     playerClanTag = (userData.clanTag && userData.clanTag !== "") ? userData.clanTag : null;
     playerClanRole = userData.clanRole || 'Membro';
+    player.initialSkinData = userData.initialSkinData || userData.creationSkin || (selectedDefaultSkin || null);
 
     if (userData.customSpriteData && userData.customSpriteData.length > 100) {
         player.customSpriteData = userData.customSpriteData;
@@ -1960,6 +1961,7 @@ function abrirCriacaoPersonagem(scene) {
             gold: 1000,
             bank: 500,
             health: 100,
+            initialSkinData: selectedDefaultSkin || null,
             customSpriteData: selectedDefaultSkin || null
         };
 
@@ -1979,6 +1981,7 @@ function abrirCriacaoPersonagem(scene) {
         }
 
         isCreatingCharacter = false;
+        player.initialSkinData = selectedDefaultSkin || null;
         if (selectedDefaultSkin) {
             player.customSpriteData = selectedDefaultSkin;
             aplicarSkinCustomizada(player, selectedDefaultSkin, charName.toLowerCase());
@@ -2406,6 +2409,7 @@ function salvarEstadoRemoto() {
             equippedClothes: playerEquippedClothes ? { ...playerEquippedClothes } : null,
             equippedWings: playerEquippedWings ? { ...playerEquippedWings } : null,
             clanTag: playerClanTag,
+            initialSkinData: player.initialSkinData || null,
             customSpriteData: player.customSpriteData
         };
 
@@ -3592,11 +3596,35 @@ function conectarChatOnline() {
 
         const removeBtn = document.getElementById('removeSkinVIPBtn');
         if (removeBtn) {
-            removeBtn.onclick = () => {
+            removeBtn.onclick = async () => {
                 modal.remove();
+                const originalSkin = player.initialSkinData || null;
+                player.customSpriteData = originalSkin;
+                
+                if (originalSkin) {
+                    aplicarSkinCustomizada(player, originalSkin, charName.toLowerCase());
+                } else {
+                    player.customTextureKey = null;
+                    player.setTexture('player_idle');
+                    player.setTint(charBodyColor);
+                    if (activeScene.anims.exists('idle_down')) {
+                        player.anims.play('idle_down', true);
+                    }
+                    if (profileAvatarImg && profileAvatarImg.active) {
+                        profileAvatarImg.setTexture('player_idle', 0);
+                        profileAvatarImg.setScale(1.5);
+                    }
+                }
+
+                renderizarJogadorCamadas(activeScene, player);
+
                 if (socket && socket.connected) {
                     socket.emit('removeSkinVIP');
+                    socket.emit('skinChanged', originalSkin);
                 }
+
+                await salvarEstadoRemoto();
+                adicionarMensagemChat('Sistema', '✨ Skin base restaurada para o modelo original.');
             };
         }
 

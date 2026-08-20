@@ -652,20 +652,24 @@ io.on('connection', (socket) => {
         if (!p || !db || !p.accountUser) return;
 
         try {
-            p.customSpriteData = null;
+            const account = await db.collection('contas').findOne({ user: p.accountUser.toLowerCase() });
+            const char = account?.characters?.[0];
+            const originalSkin = char?.initialSkinData || char?.creationSkin || null;
+
+            p.customSpriteData = originalSkin;
             await db.collection('contas').updateOne(
                 { user: p.accountUser.toLowerCase() },
-                { $set: { "characters.0.customSpriteData": null } }
+                { $set: { "characters.0.customSpriteData": originalSkin } }
             );
 
             io.emit('skinUpdated', { 
                 playerName: p.name,
-                skinData: null 
+                skinData: originalSkin 
             });
 
             socket.emit('chatMessage', { 
                 playerName: 'Sistema', 
-                message: '✨ Skin removida. Voltando ao avatar padrão.', 
+                message: '✨ Skin base restaurada para o modelo original.', 
                 channel: 'SISTEMA' 
             });
         } catch (err) {
