@@ -667,13 +667,39 @@ function create() {
 
     try {
         map = this.make.tilemap({ key: 'mapa_mundo' });
-        const tilesetName = (map.tilesets && map.tilesets[0]) ? map.tilesets[0].name : '[Base]BaseChip_pipo';
-        tileset = map.addTilesetImage(tilesetName, 'base_tiles');
 
-        if (tileset) {
-            chaoLayer = map.createLayer('chao', tileset, 0, 0);
-            objetosLayer = map.createLayer('objetos', tileset, 0, 0);
-            murosLayer = map.createLayer('muros', tileset, 0, 0);
+        const tilesets = [];
+        if (map.tilesets && map.tilesets.length > 0) {
+            map.tilesets.forEach(ts => {
+                const added = map.addTilesetImage(ts.name, 'base_tiles');
+                if (added) tilesets.push(added);
+            });
+        }
+        if (tilesets.length === 0) {
+            const fallback1 = map.addTilesetImage('[Base]BaseChip_pipo', 'base_tiles');
+            const fallback2 = map.addTilesetImage('BaseChip_pipo', 'base_tiles');
+            if (fallback1) tilesets.push(fallback1);
+            if (fallback2) tilesets.push(fallback2);
+        }
+        tileset = tilesets.length > 0 ? tilesets : null;
+
+        if (tileset && map.layers && map.layers.length > 0) {
+            const findLayerName = (searchName) => {
+                const cleanSearch = searchName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                const found = map.layers.find(l => {
+                    const cleanL = l.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    return cleanL === cleanSearch || cleanL.includes(cleanSearch);
+                });
+                return found ? found.name : searchName;
+            };
+
+            const chaoName = findLayerName('chao');
+            const objetosName = findLayerName('objetos');
+            const murosName = findLayerName('muros');
+
+            chaoLayer = map.createLayer(chaoName, tilesets, 0, 0);
+            objetosLayer = map.createLayer(objetosName, tilesets, 0, 0);
+            murosLayer = map.createLayer(murosName, tilesets, 0, 0);
 
             if (chaoLayer) chaoLayer.setDepth(-10);
             if (objetosLayer) objetosLayer.setDepth(-5);
@@ -685,9 +711,9 @@ function create() {
             const mapWidth = map.widthInPixels || 3200;
             const mapHeight = map.heightInPixels || 2400;
             this.physics.world.setBounds(0, 0, mapWidth, mapHeight);
+            console.log(`[TILEMAP] Mapa Tiled carregado com sucesso (${mapWidth}x${mapHeight})!`);
         } else {
-            this.physics.world.setBounds(0, 0, 3200, 2400);
-            this.add.tileSprite(1600, 1200, 3200, 2400, 'chao');
+            throw new Error("Tilesets ou camadas não encontrados no mapa Tiled");
         }
     } catch (mapErr) {
         console.warn('[TILEMAP] Fallback para chão padrão:', mapErr);
@@ -1306,7 +1332,9 @@ function create() {
         }
     });
 
-    this.cameras.main.setBounds(0, 0, 3200, 2400);
+    const worldW = (map && map.widthInPixels) ? map.widthInPixels : 3200;
+    const worldH = (map && map.heightInPixels) ? map.heightInPixels : 2400;
+    this.cameras.main.setBounds(0, 0, worldW, worldH);
     this.cameras.main.startFollow(player, true, 0.09, 0.09);
 
     // --- MINIMAPA PROFISSIONAL AVARIS 2.0 ---
@@ -1342,7 +1370,7 @@ function create() {
     minimap = this.cameras.add(minimapX, minimapY, minimapWidth, minimapHeight);
     minimap.setName('AvarisMinimap');
     minimap.setBackgroundColor(0x09111b);
-    minimap.setBounds(0, 0, 3200, 2400);
+    minimap.setBounds(0, 0, worldW, worldH);
     minimap.setZoom(minimapZoom);
     minimap.startFollow(player, true, 0.12, 0.12);
     minimap.roundPixels = true;
