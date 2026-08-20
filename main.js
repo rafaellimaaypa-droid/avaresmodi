@@ -673,14 +673,16 @@ function create() {
         if (map.tilesets && Array.isArray(map.tilesets)) {
             map.tilesets.forEach(ts => {
                 if (ts && ts.name) {
-                    const loaded = map.addTilesetImage(ts.name, 'base_tiles');
+                    const loaded = map.addTilesetImage(ts.name, 'base_tiles') || map.addTilesetImage(ts.name, '[Base]BaseChip_pipo');
                     if (loaded) tilesetList.push(loaded);
                 }
             });
         }
         if (tilesetList.length === 0) {
-            const defaultTS = map.addTilesetImage('[Base]BaseChip_pipo', 'base_tiles');
-            if (defaultTS) tilesetList.push(defaultTS);
+            const defaultTS1 = map.addTilesetImage('[Base]BaseChip_pipo', 'base_tiles') || map.addTilesetImage('[Base]BaseChip_pipo', '[Base]BaseChip_pipo');
+            const defaultTS2 = map.addTilesetImage('BaseChip_pipo', 'base_tiles');
+            if (defaultTS1) tilesetList.push(defaultTS1);
+            if (defaultTS2) tilesetList.push(defaultTS2);
         }
 
         const tilesetToUse = tilesetList.length === 1 ? tilesetList[0] : tilesetList;
