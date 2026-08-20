@@ -1553,9 +1553,38 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     const currentScene = activeScene || (sprite && sprite.scene) || (game && game.scene && game.scene.scenes && game.scene.scenes[0]);
     console.log('[SKIN DEBUG] Analisando jogador:', username, '| Possui customSpriteData?', !!skinBase64);
     
-    if (!currentScene || !currentScene.sys || !skinBase64 || skinBase64.length < 100 || !username) {
-        let motivo = !currentScene ? "Cena inativa" : (!skinBase64 ? "Dados base64 vazios" : "Nome de usuário inválido");
-        console.warn('[SKIN DEBUG ⚠️ FALLBACK] O avatar caiu no padrão para:', username, 'Motivo:', motivo);
+    if (!currentScene || !currentScene.sys || !username) return;
+
+    if (!skinBase64 || skinBase64.length < 100) {
+        if (sprite && sprite.active) {
+            if (sprite.anims) sprite.anims.stop();
+            if (sprite.accessory) {
+                sprite.accessory.destroy();
+                sprite.accessory = null;
+            }
+            sprite.setTexture('player_idle');
+            sprite.setFrame(0);
+            sprite.customTextureKey = null;
+            sprite.customSpriteData = null;
+            sprite.setData('skinBase64', null);
+
+            if (sprite === player) {
+                sprite.setTint(charBodyColor);
+                if (currentScene.anims && currentScene.anims.exists('idle_down')) {
+                    sprite.play('idle_down', true);
+                }
+                if (profileAvatarImg && profileAvatarImg.active) {
+                    profileAvatarImg.setTexture('player_idle', 0);
+                    profileAvatarImg.setScale(1.5);
+                    profileAvatarImg.clearTint();
+                }
+            } else {
+                if (currentScene.anims && currentScene.anims.exists('idle_down')) {
+                    sprite.play('idle_down', true);
+                }
+            }
+            renderizarJogadorCamadas(currentScene, sprite);
+        }
         return;
     }
 
@@ -3547,8 +3576,8 @@ function conectarChatOnline() {
             });
         }
 
-        if (targetSprite && data.skinData) {
-            aplicarSkinCustomizada(targetSprite, data.skinData, targetName);
+        if (targetSprite) {
+            aplicarSkinCustomizada(targetSprite, data.skinData || null, targetName);
         }
     });
 
@@ -3610,11 +3639,15 @@ function conectarChatOnline() {
                 const originalSkin = player.initialSkinData || null;
                 player.customSpriteData = originalSkin;
                 
-                if (originalSkin) {
+                if (originalSkin && originalSkin.length > 100) {
                     aplicarSkinCustomizada(player, originalSkin, charName.toLowerCase());
                 } else {
+                    if (player.anims) player.anims.stop();
                     player.customTextureKey = null;
+                    player.customSpriteData = null;
+                    player.setData('skinBase64', null);
                     player.setTexture('player_idle');
+                    player.setFrame(0);
                     player.setTint(charBodyColor);
                     if (activeScene.anims.exists('idle_down')) {
                         player.anims.play('idle_down', true);
@@ -3622,6 +3655,7 @@ function conectarChatOnline() {
                     if (profileAvatarImg && profileAvatarImg.active) {
                         profileAvatarImg.setTexture('player_idle', 0);
                         profileAvatarImg.setScale(1.5);
+                        profileAvatarImg.clearTint();
                     }
                 }
 
@@ -5408,6 +5442,9 @@ function update() {
         animToPlay = customAnim;
     } else {
         // Se não for skin custom, garante que use a animação padrão e a textura padrão
+        if (player.texture.key !== 'player_idle' && player.texture.key !== 'player_walk') {
+            player.setTexture('player_idle');
+        }
         if (!this.anims.exists(animToPlay)) {
             animToPlay = isMoving ? 'walk' : 'idle'; 
         }
