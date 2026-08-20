@@ -479,6 +479,10 @@ function renderizarJogadorCamadas(scene, targetSprite) {
         ? (playerEquippedClothes ? playerEquippedClothes.spriteData : null) 
         : (targetSprite.customClothesData || (targetSprite.getData && targetSprite.getData('playerData')?.equippedClothes?.spriteData) || null);
 
+    if (!isLocalPlayer && !targetSprite.uniqueEntityId) {
+        targetSprite.uniqueEntityId = 'npc_entity_' + Math.random().toString(36).substring(2, 9);
+    }
+
     // Camada de asas isolada em try/catch para segurança do WebGL
     try {
         sincronizarCamadaVisual(currentScene, targetSprite, 'wingsLayerSprite', wingsData, -0.1);
@@ -753,7 +757,7 @@ function create() {
         const mapHeight = height * tileHeight;
         this.physics.world.setBounds(0, 0, mapWidth, mapHeight);
         this.add.tileSprite(mapWidth / 2, mapHeight / 2, mapWidth, mapHeight, 'chao').setDepth(-11);
-        console.log(`[TILEMAP] Mapa e camadas carregados manualmente (${mapWidth}x${mapHeight}).`);
+        console.log(`[TILEMAP] Mapa 'mapa_mundo.json' e camadas carregados com sucesso (${mapWidth}x${mapHeight}).`);
     } catch (mapErr) {
         console.warn('[TILEMAP] Fallback para chão padrão:', mapErr);
         this.physics.world.setBounds(0, 0, 3200, 2400);
