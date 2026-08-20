@@ -20,6 +20,7 @@ const config = {
 
 let game;
 let gameStarted = false;
+let map, tileset, chaoLayer, objetosLayer, murosLayer;
 let player, cursors, keys, mapObjects, obstacles, monsterObstacles, arrows, groundItems, ogres;
 let editMode = false;
 let editMinimized = false;
@@ -488,6 +489,9 @@ function renderizarJogadorCamadas(scene, targetSprite) {
 }
 
 function preload() {
+    this.load.image('base_tiles', 'assets/[Base]BaseChip_pipo.png');
+    this.load.tilemapTiledJSON('mapa_mundo', 'assets/mapa_mundo.tmj');
+
     this.load.image('chao', 'assets/chao.png');
     this.load.spritesheet('player_idle', 'assets/player_idle.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('player_walk', 'assets/player_walk.png', { frameWidth: 32, frameHeight: 32 });
@@ -661,8 +665,35 @@ function create() {
     this.physics.world.pause();
     this.cameras.main.setAlpha(0);
 
-    this.physics.world.setBounds(0, 0, 3200, 2400);
-    this.add.tileSprite(1600, 1200, 3200, 2400, 'chao');
+    try {
+        map = this.make.tilemap({ key: 'mapa_mundo' });
+        const tilesetName = (map.tilesets && map.tilesets[0]) ? map.tilesets[0].name : '[Base]BaseChip_pipo';
+        tileset = map.addTilesetImage(tilesetName, 'base_tiles');
+
+        if (tileset) {
+            chaoLayer = map.createLayer('chao', tileset, 0, 0);
+            objetosLayer = map.createLayer('objetos', tileset, 0, 0);
+            murosLayer = map.createLayer('muros', tileset, 0, 0);
+
+            if (chaoLayer) chaoLayer.setDepth(-10);
+            if (objetosLayer) objetosLayer.setDepth(-5);
+            if (murosLayer) {
+                murosLayer.setDepth(-1);
+                murosLayer.setCollisionByExclusion([-1]);
+            }
+
+            const mapWidth = map.widthInPixels || 3200;
+            const mapHeight = map.heightInPixels || 2400;
+            this.physics.world.setBounds(0, 0, mapWidth, mapHeight);
+        } else {
+            this.physics.world.setBounds(0, 0, 3200, 2400);
+            this.add.tileSprite(1600, 1200, 3200, 2400, 'chao');
+        }
+    } catch (mapErr) {
+        console.warn('[TILEMAP] Fallback para chão padrão:', mapErr);
+        this.physics.world.setBounds(0, 0, 3200, 2400);
+        this.add.tileSprite(1600, 1200, 3200, 2400, 'chao');
+    }
 
     mapObjects = this.add.group();
     obstacles = this.physics.add.staticGroup();
@@ -1208,6 +1239,12 @@ function create() {
     player.body.setSize(20, 24); 
     player.body.setOffset(6, 6);  
     player.setDepth(player.y);
+
+    if (murosLayer) {
+        this.physics.add.collider(player, murosLayer);
+        this.physics.add.collider(ogres, murosLayer);
+        this.physics.add.collider(arrows, murosLayer, (arrow) => arrow.destroy());
+    }
 
     this.physics.add.collider(player, monsterObstacles);
     this.physics.add.collider(player, blacksmithNPC);
