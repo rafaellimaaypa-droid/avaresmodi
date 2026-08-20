@@ -1598,6 +1598,7 @@ async function handleAuth(type) {
 }
 
 function aplicarSkinCustomizada(sprite, skinBase64, username) {
+    if (!sprite || !sprite.active) return;
     const currentScene = activeScene || (sprite && sprite.scene) || (game && game.scene && game.scene.scenes && game.scene.scenes[0]);
     console.log('[SKIN DEBUG] Analisando jogador:', username, '| Possui customSpriteData?', !!skinBase64);
     
@@ -1614,17 +1615,24 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
         }
     }
 
-    if (!skinBase64 || skinBase64.length < 100) {
+    if (!skinBase64 || typeof skinBase64 !== 'string' || skinBase64.length < 100) {
         let savedSkin = null;
-        if (sprite === player) {
-            savedSkin = localStorage.getItem('avaris_custom_skin') || (sprite && sprite.initialSkinData);
-        } else {
-            savedSkin = sprite && sprite.initialSkinData;
+        try {
+            if (sprite === player) {
+                savedSkin = localStorage.getItem('avaris_custom_skin') || (sprite && sprite.initialSkinData);
+            } else {
+                savedSkin = sprite && sprite.initialSkinData;
+            }
+        } catch (e) {
+            console.warn('[SKIN WARNING] Erro ao buscar skin salva:', e);
         }
 
-        if (savedSkin && savedSkin.length > 100) {
+        if (savedSkin && typeof savedSkin === 'string' && savedSkin.length > 100) {
             skinBase64 = savedSkin;
         } else {
+            if (sprite && sprite.active && currentScene && currentScene.textures && currentScene.textures.exists('player_idle')) {
+                sprite.setTexture('player_idle');
+            }
             return;
         }
     }
@@ -1715,6 +1723,12 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     }
 
     const img = new Image();
+    img.onerror = (err) => {
+        console.warn('[SKIN WARNING] Erro ao carregar imagem de skin:', err);
+        if (sprite && sprite.active && currentScene && currentScene.textures && currentScene.textures.exists('player_idle')) {
+            sprite.setTexture('player_idle');
+        }
+    };
     img.src = skinBase64;
     img.onload = () => {
         if (!currentScene || !currentScene.textures || !currentScene.sys) return;
