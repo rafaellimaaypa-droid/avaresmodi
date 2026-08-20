@@ -1923,6 +1923,7 @@ function finalizarLoginComDados(userData) {
     atualizarHudGold();
     atualizarSpriteArmaEquipada(activeScene);
     atualizarSpriteRoupaEquipada(activeScene);
+    renderizarJogadorCamadas(activeScene, player);
     adicionarMensagemChat('Sistema', `Bem-vindo de volta, ${charName}!`);
     
     const isAdminPremium = (currentUser && currentUser.toLowerCase() === 'mestre') || adminLevel >= 8;
@@ -3447,7 +3448,10 @@ function conectarChatOnline() {
             anim: player.anims.currentAnim ? player.anims.currentAnim.key : 'idle_down',
             adminRole: adminRole,
             adminLevel: adminLevel,
-            clanTag: playerClanTag
+            clanTag: playerClanTag,
+            equippedWings: playerEquippedWings,
+            equippedClothes: playerEquippedClothes,
+            equippedWeapon: playerEquippedWeapon
         });
 
         // Configura salvamento automático robusto a cada 30 segundos (layer de proteção extra)
@@ -4060,6 +4064,7 @@ function adicionarOutroJogador(scene, data) {
 
         other.customWingsData = data.equippedWings ? data.equippedWings.spriteData : null;
         other.customClothesData = data.equippedClothes ? data.equippedClothes.spriteData : null;
+        other.customWeaponData = data.equippedWeapon || null;
         
         try {
             renderizarJogadorCamadas(currentScene, other);
