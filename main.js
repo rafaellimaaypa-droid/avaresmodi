@@ -687,34 +687,26 @@ function create() {
 
         const tilesetToUse = tilesetList.length === 1 ? tilesetList[0] : tilesetList;
 
-        const criarCamadaPorNome = (nomeCamada, depth, hasCollision = false) => {
-            let layer = null;
-            try {
-                layer = map.createLayer(nomeCamada, tilesetToUse, 0, 0);
-            } catch (e) {
-                const layerObj = map.layers ? map.layers.find(l => l && l.name && l.name.toLowerCase() === nomeCamada.toLowerCase()) : null;
-                if (layerObj) {
-                    layer = map.createLayer(layerObj.name, tilesetToUse, 0, 0);
-                }
-            }
+        chaoLayer = map.createLayer('chao', tilesetToUse, 0, 0);
+        if (chaoLayer) {
+            chaoLayer.setDepth(-10);
+        }
 
-            if (layer) {
-                layer.setDepth(depth);
-                if (hasCollision) {
-                    layer.setCollisionByExclusion([-1]);
-                }
-            }
-            return layer;
-        };
+        objetosLayer = map.createLayer('objetos', tilesetToUse, 0, 0);
+        if (objetosLayer) {
+            objetosLayer.setDepth(-5);
+        }
 
-        chaoLayer = criarCamadaPorNome('chao', -10, false);
-        objetosLayer = criarCamadaPorNome('objetos', -5, false);
-        murosLayer = criarCamadaPorNome('muros', -1, true);
+        murosLayer = map.createLayer('muros', tilesetToUse, 0, 0);
+        if (murosLayer) {
+            murosLayer.setDepth(-1);
+            murosLayer.setCollisionByExclusion([-1]);
+        }
 
         const mapWidth = map.widthInPixels || 3200;
         const mapHeight = map.heightInPixels || 2400;
         this.physics.world.setBounds(0, 0, mapWidth, mapHeight);
-        console.log(`[TILEMAP] Mapa Tiled carregado (${mapWidth}x${mapHeight}) com camadas: chao, objetos e muros.`);
+        console.log(`[TILEMAP] Mapa Tiled carregado (${mapWidth}x${mapHeight}) com camadas estritas: chao, objetos e muros.`);
     } catch (mapErr) {
         console.warn('[TILEMAP] Fallback para chão padrão:', mapErr);
         this.physics.world.setBounds(0, 0, 3200, 2400);
