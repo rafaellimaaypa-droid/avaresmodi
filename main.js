@@ -313,7 +313,19 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
     const currentScene = scene || parentSprite?.scene || activeScene || (game && game.scene && game.scene.scenes && game.scene.scenes[0]);
     if (!currentScene || !currentScene.sys || !parentSprite || !parentSprite.active) return;
 
-    const cleanUser = (parentSprite.name || (parentSprite.getData && (parentSprite.getData('playerData')?.name || parentSprite.getData('playerData')?.user)) || charName || 'player').toLowerCase();
+    const isLocalPlayer = (parentSprite === player);
+    const pData = parentSprite.getData ? parentSprite.getData('playerData') : null;
+    let spriteName = parentSprite.name || pData?.name || pData?.user;
+    if (!spriteName && isLocalPlayer) {
+        spriteName = charName || 'player';
+    }
+    if (!spriteName) {
+        if (!parentSprite.uniqueEntityId) {
+            parentSprite.uniqueEntityId = 'entity_' + Math.random().toString(36).substring(2, 9);
+        }
+        spriteName = parentSprite.uniqueEntityId;
+    }
+    const cleanUser = spriteName.toLowerCase();
     const layerKey = `layer_${cleanUser}_${layerPropName}_sheet`;
 
     if (!spriteData) {
@@ -1596,7 +1608,13 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
     }
 
     if (!skinBase64 || skinBase64.length < 100) {
-        const savedSkin = localStorage.getItem('avaris_custom_skin') || (sprite && sprite.initialSkinData);
+        let savedSkin = null;
+        if (sprite === player) {
+            savedSkin = localStorage.getItem('avaris_custom_skin') || (sprite && sprite.initialSkinData);
+        } else {
+            savedSkin = sprite && sprite.initialSkinData;
+        }
+
         if (savedSkin && savedSkin.length > 100) {
             skinBase64 = savedSkin;
         } else {
