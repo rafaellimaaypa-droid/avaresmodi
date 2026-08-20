@@ -210,7 +210,10 @@ function conectarMultiplayerOnline() {
                 adminRole: adminRole,
                 adminLevel: adminLevel,
                 clanTag: playerClanTag,
-                hasCustomSkin: !!player.customSpriteData
+                hasCustomSkin: !!player.customSpriteData,
+                equippedWings: playerEquippedWings,
+                equippedClothes: playerEquippedClothes,
+                equippedWeapon: playerEquippedWeapon
             });
         }
     });
@@ -1908,7 +1911,11 @@ function finalizarLoginComDados(userData) {
             facing: playerFacing,
             anim: 'idle_down',
             adminRole: adminRole,
-            adminLevel: adminLevel
+            adminLevel: adminLevel,
+            clanTag: playerClanTag,
+            equippedWings: playerEquippedWings,
+            equippedClothes: playerEquippedClothes,
+            equippedWeapon: playerEquippedWeapon
         });
     }
     
@@ -2072,7 +2079,10 @@ function abrirCriacaoPersonagem(scene) {
                 facing: playerFacing,
                 anim: player.anims.currentAnim ? player.anims.currentAnim.key : 'idle_down',
                 adminRole: adminRole,
-                adminLevel: adminLevel
+                adminLevel: adminLevel,
+                equippedWings: playerEquippedWings,
+                equippedClothes: playerEquippedClothes,
+                equippedWeapon: playerEquippedWeapon
             });
         }
     });
@@ -5341,7 +5351,10 @@ function update() {
                 y: Math.round(player.y),
                 facing: playerFacing,
                 direction: playerFacing,
-                anim: currentAnim
+                anim: currentAnim,
+                equippedWings: playerEquippedWings,
+                equippedClothes: playerEquippedClothes,
+                equippedWeapon: playerEquippedWeapon
             });
 
             lastSentPos = { x: player.x, y: player.y, anim: currentAnim };
