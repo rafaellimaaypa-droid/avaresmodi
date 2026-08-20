@@ -668,73 +668,43 @@ function create() {
     try {
         map = this.make.tilemap({ key: 'mapa_mundo' });
 
-        const tilesets = [];
-        if (map.tilesets && map.tilesets.length > 0) {
+        const tilesetList = [];
+        if (map.tilesets && Array.isArray(map.tilesets)) {
             map.tilesets.forEach(ts => {
-                const added = map.addTilesetImage(ts.name, 'base_tiles');
-                if (added) tilesets.push(added);
+                if (ts && ts.name) {
+                    const loaded = map.addTilesetImage(ts.name, 'base_tiles');
+                    if (loaded) tilesetList.push(loaded);
+                }
             });
         }
-        if (tilesets.length === 0) {
-            const fallback1 = map.addTilesetImage('[Base]BaseChip_pipo', 'base_tiles');
-            const fallback2 = map.addTilesetImage('BaseChip_pipo', 'base_tiles');
-            if (fallback1) tilesets.push(fallback1);
-            if (fallback2) tilesets.push(fallback2);
+        if (tilesetList.length === 0) {
+            const defaultTS = map.addTilesetImage('[Base]BaseChip_pipo', 'base_tiles');
+            if (defaultTS) tilesetList.push(defaultTS);
         }
-        tileset = tilesets.length > 0 ? tilesets : null;
 
-        if (tileset && map.layers && map.layers.length > 0) {
-            console.log('[TILEMAP] Camadas detectadas no arquivo:', map.layers.map(l => l.name));
+        const criarCamadaPorNome = (nomeCamada, depth, hasCollision = false) => {
+            const layerObj = map.layers ? map.layers.find(l => l && l.name && l.name.toLowerCase() === nomeCamada.toLowerCase()) : null;
+            if (!layerObj) return null;
 
-            const findLayer = (searchNames) => {
-                for (const search of searchNames) {
-                    const cleanSearch = search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-                    const found = map.layers.find(l => {
-                        const cleanL = l.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-                        return cleanL === cleanSearch;
-                    });
-                    if (found) return found.name;
-                }
-                for (const search of searchNames) {
-                    const cleanSearch = search.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-                    const found = map.layers.find(l => {
-                        const cleanL = l.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-                        return cleanL.includes(cleanSearch);
-                    });
-                    if (found) return found.name;
-                }
-                return null;
-            };
-
-            const chaoName = findLayer(['chao', 'ground', 'camada de blocos 1', 'fundo']) || (map.layers[0] ? map.layers[0].name : null);
-            const objetosName = findLayer(['objetos', 'objects', 'camada de blocos 2', 'decoracao']);
-            const murosName = findLayer(['muros', 'paredes', 'walls', 'colisao', 'colisoes', 'camada de blocos 3']);
-
-            if (chaoName) {
-                chaoLayer = map.createLayer(chaoName, tilesets, 0, 0);
-                if (chaoLayer) chaoLayer.setDepth(-10);
-            }
-
-            if (objetosName) {
-                objetosLayer = map.createLayer(objetosName, tilesets, 0, 0);
-                if (objetosLayer) objetosLayer.setDepth(-5);
-            }
-
-            if (murosName) {
-                murosLayer = map.createLayer(murosName, tilesets, 0, 0);
-                if (murosLayer) {
-                    murosLayer.setDepth(-1);
-                    murosLayer.setCollisionByExclusion([-1]);
+            const realName = layerObj.name;
+            const layer = map.createLayer(realName, tilesetList, 0, 0);
+            if (layer) {
+                layer.setDepth(depth);
+                if (hasCollision) {
+                    layer.setCollisionByExclusion([-1]);
                 }
             }
+            return layer;
+        };
 
-            const mapWidth = map.widthInPixels || 3200;
-            const mapHeight = map.heightInPixels || 2400;
-            this.physics.world.setBounds(0, 0, mapWidth, mapHeight);
-            console.log(`[TILEMAP] Mapa Tiled carregado com sucesso (${mapWidth}x${mapHeight})! Camadas carregadas:`, { chao: chaoName, objetos: objetosName, muros: murosName });
-        } else {
-            throw new Error("Tilesets ou camadas não encontrados no mapa Tiled");
-        }
+        chaoLayer = criarCamadaPorNome('chao', -10, false);
+        objetosLayer = criarCamadaPorNome('objetos', -5, false);
+        murosLayer = criarCamadaPorNome('muros', -1, true);
+
+        const mapWidth = map.widthInPixels || 3200;
+        const mapHeight = map.heightInPixels || 2400;
+        this.physics.world.setBounds(0, 0, mapWidth, mapHeight);
+        console.log(`[TILEMAP] Mapa Tiled carregado (${mapWidth}x${mapHeight}) com camadas por nome: chao, objetos, muros.`);
     } catch (mapErr) {
         console.warn('[TILEMAP] Fallback para chão padrão:', mapErr);
         this.physics.world.setBounds(0, 0, 3200, 2400);
