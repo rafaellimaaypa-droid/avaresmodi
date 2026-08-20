@@ -1614,12 +1614,15 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
 
     if (currentScene.textures.exists(uniqueKey)) {
         const existingTex = currentScene.textures.get(uniqueKey);
-        if (existingTex && existingTex.key && existingTex.frames && Object.keys(existingTex.frames).length > 0) {
+        const isSameSkin = sprite.getData('skinBase64') === skinBase64;
+        
+        if (isSameSkin && existingTex && existingTex.key && existingTex.frames && Object.keys(existingTex.frames).length > 0) {
+            const cleanUser = username.toLowerCase();
+            criarAnimacoesLPC(currentScene, uniqueKey, cleanUser);
             vincularTextura(uniqueKey);
             sprite.customSpriteData = skinBase64;
             if (sprite && sprite.active) {
                 sprite.setVisible(true);
-                const cleanUser = username.toLowerCase();
                 const targetAnim = `idle_down_custom_${cleanUser}`;
                 if (currentScene.anims.exists(targetAnim)) {
                     sprite.play(targetAnim);
@@ -1627,6 +1630,8 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
                 renderizarJogadorCamadas(currentScene, sprite);
             }
             return;
+        } else {
+            currentScene.textures.remove(uniqueKey);
         }
     }
 
@@ -1710,55 +1715,51 @@ function criarAnimacoesLPC(scene, textureKey, username) {
     direcoes.forEach((config) => {
         // WALK
         const walkName = `walk_${config.dir}_custom_${username}`;
-        if (!scene.anims.exists(walkName)) {
-            scene.anims.create({
-                key: walkName,
-                frames: scene.anims.generateFrameNumbers(textureKey, {
-                    start: config.rowWalk * 13, 
-                    end: (config.rowWalk * 13) + 8
-                }),
-                frameRate: 12,
-                repeat: -1
-            });
-        }
+        if (scene.anims.exists(walkName)) scene.anims.remove(walkName);
+        scene.anims.create({
+            key: walkName,
+            frames: scene.anims.generateFrameNumbers(textureKey, {
+                start: config.rowWalk * 13, 
+                end: (config.rowWalk * 13) + 8
+            }),
+            frameRate: 12,
+            repeat: -1
+        });
         
         // IDLE
         const idleName = `idle_${config.dir}_custom_${username}`;
-        if (!scene.anims.exists(idleName)) {
-            scene.anims.create({
-                key: idleName,
-                frames: [{ key: textureKey, frame: config.rowWalk * 13 }],
-                frameRate: 1
-            });
-        }
+        if (scene.anims.exists(idleName)) scene.anims.remove(idleName);
+        scene.anims.create({
+            key: idleName,
+            frames: [{ key: textureKey, frame: config.rowWalk * 13 }],
+            frameRate: 1
+        });
 
         // SLASH (Ataque) - 6 frames
         const slashName = `slash_${config.dir}_custom_${username}`;
-        if (!scene.anims.exists(slashName)) {
-            scene.anims.create({
-                key: slashName,
-                frames: scene.anims.generateFrameNumbers(textureKey, {
-                    start: config.rowSlash * 13,
-                    end: (config.rowSlash * 13) + 5
-                }),
-                frameRate: 10,
-                repeat: 0
-            });
-        }
+        if (scene.anims.exists(slashName)) scene.anims.remove(slashName);
+        scene.anims.create({
+            key: slashName,
+            frames: scene.anims.generateFrameNumbers(textureKey, {
+                start: config.rowSlash * 13,
+                end: (config.rowSlash * 13) + 5
+            }),
+            frameRate: 10,
+            repeat: 0
+        });
 
         // SPELL (Magia) - 7 frames
         const spellName = `spell_${config.dir}_custom_${username}`;
-        if (!scene.anims.exists(spellName)) {
-            scene.anims.create({
-                key: spellName,
-                frames: scene.anims.generateFrameNumbers(textureKey, {
-                    start: config.rowSpell * 13,
-                    end: (config.rowSpell * 13) + 6
-                }),
-                frameRate: 10,
-                repeat: 0
-            });
-        }
+        if (scene.anims.exists(spellName)) scene.anims.remove(spellName);
+        scene.anims.create({
+            key: spellName,
+            frames: scene.anims.generateFrameNumbers(textureKey, {
+                start: config.rowSpell * 13,
+                end: (config.rowSpell * 13) + 6
+            }),
+            frameRate: 10,
+            repeat: 0
+        });
     });
 }
 
