@@ -20,7 +20,8 @@ const config = {
 
 let game;
 let gameStarted = false;
-let map, tileset, chaoLayer, objetosLayer, murosLayer, portaoLayer, portalsList = [];
+let map, tileset, chaoLayer, objetosLayer, murosLayer, portaoLayer, dynamicallyCreatedLayers = [], portalsList = [], currentMapKey = 'mapa_mundo';
+let murosColliders = [], portaoColliders = [], objetosColliders = [];
 let player, cursors, keys, mapObjects, obstacles, monsterObstacles, arrows, groundItems, ogres;
 let editMode = false;
 let editMinimized = false;
@@ -77,7 +78,7 @@ let playerMaxMana = 100;
 let isPlayerDead = false;
 let playerDeaths = 0;
 let deathScreenElements = [];
-let profileAvatarBg, profileAvatarImg, healthBarBg, healthBarFill, healthText, hudGoldText, hudPremiumText;
+let hudGroup, profileAvatarBg, profileAvatarImg, healthBarBg, healthBarFill, healthText, hudGoldText, hudPremiumText;
 let manaBarFill;
 let hotbarElements = [];
 
@@ -94,6 +95,8 @@ let isMenuOpen = false;
 let modalText = null;
 
 function fecharTodosModaisEPopups(scene) {
+    if (isFullMapOpen) fecharMapaExpandido(scene);
+
     menuElements.forEach(el => {
         if (el && typeof el.destroy === 'function') el.destroy();
     });
@@ -228,11 +231,15 @@ let playerChatBubble = null;
 let playerBubbleTimer = null;
 let playerBubbleTween = null;
 
-let btnZoomOut, btnZoomIn, minimapBorder;
+let btnExpandMap, minimapBorder, btnMinimapaMinimize;
 let minimapPanel, minimapHeader, minimapTitle, minimapCoords, minimapCompass;
-let minimapPlayerMarker, minimapPulse;
+let minimapPlayerMarker, minimapPulse, minimapHitArea;
 let minimapUiElements = [];
 let minimapVisible = true;
+let isMinimapMinimized = false;
+let fullMapCamera = null;
+let fullMapElements = [];
+let isFullMapOpen = false;
 
 // Lista de assets do mapa
 const assetList = [
@@ -356,9 +363,11 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
 
     const atualizarSpriteCamada = () => {
         try {
-            if (!currentScene.textures || !currentScene.textures.exists(layerKey)) return;
+            if (!currentScene || !currentScene.textures || !currentScene.textures.exists(layerKey)) return;
             const tex = currentScene.textures.get(layerKey);
-            if (!tex || !tex.key || !tex.frames || Object.keys(tex.frames).length === 0) return;
+            if (!tex || !tex.key || !tex.source || !tex.source[0] || !tex.source[0].glTexture || !tex.frames || Object.keys(tex.frames).length === 0) return;
+
+            if (!parentSprite || !parentSprite.active) return;
 
             if (!parentSprite[layerPropName] || !parentSprite[layerPropName].active) {
                 parentSprite[layerPropName] = currentScene.add.sprite(parentSprite.x, parentSprite.y, layerKey);
@@ -370,13 +379,13 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
                 if (layerSprite.texture.key !== layerKey && currentScene.textures.exists(layerKey)) {
                     layerSprite.setTexture(layerKey);
                 }
-                layerSprite.setScale(parentSprite.scaleX, parentSprite.scaleY);
+                layerSprite.setScale(parentSprite.scaleX || 1, parentSprite.scaleY || 1);
                 layerSprite.setPosition(parentSprite.x, parentSprite.y);
-                layerSprite.setVisible(parentSprite.visible);
-                layerSprite.setAlpha(parentSprite.alpha);
+                layerSprite.setVisible(parentSprite.visible !== false);
+                layerSprite.setAlpha(typeof parentSprite.alpha === 'number' ? parentSprite.alpha : 1);
             }
         } catch (err) {
-            if (parentSprite[layerPropName]) {
+            if (parentSprite && parentSprite[layerPropName]) {
                 try { parentSprite[layerPropName].destroy(); } catch (e) {}
                 parentSprite[layerPropName] = null;
             }
@@ -420,14 +429,17 @@ function sincronizarCamadaVisual(scene, parentSprite, layerPropName, spriteData,
 }
 
 function atualizarDirecaoEProfundidadeAsa(targetSprite, wingSprite, fallbackFacing = 'down') {
-    if (!targetSprite || !wingSprite || !wingSprite.active || !wingSprite.texture) return;
+    if (!targetSprite || !targetSprite.active || !wingSprite || !wingSprite.active || !wingSprite.texture) return;
     try {
         const currentScene = targetSprite.scene || activeScene || (game && game.scene && game.scene.scenes && game.scene.scenes[0]);
         if (!currentScene || !currentScene.textures || !currentScene.textures.exists(wingSprite.texture.key)) {
             try { wingSprite.destroy(); } catch (e) {}
-            targetSprite.wingsLayerSprite = null;
+            if (targetSprite) targetSprite.wingsLayerSprite = null;
             return;
         }
+
+        const tex = currentScene.textures.get(wingSprite.texture.key);
+        if (!tex || !tex.source || !tex.source[0] || !tex.source[0].glTexture) return;
 
         const animKey = targetSprite.anims?.currentAnim?.key || '';
         let dir = fallbackFacing;
@@ -451,20 +463,25 @@ function atualizarDirecaoEProfundidadeAsa(targetSprite, wingSprite, fallbackFaci
         }
 
         aplicarFrameSeguro(wingSprite, targetFrame);
-        wingSprite.setPosition(targetSprite.x, targetSprite.y);
-        wingSprite.setDepth(isUp ? targetSprite.y + 0.1 : targetSprite.y - 0.1);
+        if (typeof targetSprite.x === 'number' && typeof targetSprite.y === 'number') {
+            wingSprite.setPosition(targetSprite.x, targetSprite.y);
+            wingSprite.setDepth(isUp ? targetSprite.y + 0.1 : targetSprite.y - 0.1);
+        }
+        wingSprite.setScale(targetSprite.scaleX || 1, targetSprite.scaleY || 1);
         wingSprite.setFlipX(false);
-        wingSprite.setVisible(targetSprite.visible);
-        wingSprite.setAlpha(targetSprite.alpha);
+        wingSprite.setVisible(targetSprite.visible !== false);
+        wingSprite.setAlpha(typeof targetSprite.alpha === 'number' ? targetSprite.alpha : 1);
     } catch (e) {
         try {
             if (wingSprite && wingSprite.active) {
                 aplicarFrameSeguro(wingSprite, 0);
-                wingSprite.setDepth(targetSprite.y - 0.1);
+                if (targetSprite && typeof targetSprite.y === 'number') {
+                    wingSprite.setDepth(targetSprite.y - 0.1);
+                }
             }
         } catch (err) {
             try { wingSprite.destroy(); } catch (destroyErr) {}
-            targetSprite.wingsLayerSprite = null;
+            if (targetSprite) targetSprite.wingsLayerSprite = null;
         }
     }
 }
@@ -511,6 +528,11 @@ function preload() {
     this.load.image('base_tiles', 'assets/[Base]BaseChip_pipo.png');
     this.load.image('[Base]BaseChip_pipo', 'assets/[Base]BaseChip_pipo.png');
     this.load.tilemapTiledJSON('mapa_mundo', 'assets/mapa_mundo.json');
+    this.load.tilemapTiledJSON('dungeon', 'assets/dungeon.json');
+    this.load.tilemapTiledJSON('caverna2', 'assets/caverna2.json');
+    this.load.json('mapa_mundo', 'assets/mapa_mundo.json');
+    this.load.json('dungeon', 'assets/dungeon.json');
+    this.load.json('caverna2', 'assets/caverna2.json');
 
     this.load.image('chao', 'assets/chao.png');
     this.load.spritesheet('player_idle', 'assets/player_idle.png', { frameWidth: 32, frameHeight: 32 });
@@ -685,87 +707,7 @@ function create() {
     this.physics.world.pause();
     this.cameras.main.setAlpha(0);
 
-    try {
-        const rawMapData = (this.cache.tilemap.get('mapa_mundo') && this.cache.tilemap.get('mapa_mundo').data) 
-            ? this.cache.tilemap.get('mapa_mundo').data 
-            : (this.cache.json.get('mapa_mundo') || this.cache.tilemap.get('mapa_mundo'));
-
-        const width = (rawMapData && rawMapData.width) ? rawMapData.width : 100;
-        const height = (rawMapData && rawMapData.height) ? rawMapData.height : 75;
-        const tileWidth = (rawMapData && rawMapData.tilewidth) ? rawMapData.tilewidth : 32;
-        const tileHeight = (rawMapData && rawMapData.tileheight) ? rawMapData.tileheight : 32;
-
-        map = this.make.tilemap({ tileWidth: tileWidth, tileHeight: tileHeight, width: width, height: height });
-        tileset = map.addTilesetImage('base_tiles', 'base_tiles', tileWidth, tileHeight) || map.addTilesetImage('[Base]BaseChip_pipo', '[Base]BaseChip_pipo', tileWidth, tileHeight);
-
-        chaoLayer = map.createBlankLayer('chao', tileset, 0, 0);
-        objetosLayer = map.createBlankLayer('objetos', tileset, 0, 0);
-        murosLayer = map.createBlankLayer('muros', tileset, 0, 0);
-        portaoLayer = map.createBlankLayer('portao', tileset, 0, 0);
-
-        const layersMap = {
-            'chao': chaoLayer,
-            'objetos': objetosLayer,
-            'muros': murosLayer,
-            'portao': portaoLayer
-        };
-
-        portalsList = [];
-        if (rawMapData && Array.isArray(rawMapData.layers)) {
-            rawMapData.layers.forEach(layerData => {
-                if (layerData.name === 'portais' && Array.isArray(layerData.objects)) {
-                    layerData.objects.forEach(obj => {
-                        let destino = null;
-                        if (Array.isArray(obj.properties)) {
-                            const destProp = obj.properties.find(p => p.name === 'destino');
-                            if (destProp) destino = destProp.value;
-                        } else if (obj.properties && obj.properties.destino) {
-                            destino = obj.properties.destino;
-                        }
-                        portalsList.push({
-                            x: obj.x,
-                            y: obj.y,
-                            width: obj.width || 32,
-                            height: obj.height || 32,
-                            destino: destino
-                        });
-                    });
-                }
-                const layerInst = layersMap[layerData.name];
-                if (layerInst && Array.isArray(layerData.data)) {
-                    const lWidth = layerData.width || width;
-                    layerData.data.forEach((gid, index) => {
-                        if (gid > 0) {
-                            const tx = index % lWidth;
-                            const ty = Math.floor(index / lWidth);
-                            layerInst.putTileAt(gid - 1, tx, ty);
-                        }
-                    });
-                }
-            });
-        }
-
-        if (chaoLayer) chaoLayer.setDepth(-10);
-        if (objetosLayer) objetosLayer.setDepth(-5);
-        if (murosLayer) {
-            murosLayer.setDepth(-1);
-            murosLayer.setCollisionByExclusion([-1]);
-        }
-        if (portaoLayer) {
-            portaoLayer.setDepth(5000);
-            portaoLayer.setCollisionByExclusion([-1]);
-        }
-
-        const mapWidth = width * tileWidth;
-        const mapHeight = height * tileHeight;
-        this.physics.world.setBounds(0, 0, mapWidth, mapHeight);
-        this.add.tileSprite(mapWidth / 2, mapHeight / 2, mapWidth, mapHeight, 'chao').setDepth(-11);
-        console.log(`[TILEMAP] Mapa 'mapa_mundo.json' e camadas carregados com sucesso (${mapWidth}x${mapHeight}).`);
-    } catch (mapErr) {
-        console.warn('[TILEMAP] Fallback para chão padrão:', mapErr);
-        this.physics.world.setBounds(0, 0, 3200, 2400);
-        this.add.tileSprite(1600, 1200, 3200, 2400, 'chao').setDepth(-11);
-    }
+    carregarTilemap(this, 'mapa_mundo');
 
     mapObjects = this.add.group();
     obstacles = this.physics.add.staticGroup();
@@ -843,7 +785,7 @@ function create() {
     activeScene.btnMinEdit = btnMinEdit;
 
     // --- NOVO HUD Glassmorphism ---
-    const hudGroup = this.add.container(20, 20).setScrollFactor(0).setDepth(1000);
+    hudGroup = this.add.container(20, 20).setScrollFactor(0).setDepth(1000);
 
     // Fundo do Perfil (Vidro Fosco)
     profileAvatarBg = this.add.rectangle(30, 30, 60, 60, 0xffffff, 0.15).setStrokeStyle(1, 0xffffff, 0.3);
@@ -1244,26 +1186,16 @@ function create() {
     }
 
     const initialTexture = (player && player.customTextureKey) ? player.customTextureKey : 'player_idle';
-    this.playerSprite = this.physics.add.sprite(400, 450, initialTexture);
+    this.playerSprite = this.physics.add.sprite(1600, 1200, initialTexture);
     player = this.playerSprite;
     player.setScale(1.3);
     player.setVisible(false);
     player.setCollideWorldBounds(true);
-    player.body.setSize(20, 24); 
-    player.body.setOffset(6, 6);  
+    player.body.setSize(18, 14); 
+    player.body.setOffset(7, 18);  
     player.setDepth(player.y);
 
-    if (murosLayer) {
-        this.physics.add.collider(player, murosLayer);
-        this.physics.add.collider(ogres, murosLayer);
-        this.physics.add.collider(arrows, murosLayer, (arrow) => arrow.destroy());
-    }
-
-    if (portaoLayer) {
-        this.physics.add.collider(player, portaoLayer);
-        this.physics.add.collider(ogres, portaoLayer);
-        this.physics.add.collider(arrows, portaoLayer, (arrow) => arrow.destroy());
-    }
+    atualizarColisoresMapa(this);
 
     this.physics.add.collider(player, monsterObstacles);
 
@@ -1327,37 +1259,35 @@ function create() {
     this.cameras.main.setBounds(0, 0, worldW, worldH);
     this.cameras.main.startFollow(player, true, 0.09, 0.09);
 
-    // --- MINIMAPA PROFISSIONAL AVARIS 2.0 ---
-    const minimapX = 605;
+    // --- MINIMAPA COMPACTO AVARIS 2.0 ---
+    const minimapX = 665;
     const minimapY = 10;
-    const minimapWidth = 185;
-    const minimapHeight = 135;
+    const minimapWidth = 125;
+    const minimapHeight = 95;
 
     minimapPanel = this.add.graphics().setScrollFactor(0).setDepth(1);
     minimapPanel.fillStyle(0x070b13, 0.94);
-    minimapPanel.fillRoundedRect(595, 5, 200, 185, 12);
+    minimapPanel.fillRoundedRect(minimapX - 6, minimapY - 5, minimapWidth + 12, minimapHeight + 32, 8);
     minimapPanel.lineStyle(2, 0xd6b85f, 0.95);
-    minimapPanel.strokeRoundedRect(594, 6, 200, 174, 12);
-    minimapPanel.lineStyle(1, 0x4f6f8f, 0.75);
-    minimapPanel.strokeRoundedRect(598, 10, 192, 166, 9);
+    minimapPanel.strokeRoundedRect(minimapX - 7, minimapY - 6, minimapWidth + 14, minimapHeight + 34, 8);
 
-    minimapHeader = this.add.rectangle(695, 20, 192, 24, 0x111c2b, 0.98)
+    minimapHeader = this.add.rectangle(minimapX + minimapWidth / 2, minimapY - 1, minimapWidth + 8, 16, 0x111c2b, 0.98)
         .setScrollFactor(0).setDepth(2);
 
-    minimapTitle = this.add.text(605, 20, 'AVARIS | MAPA', {
-        font: 'bold 11px monospace', fill: '#f3e5ab'
+    minimapTitle = this.add.text(minimapX - 2, minimapY - 1, '🗺️ MAPA', {
+        font: 'bold 9px monospace', fill: '#f3e5ab'
     }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(3);
 
-    minimapCoords = this.add.text(695, 185, 'X:0000  Y:0000', {
-        font: '10px monospace', fill: '#9dc7e8'
+    minimapCoords = this.add.text(minimapX + minimapWidth / 2, minimapY + minimapHeight + 18, 'X:0000 Y:0000', {
+        font: '9px monospace', fill: '#9dc7e8'
     }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(3);
 
-    minimapCompass = this.add.text(612, 43, 'N', {
-        font: 'bold 11px monospace', fill: '#ffdb6e',
+    minimapCompass = this.add.text(minimapX + 8, minimapY + 14, 'N', {
+        font: 'bold 9px monospace', fill: '#ffdb6e',
         stroke: '#000000', strokeThickness: 2
     }).setOrigin(0.5).setScrollFactor(0).setDepth(4);
 
-    minimap = this.cameras.add(minimapX, minimapY, minimapWidth, minimapHeight);
+    minimap = this.cameras.add(minimapX, minimapY + 10, minimapWidth, minimapHeight);
     minimap.setName('AvarisMinimap');
     minimap.setBackgroundColor(0x09111b);
     minimap.setBounds(0, 0, worldW, worldH);
@@ -1369,20 +1299,18 @@ function create() {
 
     minimapBorder = this.add.graphics().setScrollFactor(0).setDepth(2);
     minimapBorder.lineStyle(2, 0xe6cc78, 0.95);
-    minimapBorder.strokeRoundedRect(minimapX - 2, minimapY - 2, minimapWidth + 4, minimapHeight + 4, 6);
-    minimapBorder.lineStyle(1, 0x7fb3d5, 0.65);
-    minimapBorder.strokeRoundedRect(minimapX + 1, minimapY + 1, minimapWidth - 2, minimapHeight - 2, 4);
+    minimapBorder.strokeRoundedRect(minimapX - 2, minimapY + 8, minimapWidth + 4, minimapHeight + 4, 4);
 
     minimapPulse = this.add.circle(
         minimapX + minimapWidth / 2,
-        minimapY + minimapHeight / 2,
-        9, 0x56e39f, 0.18
+        minimapY + 10 + minimapHeight / 2,
+        7, 0x56e39f, 0.18
     ).setScrollFactor(0).setDepth(4);
 
     minimapPlayerMarker = this.add.triangle(
         minimapX + minimapWidth / 2,
-        minimapY + minimapHeight / 2,
-        0, 10, 6, -6, -6, -6,
+        minimapY + 10 + minimapHeight / 2,
+        0, 8, 5, -5, -5, -5,
         0x63f5ad, 1
     ).setScrollFactor(0).setDepth(5).setStrokeStyle(2, 0x062b1b, 1);
 
@@ -1395,37 +1323,44 @@ function create() {
         ease: 'Sine.Out'
     });
 
-    btnZoomOut = this.add.text(750, 20, '-', {
-        font: 'bold 16px monospace', fill: '#d8e9f7',
-        backgroundColor: '#162638', padding: { x: 5, y: 1 }
+    btnExpandMap = this.add.text(minimapX + minimapWidth - 22, minimapY - 1, '🔍', {
+        font: 'bold 11px monospace', fill: '#f3e5ab',
+        backgroundColor: '#162638', padding: { x: 3, y: 0 }
     }).setOrigin(0.5).setScrollFactor(0).setDepth(5)
       .setInteractive({ useHandCursor: true });
 
-    btnZoomIn = this.add.text(780, 20, '+', {
-        font: 'bold 16px monospace', fill: '#d8e9f7',
-        backgroundColor: '#162638', padding: { x: 5, y: 1 }
+    btnMinimapaMinimize = this.add.text(minimapX + minimapWidth - 6, minimapY - 1, '-', {
+        font: 'bold 12px monospace', fill: '#ffd700',
+        backgroundColor: '#162638', padding: { x: 3, y: 0 }
     }).setOrigin(0.5).setScrollFactor(0).setDepth(5)
       .setInteractive({ useHandCursor: true });
 
-    btnZoomOut.on('pointerdown', () => {
-        if (!isPlayerDead && minimap) {
-            minimapZoom = Phaser.Math.Clamp(minimapZoom - 0.025, 0.08, 0.50);
-            minimap.setZoom(minimapZoom);
-            atualizarTextoEditor();
+    btnExpandMap.on('pointerdown', (ptr, lx, ly, event) => {
+        if (event) event.stopPropagation();
+        if (!isPlayerDead && !isCreatingCharacter) {
+            abrirMapaExpandido(this);
         }
     });
 
-    btnZoomIn.on('pointerdown', () => {
-        if (!isPlayerDead && minimap) {
-            minimapZoom = Phaser.Math.Clamp(minimapZoom + 0.025, 0.08, 0.50);
-            minimap.setZoom(minimapZoom);
-            atualizarTextoEditor();
+    btnMinimapaMinimize.on('pointerdown', (ptr, lx, ly, event) => {
+        if (event) event.stopPropagation();
+        toggleMinimapaMinimize();
+    });
+
+    // Zona de clique no minimapa para abrir o mapa expandido
+    minimapHitArea = this.add.rectangle(minimapX + minimapWidth / 2, minimapY + minimapHeight / 2 + 5, minimapWidth + 10, minimapHeight + 20, 0x000000, 0)
+        .setScrollFactor(0).setDepth(10)
+        .setInteractive({ useHandCursor: true });
+
+    minimapHitArea.on('pointerdown', () => {
+        if (!isPlayerDead && !isCreatingCharacter) {
+            abrirMapaExpandido(this);
         }
     });
 
     minimapUiElements = [
         minimapPanel, minimapHeader, minimapTitle, minimapCoords, minimapCompass,
-        minimapBorder, minimapPulse, minimapPlayerMarker, btnZoomOut, btnZoomIn
+        minimapBorder, minimapPulse, minimapPlayerMarker, minimapHitArea, btnMinimapaMinimize, btnExpandMap
     ];
     setMinimapVisible(true);
 
@@ -1465,12 +1400,14 @@ function create() {
         }
     });
 
-    minimap.ignore([
+    const minimapIgnored = [
         ...minimapUiElements, btnMenuToggle, btnChatToggle,
-        hudGroup, profileAvatarBg, profileAvatarImg, healthBarBg, healthBarFill, healthText, hudGoldText,
+        profileAvatarBg, profileAvatarImg, healthBarBg, healthBarFill, healthText, hudGoldText,
         manaBarFill, ...hotbarElements, ...chatElements, ...mobileElements,
         this.hotbarContainer, this.btnAdminToggle
-    ]);
+    ];
+    if (typeof hudGroup !== 'undefined' && hudGroup) minimapIgnored.push(hudGroup);
+    minimap.ignore(minimapIgnored);
 
     cursors = this.input.keyboard.createCursorKeys();
     keys = this.input.keyboard.addKeys('W,A,S,D');
@@ -1652,7 +1589,7 @@ function aplicarSkinCustomizada(sprite, skinBase64, username) {
             }
 
             const tex = currentScene.textures.get(key);
-            if (!tex || !tex.key || !tex.frames || Object.keys(tex.frames).length === 0) {
+            if (!tex || !tex.key || !tex.source || !tex.source[0] || !tex.frames || Object.keys(tex.frames).length === 0) {
                 if (sprite && sprite.active && sprite.texture.key !== 'player_idle') {
                     sprite.setTexture('player_idle');
                     sprite.customTextureKey = null;
@@ -1854,7 +1791,7 @@ function finalizarLoginComDados(userData) {
     // Carrega posição e status salvos do servidor explicitamente
     console.log(`Carregando personagem: ${userData.name} em X:${userData.x} Y:${userData.y}`);
     
-    player.setPosition(userData.x || 400, userData.y || 450);
+    player.setPosition(userData.x || 1600, userData.y || 1200);
     player.body.reset(player.x, player.y);
     
     playerGold = userData.gold !== undefined ? userData.gold : 1000;
@@ -2025,8 +1962,8 @@ function abrirCriacaoPersonagem(scene) {
         const newCharData = {
             name: charName,
             bodyColor: 0xffffff,
-            x: 400,
-            y: 450,
+            x: 1600,
+            y: 1200,
             gold: 1000,
             bank: 500,
             health: 100,
@@ -2114,19 +2051,69 @@ function aplicarEscalaHUD() {
     });
 }
 
+function toggleMinimapaMinimize() {
+    isMinimapMinimized = !isMinimapMinimized;
+
+    const minimapX = 665;
+    const minimapY = 10;
+    const minimapWidth = 125;
+    const minimapHeight = 95;
+
+    if (minimapPanel) {
+        minimapPanel.clear();
+        if (isMinimapMinimized) {
+            minimapPanel.fillStyle(0x070b13, 0.94);
+            minimapPanel.fillRoundedRect(minimapX - 6, minimapY - 5, minimapWidth + 12, 22, 8);
+            minimapPanel.lineStyle(2, 0xd6b85f, 0.95);
+            minimapPanel.strokeRoundedRect(minimapX - 7, minimapY - 6, minimapWidth + 14, 24, 8);
+        } else {
+            minimapPanel.fillStyle(0x070b13, 0.94);
+            minimapPanel.fillRoundedRect(minimapX - 6, minimapY - 5, minimapWidth + 12, minimapHeight + 32, 8);
+            minimapPanel.lineStyle(2, 0xd6b85f, 0.95);
+            minimapPanel.strokeRoundedRect(minimapX - 7, minimapY - 6, minimapWidth + 14, minimapHeight + 34, 8);
+        }
+    }
+
+    const showBody = !isMinimapMinimized;
+
+    if (minimap) minimap.setVisible(showBody && minimapVisible);
+    if (minimapBorder) minimapBorder.setVisible(showBody && minimapVisible);
+    if (minimapPulse) minimapPulse.setVisible(showBody && minimapVisible);
+    if (minimapPlayerMarker) minimapPlayerMarker.setVisible(showBody && minimapVisible);
+    if (minimapCoords) minimapCoords.setVisible(showBody && minimapVisible);
+    if (minimapCompass) minimapCompass.setVisible(showBody && minimapVisible);
+    if (minimapHitArea) minimapHitArea.setVisible(showBody && minimapVisible);
+
+    if (btnMinimapaMinimize) {
+        btnMinimapaMinimize.setText(isMinimapMinimized ? '+' : '-');
+    }
+}
+
 function setMinimapVisible(visible) {
     if (isCreatingCharacter) visible = false;
     minimapVisible = visible;
-    if (minimap) minimap.setVisible(visible);
+
+    if (minimap) minimap.setVisible(visible && !isMinimapMinimized);
 
     minimapUiElements.forEach(element => {
-        if (element && element.active) element.setVisible(visible);
+        if (element && element.active) {
+            if (isMinimapMinimized && element !== minimapPanel && element !== minimapHeader && element !== minimapTitle && element !== btnMinimapaMinimize && element !== btnExpandMap) {
+                element.setVisible(false);
+            } else {
+                element.setVisible(visible);
+            }
+        }
     });
+
+    if (typeof hudGroup !== 'undefined' && hudGroup && hudGroup.active) {
+        hudGroup.setVisible(visible);
+    }
+
     aplicarEscalaHUD();
 }
 
 function atualizarMinimapaHUD() {
-    if (!minimapVisible || !player || !minimapCoords || !minimapPlayerMarker) return;
+    if (!minimapVisible || isMinimapMinimized || !player || !minimapCoords || !minimapPlayerMarker) return;
 
     minimapCoords.setText(
         'X:' + Math.round(player.x).toString().padStart(4, '0') +
@@ -2142,7 +2129,92 @@ function atualizarMinimapaHUD() {
     minimapPlayerMarker.setRotation(rotationByFacing[playerFacing] || 0);
 }
 
+function abrirMapaExpandido(scene) {
+    if (isFullMapOpen || isPlayerDead) return;
+    isFullMapOpen = true;
+
+    const currentScene = scene || activeScene;
+    const w = 640;
+    const h = 480;
+    const x = 80;
+    const y = 60;
+
+    const bgOverlay = currentScene.add.rectangle(400, 300, 800, 600, 0x000000, 0.8)
+        .setScrollFactor(0).setDepth(25000).setInteractive();
+
+    const panelBg = currentScene.add.rectangle(400, 300, w + 16, h + 50, 0x0c0c14, 0.95)
+        .setScrollFactor(0).setDepth(25001).setStrokeStyle(2, 0xf3e5ab);
+
+    const header = currentScene.add.rectangle(400, y - 10, w + 16, 30, 0x1b1b2f)
+        .setScrollFactor(0).setDepth(25002).setStrokeStyle(1, 0x967322);
+
+    const title = currentScene.add.text(400, y - 10, `🗺️ MAPA COMPLETO - ${currentMapKey.toUpperCase()}`, {
+        font: 'bold 14px monospace', fill: '#f3e5ab'
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(25003);
+
+    const closeBtn = currentScene.add.text(x + w - 10, y - 10, ' [ X ] ', {
+        font: 'bold 12px monospace', fill: '#ff5555', backgroundColor: '#12121a', padding: { x: 4, y: 2 }
+    }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(25003).setInteractive({ useHandCursor: true });
+
+    const tipTxt = currentScene.add.text(400, y + h + 12, 'Clique em qualquer lugar ou no botão [X] para fechar', {
+        font: '11px monospace', fill: '#a0a0c0'
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(25003);
+
+    bgOverlay.on('pointerdown', () => fecharMapaExpandido(currentScene));
+    closeBtn.on('pointerdown', (ptr, lx, ly, event) => {
+        if (event) event.stopPropagation();
+        fecharMapaExpandido(currentScene);
+    });
+
+    const worldW = (map && map.widthInPixels) ? map.widthInPixels : 3200;
+    const worldH = (map && map.heightInPixels) ? map.heightInPixels : 2400;
+
+    fullMapCamera = currentScene.cameras.add(x, y + 10, w, h);
+    fullMapCamera.setName('AvarisFullMap');
+    fullMapCamera.setBackgroundColor(0x050a12);
+    fullMapCamera.setBounds(0, 0, worldW, worldH);
+
+    const zoomX = w / worldW;
+    const zoomY = h / worldH;
+    const calcZoom = Math.max(Math.min(zoomX, zoomY) * 1.2, 0.15);
+    fullMapCamera.setZoom(calcZoom);
+    fullMapCamera.startFollow(player, true, 0.2, 0.2);
+
+    const elementsToIgnore = [
+        bgOverlay, panelBg, header, title, closeBtn, tipTxt,
+        infoText, ...minimapUiElements, ...hotbarElements, ...chatElements, ...mobileElements
+    ];
+    if (typeof hudGroup !== 'undefined' && hudGroup) elementsToIgnore.push(hudGroup);
+    if (currentScene.hotbarContainer) elementsToIgnore.push(currentScene.hotbarContainer);
+    if (currentScene.btnAdminToggle) elementsToIgnore.push(currentScene.btnAdminToggle);
+    if (profileAvatarBg) elementsToIgnore.push(profileAvatarBg);
+
+    fullMapCamera.ignore(elementsToIgnore);
+
+    fullMapElements = [bgOverlay, panelBg, header, title, closeBtn, tipTxt];
+    if (minimap) minimap.ignore(fullMapElements);
+}
+
+function fecharMapaExpandido(scene) {
+    if (!isFullMapOpen) return;
+    isFullMapOpen = false;
+
+    const currentScene = scene || activeScene;
+    if (fullMapCamera) {
+        try {
+            currentScene.cameras.remove(fullMapCamera);
+        } catch (e) {}
+        fullMapCamera = null;
+    }
+
+    fullMapElements.forEach(el => {
+        if (el && typeof el.destroy === 'function') el.destroy();
+    });
+    fullMapElements = [];
+}
+
 function mostrarTelaMorte(scene) {
+    if (isFullMapOpen) fecharMapaExpandido(scene);
     if (isMenuOpen) toggleGameMenu(scene);
     if (isChatOpen) toggleChat(scene);
     setMinimapVisible(false);
@@ -2185,8 +2257,8 @@ function mostrarTelaMorte(scene) {
     respawnBtn.on('pointerdown', () => {
         playerHealth = playerMaxHealth;
         atualizarBarraDeVida();
-        player.setPosition(400, 450);
-        player.body.reset(400, 450);
+        player.setPosition(1600, 1200);
+        player.body.reset(1600, 1200);
         isPlayerDead = false;
         setMinimapVisible(true);
         atualizarMinimapaHUD();
@@ -2497,12 +2569,17 @@ function atualizarSpriteArmaEquipada(scene) {
         equippedWeaponSprite.destroy();
         equippedWeaponSprite = null;
     }
-    if (playerEquippedWeapon && scene) {
+    if (playerEquippedWeapon && scene && scene.textures) {
         let textureKey = playerEquippedWeapon.id;
-        equippedWeaponSprite = scene.add.image(player.x, player.y, textureKey);
-        equippedWeaponSprite.setDepth(player.y + 1); 
-        equippedWeaponSprite.setDisplaySize(24, 24);
-        if (minimap) minimap.ignore(equippedWeaponSprite);
+        if (scene.textures.exists(textureKey)) {
+            const tex = scene.textures.get(textureKey);
+            if (tex && tex.source && tex.source[0]) {
+                equippedWeaponSprite = scene.add.image(player.x, player.y, textureKey);
+                equippedWeaponSprite.setDepth(player.y + 1); 
+                equippedWeaponSprite.setDisplaySize(24, 24);
+                if (minimap) minimap.ignore(equippedWeaponSprite);
+            }
+        }
     }
 }
 
@@ -2882,10 +2959,15 @@ function atualizarSpriteRoupaEquipada(scene) {
         equippedClothesSprite.destroy();
         equippedClothesSprite = null;
     }
-    if (playerEquippedClothes && scene && player) {
-        equippedClothesSprite = scene.add.image(player.x, player.y + 2, playerEquippedClothes.id)
-            .setDisplaySize(42, 42).setDepth(player.y + 0.5).setAlpha(0.82);
-        if (minimap) minimap.ignore(equippedClothesSprite);
+    if (playerEquippedClothes && scene && scene.textures && player) {
+        if (scene.textures.exists(playerEquippedClothes.id)) {
+            const tex = scene.textures.get(playerEquippedClothes.id);
+            if (tex && tex.source && tex.source[0]) {
+                equippedClothesSprite = scene.add.image(player.x, player.y + 2, playerEquippedClothes.id)
+                    .setDisplaySize(42, 42).setDepth(player.y + 0.5).setAlpha(0.82);
+                if (minimap) minimap.ignore(equippedClothesSprite);
+            }
+        }
     }
 }
 
@@ -4316,10 +4398,7 @@ function toggleGameMenu(scene) {
     if (isMenuOpen) {
         if (editMode) { editMode = false; infoText.setVisible(false); }
         if (isChatOpen) toggleChat(scene);
-        if (minimap) minimap.setVisible(false);
-        if (btnZoomOut) btnZoomOut.setVisible(false);
-        if (btnZoomIn) btnZoomIn.setVisible(false);
-        if (minimapBorder) minimapBorder.setVisible(false);
+        setMinimapVisible(false);
 
         menuElements = [];
 
@@ -5420,36 +5499,72 @@ function update() {
 
     player.setVelocity(vx, vy);
 
-    // Verificação de colisão com retângulos da camada 'portais'
+    // Verificação de sobreposição (trigger) com a área do portal da camada de objetos
     if (portalsList && portalsList.length > 0 && player && !isPlayerDead && !player.teleportCooldown) {
-        const playerRect = new Phaser.Geom.Rectangle(player.x - 10, player.y - 12, 20, 24);
-        portalsList.forEach(portal => {
-            const portalRect = new Phaser.Geom.Rectangle(portal.x, portal.y, portal.width, portal.height);
-            if (Phaser.Geom.Intersects.RectangleToRectangle(playerRect, portalRect)) {
-                if (portal.destino) {
-                    let targetX = null;
-                    let targetY = null;
-                    if (typeof portal.destino === 'string') {
-                        const parts = portal.destino.split(',').map(p => parseFloat(p.trim()));
-                        if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-                            targetX = parts[0];
-                            targetY = parts[1];
-                        }
-                    } else if (typeof portal.destino === 'object') {
-                        targetX = portal.destino.x;
-                        targetY = portal.destino.y;
-                    }
+        const pBody = player.body;
+        const playerRect = pBody 
+            ? new Phaser.Geom.Rectangle(pBody.x, pBody.y, pBody.width, pBody.height)
+            : new Phaser.Geom.Rectangle(player.x - 12, player.y - 16, 24, 32);
 
-                    if (targetX !== null && targetY !== null) {
-                        player.setPosition(targetX, targetY);
-                        player.body.reset(targetX, targetY);
-                        player.teleportCooldown = true;
-                        adicionarMensagemChat('Sistema', '🌌 Você entrou no portal!');
-                        setTimeout(() => { if (player) player.teleportCooldown = false; }, 1500);
+        for (let i = 0; i < portalsList.length; i++) {
+            const portal = portalsList[i];
+            const pWidth = (portal.width && portal.width > 0) ? portal.width : 32;
+            const pHeight = (portal.height && portal.height > 0) ? portal.height : 32;
+            const portalRect = new Phaser.Geom.Rectangle(portal.x, portal.y, pWidth, pHeight);
+
+            // Verificação por interseção de retângulos (trigger puro de sobreposição)
+            const isOverlapping = Phaser.Geom.Intersects.RectangleToRectangle(playerRect, portalRect);
+
+            if (isOverlapping) {
+                const propriedadeDestino = portal.destino;
+                console.log('Portal detectado para:', propriedadeDestino);
+
+                let targetMap = null;
+                let targetX = null;
+                let targetY = null;
+
+                if (propriedadeDestino) {
+                    if (typeof propriedadeDestino === 'string') {
+                        const parts = propriedadeDestino.replace('.json', '').split(',').map(p => p.trim());
+                        if (parts.length === 1) {
+                            if (isNaN(parseFloat(parts[0]))) {
+                                targetMap = parts[0];
+                            }
+                        } else if (parts.length >= 2) {
+                            if (isNaN(parseFloat(parts[0]))) {
+                                targetMap = parts[0];
+                                targetX = parseFloat(parts[1]);
+                                targetY = parseFloat(parts[2]);
+                            } else {
+                                targetX = parseFloat(parts[0]);
+                                targetY = parseFloat(parts[1]);
+                            }
+                        }
+                    } else if (typeof propriedadeDestino === 'object') {
+                        targetMap = propriedadeDestino.map ? String(propriedadeDestino.map).replace('.json', '') : null;
+                        targetX = propriedadeDestino.x;
+                        targetY = propriedadeDestino.y;
                     }
                 }
+
+                if (!targetMap) {
+                    targetMap = (currentMapKey === 'mapa_mundo') ? 'dungeon' : 'mapa_mundo';
+                }
+
+                if (targetMap) {
+                    let destX = (targetX !== null && !isNaN(targetX)) ? targetX : (targetMap === 'mapa_mundo' ? 1600 : 320);
+                    let destY = (targetY !== null && !isNaN(targetY)) ? targetY : (targetMap === 'mapa_mundo' ? 1200 : 320);
+
+                    player.teleportCooldown = true;
+                    carregarTilemap(this, targetMap);
+                    player.setPosition(destX, destY);
+                    player.body.reset(destX, destY);
+                    adicionarMensagemChat('Sistema', `🌌 Você atravessou o portal para ${targetMap}!`);
+                    setTimeout(() => { if (player) player.teleportCooldown = false; }, 2000);
+                    break;
+                }
             }
-        });
+        }
     }
 
     let animToPlay = isMoving ? `walk_${playerFacing}` : `idle_${playerFacing}`;
@@ -5633,6 +5748,19 @@ function adicionarObjeto(scene, x, y, key, angle = 0, scaleX = 1, scaleY = 1, em
 
     if (obj.body) {
         obj.body.enable = shouldHaveCollision;
+        obj.body.immovable = true;
+        if (upperKey === 'COLLISION_BOX') {
+            obj.body.setSize(obj.displayWidth, obj.displayHeight);
+            obj.body.setOffset(0, 0);
+        } else {
+            // Colisão compacta de 10x10 centralizada na base do objeto para efeito de profundidade
+            const bodyW = 10;
+            const bodyH = 10;
+            const offsetX = (obj.displayWidth - bodyW) / 2;
+            const offsetY = obj.displayHeight - bodyH;
+            obj.body.setSize(bodyW, bodyH);
+            obj.body.setOffset(offsetX, offsetY);
+        }
         obj.refreshBody();
     }
 
@@ -5659,6 +5787,230 @@ function salvarMapa() {
         }
     });
     localStorage.setItem('meu_jogo_mapa', JSON.stringify(data));
+}
+
+function carregarTilemap(scene, mapKey) {
+    currentMapKey = mapKey || 'mapa_mundo';
+    try {
+        // Destruição explícita de todas as camadas e do objeto tilemap anterior
+        if (dynamicallyCreatedLayers && dynamicallyCreatedLayers.length > 0) {
+            dynamicallyCreatedLayers.forEach(l => {
+                if (l) { try { l.destroy(true); } catch (e) {} }
+            });
+        }
+        dynamicallyCreatedLayers = [];
+        chaoLayer = null;
+        objetosLayer = null;
+        murosLayer = null;
+        portaoLayer = null;
+        if (map) { try { map.destroy(); } catch (e) {} map = null; }
+
+        murosColliders.forEach(c => { if (c && c.destroy) c.destroy(); });
+        portaoColliders.forEach(c => { if (c && c.destroy) c.destroy(); });
+        objetosColliders.forEach(c => { if (c && c.destroy) c.destroy(); });
+        murosColliders = [];
+        portaoColliders = [];
+        objetosColliders = [];
+        portalsList = [];
+
+        let jsonCache = scene.cache.json.get(currentMapKey);
+        let tilemapCache = scene.cache.tilemap.get(currentMapKey);
+
+        if (!jsonCache && !tilemapCache) {
+            console.warn(`[TILEMAP] Mapa '${currentMapKey}' não encontrado no cache. Baixando dinamicamente...`);
+            scene.load.tilemapTiledJSON(currentMapKey, `assets/${currentMapKey}.json`);
+            scene.load.json(currentMapKey, `assets/${currentMapKey}.json`);
+            scene.load.once('complete', () => {
+                carregarTilemap(scene, currentMapKey);
+            });
+            scene.load.start();
+            return;
+        }
+
+        let rawMapData = null;
+        if (jsonCache) {
+            rawMapData = jsonCache;
+        } else if (tilemapCache) {
+            rawMapData = tilemapCache.data !== undefined ? tilemapCache.data : tilemapCache;
+        }
+
+        if (typeof rawMapData === 'string') {
+            try {
+                rawMapData = JSON.parse(rawMapData);
+            } catch (e) {
+                console.warn(`[TILEMAP] Erro ao interpretar JSON da string do mapa '${currentMapKey}':`, e);
+            }
+        }
+
+        if (!rawMapData || typeof rawMapData !== 'object') {
+            console.warn(`[TILEMAP] Dados do mapa '${currentMapKey}' inválidos. Usando estrutura fallback.`);
+            rawMapData = { width: 100, height: 75, tilewidth: 32, tileheight: 32, layers: [] };
+        }
+
+        const width = Number(rawMapData.width) || 100;
+        const height = Number(rawMapData.height) || 75;
+        const tileWidth = Number(rawMapData.tilewidth) || 32;
+        const tileHeight = Number(rawMapData.tileheight) || 32;
+
+        map = scene.make.tilemap({ tileWidth: tileWidth, tileHeight: tileHeight, width: width, height: height });
+
+        const tilesetList = [];
+        const textureKeys = ['base_tiles', '[Base]BaseChip_pipo'];
+
+        if (rawMapData.tilesets && Array.isArray(rawMapData.tilesets)) {
+            rawMapData.tilesets.forEach(ts => {
+                if (ts && ts.name) {
+                    for (const key of textureKeys) {
+                        if (scene.textures.exists(key)) {
+                            const tex = scene.textures.get(key);
+                            if (tex && tex.source && tex.source[0]) {
+                                const loaded = map.addTilesetImage(ts.name, key, tileWidth, tileHeight);
+                                if (loaded && !tilesetList.includes(loaded)) {
+                                    tilesetList.push(loaded);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        if (tilesetList.length === 0) {
+            const fallbackNames = ['base_tiles', '[Base]BaseChip_pipo', 'dungeon', 'tileset'];
+            fallbackNames.forEach(name => {
+                for (const key of textureKeys) {
+                    if (scene.textures.exists(key)) {
+                        const tex = scene.textures.get(key);
+                        if (tex && tex.source && tex.source[0]) {
+                            const loaded = map.addTilesetImage(name, key, tileWidth, tileHeight);
+                            if (loaded && !tilesetList.includes(loaded)) {
+                                tilesetList.push(loaded);
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        tileset = tilesetList.length === 1 ? tilesetList[0] : (tilesetList.length > 0 ? tilesetList : null);
+
+        portalsList = [];
+        dynamicallyCreatedLayers = [];
+
+        if (rawMapData && Array.isArray(rawMapData.layers)) {
+            rawMapData.layers.forEach((layerData, idx) => {
+                const layerNameLower = (layerData.name || '').toLowerCase();
+                const isObjectGroup = layerData.type === 'objectgroup' || Array.isArray(layerData.objects);
+
+                if ((layerNameLower === 'portais' || layerNameLower === 'portal' || isObjectGroup) && Array.isArray(layerData.objects)) {
+                    layerData.objects.forEach(obj => {
+                        console.log('Objeto portal encontrado:', obj.name || obj.id);
+                        let destino = null;
+                        if (Array.isArray(obj.properties)) {
+                            const destProp = obj.properties.find(p => p && p.name && p.name.toLowerCase() === 'destino');
+                            if (destProp) destino = destProp.value;
+                        } else if (obj.properties && obj.properties.destino) {
+                            destino = obj.properties.destino;
+                        }
+                        portalsList.push({
+                            x: obj.x,
+                            y: obj.y,
+                            width: obj.width || 32,
+                            height: obj.height || 32,
+                            destino: destino,
+                            name: obj.name
+                        });
+                    });
+                }
+
+                if (Array.isArray(layerData.data)) {
+                    let tileLayer = map.createBlankLayer(layerData.name, tileset, 0, 0);
+                    if (!tileLayer) {
+                        try { tileLayer = map.createLayer(layerData.name, tileset, 0, 0); } catch (e) {}
+                    }
+
+                    if (tileLayer) {
+                        const lWidth = layerData.width || width;
+                        layerData.data.forEach((gid, index) => {
+                            if (gid > 0) {
+                                const tx = index % lWidth;
+                                const ty = Math.floor(index / lWidth);
+                                tileLayer.putTileAt(gid - 1, tx, ty);
+                            }
+                        });
+
+                        let depth = -10 + idx;
+                        if (layerNameLower.includes('portao') || layerNameLower.includes('gate')) {
+                            depth = 5000;
+                        }
+                        tileLayer.setDepth(depth);
+                        dynamicallyCreatedLayers.push(tileLayer);
+
+                        if (layerNameLower === 'chao' || layerNameLower === 'terreno' || layerNameLower === 'ground') chaoLayer = tileLayer;
+                        if (layerNameLower === 'objetos') objetosLayer = tileLayer;
+                        if (layerNameLower === 'muros') murosLayer = tileLayer;
+                        if (layerNameLower === 'portao') portaoLayer = tileLayer;
+                    }
+                }
+            });
+        }
+
+        const mapWidth = width * tileWidth;
+        const mapHeight = height * tileHeight;
+        scene.physics.world.setBounds(0, 0, mapWidth, mapHeight);
+        if (scene.cameras && scene.cameras.main) {
+            scene.cameras.main.setBounds(0, 0, mapWidth, mapHeight);
+        }
+        if (minimap) {
+            minimap.setBounds(0, 0, mapWidth, mapHeight);
+        }
+
+        atualizarColisoresMapa(scene);
+
+        console.log(`[TILEMAP] Mapa '${currentMapKey}' e camadas carregados com sucesso (${mapWidth}x${mapHeight}).`);
+    } catch (mapErr) {
+        console.warn(`[TILEMAP] Fallback ao carregar mapa '${currentMapKey}':`, mapErr);
+        scene.physics.world.setBounds(0, 0, 3200, 2400);
+    }
+}
+
+function atualizarColisoresMapa(scene) {
+    if (!scene || !scene.physics) return;
+    murosColliders.forEach(c => { if (c && c.destroy) c.destroy(); });
+    portaoColliders.forEach(c => { if (c && c.destroy) c.destroy(); });
+    objetosColliders.forEach(c => { if (c && c.destroy) c.destroy(); });
+    murosColliders = [];
+    portaoColliders = [];
+    objetosColliders = [];
+
+    if (objetosLayer) {
+        objetosLayer.setCollisionByExclusion([-1]);
+        if (player) objetosColliders.push(scene.physics.add.collider(player, objetosLayer));
+        if (ogres) objetosColliders.push(scene.physics.add.collider(ogres, objetosLayer));
+        if (arrows) objetosColliders.push(scene.physics.add.collider(arrows, objetosLayer, (arrow) => arrow.destroy()));
+    }
+
+    if (murosLayer) {
+        murosLayer.setCollisionByExclusion([-1]);
+        if (player) murosColliders.push(scene.physics.add.collider(player, murosLayer));
+        if (ogres) murosColliders.push(scene.physics.add.collider(ogres, murosLayer));
+        if (arrows) murosColliders.push(scene.physics.add.collider(arrows, murosLayer, (arrow) => arrow.destroy()));
+    }
+
+    if (portaoLayer) {
+        portaoLayer.setCollisionByExclusion([-1]);
+        if (player) portaoColliders.push(scene.physics.add.collider(player, portaoLayer));
+        if (ogres) portaoColliders.push(scene.physics.add.collider(ogres, portaoLayer));
+        if (arrows) portaoColliders.push(scene.physics.add.collider(arrows, portaoLayer, (arrow) => arrow.destroy()));
+    }
+
+    if (monsterObstacles) {
+        if (player) objetosColliders.push(scene.physics.add.collider(player, monsterObstacles));
+        if (ogres) objetosColliders.push(scene.physics.add.collider(ogres, monsterObstacles));
+        if (arrows) objetosColliders.push(scene.physics.add.collider(arrows, monsterObstacles, (arrow) => arrow.destroy()));
+    }
 }
 
 function carregarMapaSalvo(scene) {
