@@ -1197,7 +1197,6 @@ function create() {
 
     atualizarColisoresMapa(this);
 
-    this.physics.add.collider(player, monsterObstacles);
 
     // --- COLISÕES DOS OGROS COM JOGADOR E FLECHAS ---
     this.physics.add.collider(player, ogres, (playerObj, ogre) => {
@@ -5748,20 +5747,12 @@ function adicionarObjeto(scene, x, y, key, angle = 0, scaleX = 1, scaleY = 1, em
 
     if (obj.body) {
         obj.body.enable = shouldHaveCollision;
-        obj.body.immovable = true;
         if (upperKey === 'COLLISION_BOX') {
+            obj.body.immovable = true;
             obj.body.setSize(obj.displayWidth, obj.displayHeight);
             obj.body.setOffset(0, 0);
-        } else {
-            // Colisão compacta de 10x10 centralizada na base do objeto para efeito de profundidade
-            const bodyW = 10;
-            const bodyH = 10;
-            const offsetX = (obj.displayWidth - bodyW) / 2;
-            const offsetY = obj.displayHeight - bodyH;
-            obj.body.setSize(bodyW, bodyH);
-            obj.body.setOffset(offsetX, offsetY);
+            obj.refreshBody();
         }
-        obj.refreshBody();
     }
 
     obj.setInteractive();
@@ -5985,13 +5976,6 @@ function atualizarColisoresMapa(scene) {
     portaoColliders = [];
     objetosColliders = [];
 
-    if (objetosLayer) {
-        objetosLayer.setCollisionByExclusion([-1]);
-        if (player) objetosColliders.push(scene.physics.add.collider(player, objetosLayer));
-        if (ogres) objetosColliders.push(scene.physics.add.collider(ogres, objetosLayer));
-        if (arrows) objetosColliders.push(scene.physics.add.collider(arrows, objetosLayer, (arrow) => arrow.destroy()));
-    }
-
     if (murosLayer) {
         murosLayer.setCollisionByExclusion([-1]);
         if (player) murosColliders.push(scene.physics.add.collider(player, murosLayer));
@@ -6004,12 +5988,6 @@ function atualizarColisoresMapa(scene) {
         if (player) portaoColliders.push(scene.physics.add.collider(player, portaoLayer));
         if (ogres) portaoColliders.push(scene.physics.add.collider(ogres, portaoLayer));
         if (arrows) portaoColliders.push(scene.physics.add.collider(arrows, portaoLayer, (arrow) => arrow.destroy()));
-    }
-
-    if (monsterObstacles) {
-        if (player) objetosColliders.push(scene.physics.add.collider(player, monsterObstacles));
-        if (ogres) objetosColliders.push(scene.physics.add.collider(ogres, monsterObstacles));
-        if (arrows) objetosColliders.push(scene.physics.add.collider(arrows, monsterObstacles, (arrow) => arrow.destroy()));
     }
 }
 
