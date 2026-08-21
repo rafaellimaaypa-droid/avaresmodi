@@ -741,6 +741,7 @@ function create() {
 
     this.anims.create({ key: 'idle', frames: this.anims.generateFrameNumbers('player_idle', { start: 0, end: 3 }), frameRate: 8, repeat: -1 });
     this.anims.create({ key: 'walk', frames: this.anims.generateFrameNumbers('player_walk', { start: 0, end: 7 }), frameRate: 10, repeat: -1 });
+    this.anims.create({ key: 'die', frames: this.anims.generateFrameNumbers('player_idle', { start: 0, end: 3 }), frameRate: 6, repeat: 0 });
     
     infoText = this.add.text(16, 88, '', { 
         font: '10px monospace', 
@@ -1785,6 +1786,19 @@ function criarAnimacoesLPC(scene, textureKey, username) {
             repeat: 0
         });
     });
+
+    // DIE (Morte LPC) - Linha 20 (índices 260 a 265)
+    const dieName = `die_custom_${username}`;
+    if (scene.anims.exists(dieName)) scene.anims.remove(dieName);
+    scene.anims.create({
+        key: dieName,
+        frames: scene.anims.generateFrameNumbers(textureKey, {
+            start: 20 * 13,
+            end: (20 * 13) + 5
+        }),
+        frameRate: 8,
+        repeat: 0
+    });
 }
 
 function finalizarLoginComDados(userData) {
@@ -2237,6 +2251,14 @@ function mostrarTelaMorte(scene) {
         adicionarMensagemChat('Sistema', `Você morreu e deixou cair ${lostCoins} moedas de ouro (5%).`);
     }
 
+    if (player && player.active) {
+        player.setVelocity(0);
+        const dieAnim = (player.customTextureKey && charName) ? `die_custom_${charName.toLowerCase()}` : 'die';
+        if (scene.anims && scene.anims.exists(dieAnim)) {
+            player.anims.play(dieAnim, true);
+        }
+    }
+
     let overlay = scene.add.rectangle(400, 300, 800, 600, 0x000000, 0.85)
         .setScrollFactor(0).setDepth(4000).setInteractive();
 
@@ -2267,6 +2289,10 @@ function mostrarTelaMorte(scene) {
 
         deathScreenElements.forEach(el => el.destroy());
         deathScreenElements = [];
+
+        if (socket && socket.connected) {
+            socket.emit('respawnPlayer');
+        }
     });
 
     deathScreenElements = [overlay, title, subtitle, respawnBtn];
@@ -2433,13 +2459,24 @@ function animarDanoImpacto(scene, gameObject) {
 }
 
 // --- CRIAR ITEM NO CHÃO COM Y-SORTING ---
-function criarItemNoChao(scene, x, y, itemData) {
+function criarItemNoChao(scene, x, y, itemData, dropId = null) {
+    const finalId = dropId || ('drop_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
     let drop = scene.add.image(x, y, itemData.id);
     drop.setDisplaySize(24, 24);
     drop.setDepth(y); 
     drop.setData('itemData', itemData);
+    drop.setData('dropId', finalId);
     if (minimap) minimap.ignore(drop);
     groundItems.add(drop);
+
+    if (!dropId && socket && socket.connected) {
+        socket.emit('spawnDrop', {
+            id: finalId,
+            x: x,
+            y: y,
+            itemData: itemData
+        });
+    }
 }
 
 function coletarItemProximo(scene) {
@@ -2449,19 +2486,23 @@ function coletarItemProximo(scene) {
         if (coletado || !drop || !drop.active) return;
         if (Phaser.Math.Distance.Between(player.x, player.y, drop.x, drop.y) >= 50) return;
         const data = drop.getData('itemData');
+        const dropId = drop.getData('dropId');
         if (!data) return;
-        if (data.type === 'gold') {
-            playerGold += data.value || 50;
-            atualizarHudGold();
-            salvarEstadoRemoto(); // Salva imediatamente ao coletar ouro
-        } else if (!adicionarItemInventario(scene, data)) {
-            return;
+
+        if (socket && socket.connected && dropId) {
+            socket.emit('collectDrop', { dropId: dropId });
+            coletado = true;
         } else {
-            salvarEstadoRemoto(); // Salva imediatamente ao coletar item
+            if (data.type === 'gold') {
+                playerGold += data.value || 50;
+                atualizarHudGold();
+            } else if (!adicionarItemInventario(scene, data)) {
+                return;
+            }
+            drop.destroy();
+            coletado = true;
+            adicionarMensagemChat('Sistema', `Coletado: ${data.name}`);
         }
-        drop.destroy();
-        coletado = true;
-        adicionarMensagemChat('Sistema', `Coletado: ${data.name}`);
     });
     return coletado;
 }
@@ -3980,9 +4021,20 @@ function conectarChatOnline() {
                 remoteSprite.setFlipX(direction === 'left');
             }
 
-            if (playerInfo.anim && remoteSprite && remoteSprite.anims) {
+            const remoteName = (playerInfo.name || "").toLowerCase();
+            const isRemoteDead = (playerInfo.health !== undefined && playerInfo.health <= 0) || playerInfo.isDead || remoteSprite.isDead;
+
+            if (isRemoteDead) {
+                remoteSprite.isDead = true;
+                remoteSprite.setVelocity(0);
+                const dieAnim = remoteSprite.customTextureKey ? `die_custom_${remoteName}` : 'die';
+                if (activeScene.anims.exists(dieAnim)) {
+                    if (remoteSprite.anims.currentAnim?.key !== dieAnim) {
+                        remoteSprite.anims.play(dieAnim, true);
+                    }
+                }
+            } else if (playerInfo.anim && remoteSprite && remoteSprite.anims) {
                 let targetAnim = playerInfo.anim;
-                const remoteName = (playerInfo.name || "").toLowerCase();
                 const hasCustomSkin = remoteSprite.customTextureKey || playerInfo.customSpriteData;
                 
                 if (hasCustomSkin && remoteName) {
@@ -4069,12 +4121,78 @@ function conectarChatOnline() {
         atualizarHudGold();
     });
 
+    socket.on('syncGroundDrops', (drops) => {
+        if (groundItems) {
+            groundItems.clear(true, true);
+        }
+        if (Array.isArray(drops) && activeScene) {
+            drops.forEach(d => {
+                if (d && d.itemData) {
+                    criarItemNoChao(activeScene, d.x, d.y, d.itemData, d.id);
+                }
+            });
+        }
+    });
+
+    socket.on('itemDropped', (drop) => {
+        if (drop && drop.itemData && activeScene) {
+            criarItemNoChao(activeScene, drop.x, drop.y, drop.itemData, drop.id);
+        }
+    });
+
+    socket.on('itemCollected', (data) => {
+        if (!data || !data.dropId || !groundItems) return;
+        groundItems.children.iterate(drop => {
+            if (drop && drop.active && drop.getData('dropId') === data.dropId) {
+                drop.destroy();
+            }
+        });
+    });
+
     socket.on('jogadorMorreu', (data) => {
-        if (!isPlayerDead) {
-            isPlayerDead = true;
-            playerHealth = 0;
+        const targetId = data ? (data.targetId || data.id) : null;
+        if (!targetId) return;
+
+        if (socket && targetId === socket.id) {
+            if (!isPlayerDead) {
+                isPlayerDead = true;
+                playerHealth = 0;
+                atualizarBarraDeVida();
+                mostrarTelaMorte(activeScene);
+            }
+        } else {
+            const remoteSprite = otherPlayersSprites[targetId];
+            if (remoteSprite) {
+                remoteSprite.isDead = true;
+                if (remoteSprite.body) remoteSprite.setVelocity(0);
+                const remoteName = (remoteSprite.getData('playerData')?.name || "").toLowerCase();
+                const dieAnim = remoteSprite.customTextureKey ? `die_custom_${remoteName}` : 'die';
+                if (activeScene && activeScene.anims && activeScene.anims.exists(dieAnim)) {
+                    remoteSprite.anims.play(dieAnim, true);
+                }
+            }
+        }
+    });
+
+    socket.on('playerRespawned', (data) => {
+        if (!data || !data.id) return;
+        if (socket && data.id === socket.id) {
+            isPlayerDead = false;
+            playerHealth = data.health || playerMaxHealth;
             atualizarBarraDeVida();
-            mostrarTelaMorte(activeScene);
+        } else {
+            const remoteSprite = otherPlayersSprites[data.id];
+            if (remoteSprite) {
+                remoteSprite.isDead = false;
+                if (typeof data.x === 'number' && typeof data.y === 'number') {
+                    remoteSprite.setPosition(data.x, data.y);
+                }
+                const remoteName = (remoteSprite.getData('playerData')?.name || "").toLowerCase();
+                const idleAnim = remoteSprite.customTextureKey ? `idle_down_custom_${remoteName}` : 'idle_down';
+                if (activeScene && activeScene.anims && activeScene.anims.exists(idleAnim)) {
+                    remoteSprite.anims.play(idleAnim, true);
+                }
+            }
         }
     });
 

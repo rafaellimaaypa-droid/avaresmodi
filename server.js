@@ -558,6 +558,7 @@ async function startServer() {
                                 "characters.0.inventory": p.inventory || [],
                                 "characters.0.equippedWeapon": p.equippedWeapon || null,
                                 "characters.0.equippedClothes": p.equippedClothes || null,
+                                "characters.0.equippedWings": p.equippedWings || null,
                                 "characters.0.bank": p.bank || 0,
                                 "characters.0.customSpriteData": p.customSpriteData || null
                             }}
@@ -590,6 +591,13 @@ let players = {};
 let userSockets = {}; // Mapeia username -> socketId para controle de sessão única
 let onlineAccounts = new Set();
 let cachedClans = {}; // { tag: { leader: name, members: [] } }
+let mapDrops = {}; // { mapKey: { [dropId]: { id, x, y, itemData, mapKey } } }
+
+function getMapDrops(mapKey) {
+    const key = mapKey || 'mapa_mundo';
+    if (!mapDrops[key]) mapDrops[key] = {};
+    return mapDrops[key];
+}
 
 function checkPortals(socket, p) {
     if (!p || !worldObjects) return;
@@ -947,6 +955,7 @@ io.on('connection', (socket) => {
         socket.emit('currentPlayers', playersInRoom);
         
         socket.emit('syncTerritories', territories);
+        socket.emit('syncGroundDrops', Object.values(getMapDrops(currentMap)));
 
         socket.to(currentMap).emit('newPlayer', fullPlayerData);
     });
@@ -974,6 +983,7 @@ io.on('connection', (socket) => {
                 }
             });
             socket.emit('currentPlayers', playersInRoom);
+            socket.emit('syncGroundDrops', Object.values(getMapDrops(newMap)));
             socket.to(newMap).emit('newPlayer', p);
         }
     });
@@ -986,7 +996,7 @@ io.on('connection', (socket) => {
                 players[socket.id].equippedClothes = data.equippedClothes;
             }
             const mapRoom = socket.mapa || 'mapa_mundo';
-            socket.to(mapRoom).emit('playerAccessoriesUpdated', {
+            io.to(mapRoom).emit('playerAccessoriesUpdated', {
                 id: socket.id,
                 playerName: players[socket.id].name,
                 equippedWings: players[socket.id].equippedWings,
@@ -1020,17 +1030,74 @@ io.on('connection', (socket) => {
         }
     });
 
+    // Sincronização de Drops de Itens / Moedas no Chão
+    socket.on('spawnDrop', (dropData) => {
+        const mapRoom = socket.mapa || 'mapa_mundo';
+        const dropId = dropData.id || ('drop_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
+        const newDrop = {
+            id: dropId,
+            x: dropData.x,
+            y: dropData.y,
+            itemData: dropData.itemData,
+            mapKey: mapRoom
+        };
+        const drops = getMapDrops(mapRoom);
+        drops[dropId] = newDrop;
+        io.to(mapRoom).emit('itemDropped', newDrop);
+    });
+
+    socket.on('collectDrop', (data) => {
+        const mapRoom = socket.mapa || 'mapa_mundo';
+        const drops = getMapDrops(mapRoom);
+        const dropId = data ? data.dropId : null;
+        if (dropId && drops[dropId]) {
+            const drop = drops[dropId];
+            delete drops[dropId];
+            const p = players[socket.id];
+            if (p && drop.itemData) {
+                if (drop.itemData.type === 'gold') {
+                    p.gold = (p.gold || 0) + (drop.itemData.value || drop.itemData.price || 50);
+                    socket.emit('atualizarGold', p.gold);
+                } else {
+                    if (!Array.isArray(p.inventory)) p.inventory = [];
+                    if (p.inventory.length < 16) {
+                        let existing = p.inventory.find(i => i.id === drop.itemData.id);
+                        if (existing) {
+                            existing.qty = (existing.qty || 1) + 1;
+                        } else {
+                            p.inventory.push({ ...drop.itemData, qty: 1 });
+                        }
+                    }
+                }
+            }
+            io.to(mapRoom).emit('itemCollected', { dropId: dropId, collectorId: socket.id });
+        }
+    });
+
+    // Respawn do jogador
+    socket.on('respawnPlayer', () => {
+        const p = players[socket.id];
+        if (p) {
+            p.health = p.maxHp || 100;
+            p.isDead = false;
+            const mapRoom = socket.mapa || 'mapa_mundo';
+            io.to(mapRoom).emit('playerRespawned', { id: socket.id, health: p.health, x: p.x, y: p.y });
+        }
+    });
+
     socket.on('atacarJogador', (data) => {
         const attacker = players[socket.id];
         const target = players[data.targetId];
 
-        if (!attacker || !target || target.health <= 0) return;
+        if (!attacker || !target || target.health <= 0 || target.isDead) return;
 
         // Proteção de Fogo Amigo (Clã)
         if (attacker.clanTag && target.clanTag && attacker.clanTag === target.clanTag) return;
 
         let dano = data.damage || 5;
         target.health -= dano;
+
+        const mapRoom = socket.mapa || 'mapa_mundo';
 
         // Sincroniza HP com o alvo
         io.to(data.targetId).emit('atualizarHp', target.health);
@@ -1043,9 +1110,10 @@ io.on('connection', (socket) => {
         });
 
         if (target.health <= 0) {
-            target.health = 100; // Reset para respawn
-            io.to(data.targetId).emit('jogadorMorreu', { killedBy: attacker.name });
-            io.emit('chatMessage', { 
+            target.health = 0;
+            target.isDead = true;
+            io.to(mapRoom).emit('jogadorMorreu', { targetId: data.targetId, killedBy: attacker.name });
+            io.to(mapRoom).emit('chatMessage', { 
                 playerName: 'Sistema', 
                 message: `⚔️ ${target.name} foi derrotado por ${attacker.name}!`, 
                 channel: 'SISTEMA' 
@@ -1594,6 +1662,7 @@ io.on('connection', (socket) => {
                             "characters.0.clanTag": p.clanTag,
                             "characters.0.equippedWeapon": p.equippedWeapon || null,
                             "characters.0.equippedClothes": p.equippedClothes || null,
+                            "characters.0.equippedWings": p.equippedWings || null,
                             "characters.0.bank": p.bank || 0
                         } }
                     );
