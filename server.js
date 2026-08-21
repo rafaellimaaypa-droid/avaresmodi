@@ -890,6 +890,10 @@ io.on('connection', (socket) => {
         const savedEquippedWeapon = dbChar.equippedWeapon || dbChar.equippedItem || null;
         const savedEquippedClothes = dbChar.equippedClothes || null;
         const savedEquippedWings = dbChar.equippedWings || null;
+        const currentMap = playerData.currentMap || 'mapa_mundo';
+
+        socket.mapa = currentMap;
+        socket.join(currentMap);
 
         // Reconstrói o playerData baseado no Banco de Dados
         const fullPlayerData = { 
@@ -909,11 +913,12 @@ io.on('connection', (socket) => {
             accountUser: accountUser,
             clanTag: savedClanTag,
             clanRole: savedClanRole,
-            mongoId: account._id.toString()
+            mongoId: account._id.toString(),
+            currentMap: currentMap
         };
 
         players[socket.id] = fullPlayerData;
-        console.log('[SERVIDOR SYNC] Enviando player:', fullPlayerData.accountUser || fullPlayerData.id, 'Tem customSpriteData?', !!fullPlayerData.customSpriteData);
+        console.log('[SERVIDOR SYNC] Enviando player:', fullPlayerData.accountUser || fullPlayerData.id, 'Mapa:', currentMap);
 
         if (savedClanTag && cachedClans[savedClanTag]) {
             const membersList = cachedClans[savedClanTag].members.map(m => ({
@@ -921,7 +926,6 @@ io.on('connection', (socket) => {
                 role: m === cachedClans[savedClanTag].leader ? 'Líder' : 'Membro'
             }));
             
-            // Reforça a detecção de liderança na sincronização inicial
             if (cachedClans[savedClanTag].leader === playerData.name) {
                 savedClanRole = 'Líder';
             }
@@ -932,18 +936,46 @@ io.on('connection', (socket) => {
             });
         }
 
-        // Sincronização global e imediata para garantir que jogadores de redes diferentes se vejam
-        // 1. Envia IMEDIATAMENTE os objetos do mapa para garantir que o mundo carregue primeiro
         socket.emit('syncMapObjects', worldObjects);
 
-        // 2. Envia a lista completa de jogadores para o novo socket
-        socket.emit('currentPlayers', players);
+        const playersInRoom = {};
+        Object.keys(players).forEach(id => {
+            if (players[id].currentMap === currentMap) {
+                playersInRoom[id] = players[id];
+            }
+        });
+        socket.emit('currentPlayers', playersInRoom);
         
-        // 3. Sincroniza territórios e dominação
         socket.emit('syncTerritories', territories);
 
-        // 4. Notifica TODOS os outros clientes sobre o novo jogador usando broadcast global
-        socket.broadcast.emit('newPlayer', fullPlayerData);
+        socket.to(currentMap).emit('newPlayer', fullPlayerData);
+    });
+
+    socket.on('changeMap', (data) => {
+        const p = players[socket.id];
+        const oldMap = socket.mapa || 'mapa_mundo';
+        const newMap = data.mapKey || 'mapa_mundo';
+
+        socket.leave(oldMap);
+        socket.to(oldMap).emit('playerDisconnected', socket.id);
+
+        socket.mapa = newMap;
+        socket.join(newMap);
+
+        if (p) {
+            p.currentMap = newMap;
+            if (typeof data.x === 'number') p.x = data.x;
+            if (typeof data.y === 'number') p.y = data.y;
+
+            const playersInRoom = {};
+            Object.keys(players).forEach(id => {
+                if (id !== socket.id && players[id].currentMap === newMap) {
+                    playersInRoom[id] = players[id];
+                }
+            });
+            socket.emit('currentPlayers', playersInRoom);
+            socket.to(newMap).emit('newPlayer', p);
+        }
     });
 
     // Sistema de PvP: Ataque entre jogadores
@@ -953,7 +985,8 @@ io.on('connection', (socket) => {
             if (data.equippedClothes !== undefined) {
                 players[socket.id].equippedClothes = data.equippedClothes;
             }
-            socket.broadcast.emit('playerAccessoriesUpdated', {
+            const mapRoom = socket.mapa || 'mapa_mundo';
+            socket.to(mapRoom).emit('playerAccessoriesUpdated', {
                 id: socket.id,
                 playerName: players[socket.id].name,
                 equippedWings: players[socket.id].equippedWings,
@@ -965,7 +998,8 @@ io.on('connection', (socket) => {
     socket.on('skinChanged', (skinBase64) => {
         if (players[socket.id]) {
             players[socket.id].customSpriteData = skinBase64;
-            socket.broadcast.emit('skinUpdated', { 
+            const mapRoom = socket.mapa || 'mapa_mundo';
+            socket.to(mapRoom).emit('skinUpdated', { 
                 playerId: socket.id, 
                 playerName: players[socket.id].name,
                 skinData: skinBase64 
@@ -977,7 +1011,8 @@ io.on('connection', (socket) => {
     socket.on('updateSpriteSheet', (base64Data) => {
         if (players[socket.id]) {
             players[socket.id].customSpriteData = base64Data;
-            socket.broadcast.emit('spriteSheetUpdated', { 
+            const mapRoom = socket.mapa || 'mapa_mundo';
+            socket.to(mapRoom).emit('spriteSheetUpdated', { 
                 id: socket.id, 
                 username: players[socket.id].accountUser || players[socket.id].name,
                 spriteData: base64Data 
@@ -1517,8 +1552,9 @@ io.on('connection', (socket) => {
             // Verifica colisão com portais durante o movimento
             checkPortals(socket, p);
 
-            // Broadcast incluindo dados de identificação e skin para evitar perda visual ao andar
-            socket.broadcast.emit('playerMoved', {
+            // Broadcast restrito à sala do mapa atual
+            const mapRoom = socket.mapa || p.currentMap || 'mapa_mundo';
+            socket.to(mapRoom).emit('playerMoved', {
                 id: socket.id,
                 name: p.name,
                 x: p.x,
@@ -1577,8 +1613,8 @@ io.on('connection', (socket) => {
     });
 
     socket.on('chatMessage', (data) => {
-        // Garante que a mensagem chegue para todos com os dados do remetente
-        io.emit('chatMessage', {
+        const mapRoom = socket.mapa || 'mapa_mundo';
+        io.to(mapRoom).emit('chatMessage', {
             senderId: socket.id,
             playerName: data.playerName || 'Jogador',
             message: data.message,

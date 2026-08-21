@@ -216,7 +216,8 @@ function conectarMultiplayerOnline() {
                 hasCustomSkin: !!player.customSpriteData,
                 equippedWings: playerEquippedWings,
                 equippedClothes: playerEquippedClothes,
-                equippedWeapon: playerEquippedWeapon
+                equippedWeapon: playerEquippedWeapon,
+                currentMap: currentMapKey || 'mapa_mundo'
             });
         }
     });
@@ -1865,7 +1866,8 @@ function finalizarLoginComDados(userData) {
             clanTag: playerClanTag,
             equippedWings: playerEquippedWings,
             equippedClothes: playerEquippedClothes,
-            equippedWeapon: playerEquippedWeapon
+            equippedWeapon: playerEquippedWeapon,
+            currentMap: currentMapKey || 'mapa_mundo'
         });
     }
     
@@ -2033,7 +2035,8 @@ function abrirCriacaoPersonagem(scene) {
                 adminLevel: adminLevel,
                 equippedWings: playerEquippedWings,
                 equippedClothes: playerEquippedClothes,
-                equippedWeapon: playerEquippedWeapon
+                equippedWeapon: playerEquippedWeapon,
+                currentMap: currentMapKey || 'mapa_mundo'
             });
         }
     });
@@ -3546,7 +3549,8 @@ function conectarChatOnline() {
             clanTag: playerClanTag,
             equippedWings: playerEquippedWings,
             equippedClothes: playerEquippedClothes,
-            equippedWeapon: playerEquippedWeapon
+            equippedWeapon: playerEquippedWeapon,
+            currentMap: currentMapKey || 'mapa_mundo'
         });
 
         // Configura salvamento automático robusto a cada 30 segundos (layer de proteção extra)
@@ -5810,6 +5814,21 @@ function carregarTilemap(scene, mapKey) {
         portaoColliders = [];
         objetosColliders = [];
         portalsList = [];
+
+        // Limpeza dos sprites de outros jogadores ao trocar de mapa
+        Object.keys(otherPlayersSprites).forEach(id => {
+            if (otherPlayersSprites[id]) {
+                if (otherPlayersSprites[id].playerNameText) otherPlayersSprites[id].playerNameText.destroy();
+                if (otherPlayersSprites[id].adminTag) otherPlayersSprites[id].adminTag.destroy();
+                if (otherPlayersSprites[id].chatBubble) otherPlayersSprites[id].chatBubble.destroy();
+                otherPlayersSprites[id].destroy();
+            }
+        });
+        otherPlayersSprites = {};
+
+        if (socket && socket.connected) {
+            socket.emit('changeMap', { mapKey: currentMapKey });
+        }
 
         let jsonCache = scene.cache.json.get(currentMapKey);
         let tilemapCache = scene.cache.tilemap.get(currentMapKey);
